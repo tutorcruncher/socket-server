@@ -1,6 +1,5 @@
 # you will need to install these requirements with `pip install -r requirements.txt`
 SQLAlchemy==1.1.4
-aiohttp-session[secure]==0.8.0
 aiohttp==1.2.0
 aiopg==0.13.0
 pytest-aiohttp==0.1.3
