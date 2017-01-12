@@ -8,8 +8,8 @@ from trafaret_config import read_and_validate
 from aiopg.sa import create_engine
 from sqlalchemy.engine.url import URL
 
-from .views import index
-
+from .middleware import auth_middleware, json_middleware
+from .views import index, company_create, contractor_get, contractor_list
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR.parent
@@ -31,6 +31,7 @@ SETTINGS_STRUCTURE = t.Dict({
         'host': t.String,
         'port': t.Int(gte=0) >> str,
     }),
+    'shared_secret': t.String >> (lambda s: s.encode()),
 })
 
 
@@ -104,10 +105,13 @@ async def cleanup(app: web.Application):
 
 def setup_routes(app):
     app.router.add_get('/', index, name='index')
+    app.router.add_post('/companies/create', company_create, name='create-company')
+    app.router.add_get('/{company}/contractors', contractor_list)
+    app.router.add_get('/{company}/contractors/{id:\d+}', contractor_get)
 
 
 def create_app(loop):
-    app = web.Application(loop=loop)
+    app = web.Application(loop=loop, middlewares=[auth_middleware, json_middleware])
     app['name'] = 'socket-server'
     app.update(load_settings())
 

@@ -1,6 +1,6 @@
 from enum import Enum, unique
 
-from sqlalchemy import Column, Float, ForeignKey, Integer, PrimaryKeyConstraint, Sequence, String
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, PrimaryKeyConstraint, Sequence, String
 from sqlalchemy import Enum as _SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
@@ -15,7 +15,6 @@ class NameOptions(str, Enum):
     full_name = 'full_name'
 
 
-
 def sa_enum(enum: Enum):
     return _SAEnum(*(v.value for v in enum.__members__.values()), name=enum.__name__.lower())
 
@@ -24,12 +23,12 @@ class Company(Base):
     __tablename__ = 'companies'
     # id set from profile id on TutorCruncher
     id = Column(Integer, primary_key=True, nullable=False)
-    key = Column(String(15), nullable=False, unique=True)
+    key = Column(String(20), index=True, nullable=False, unique=True)
 
-    name = Column(String(63))
-    site_domain = Column(String(127))
+    name = Column(String(63), unique=True)
+    site_domain = Column(String(63))
 
-    name_display = Column(sa_enum(NameOptions))
+    name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name, nullable=False)
 
 
 sa_companies = Company.__table__
@@ -41,7 +40,7 @@ class Contractor(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     company = Column(Integer, ForeignKey('companies.id'), nullable=False)
 
-    first_name = Column(String(63))
+    first_name = Column(String(63), index=True)
     last_name = Column(String(63), nullable=False)
 
     location = Column(String(63))
@@ -53,6 +52,8 @@ class Contractor(Base):
 
     extra_attributes = Column(JSONB)
     image = Column(String(63))
+
+    last_updated = Column(DateTime, index=True)
 
 
 sa_contractors = Contractor.__table__
