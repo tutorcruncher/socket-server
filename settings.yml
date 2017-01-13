@@ -9,3 +9,4 @@ database:
   port: 5432
 # secret used between socket and secure.tutorcruncher.com to sign webhooks and authenticate API requests
 shared_secret: 'this is a secret'
+debug: true

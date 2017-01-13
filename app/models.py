@@ -1,6 +1,6 @@
 from enum import Enum, unique
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, PrimaryKeyConstraint, Sequence, String
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, PrimaryKeyConstraint, Sequence, String, Text
 from sqlalchemy import Enum as _SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
@@ -34,6 +34,12 @@ class Company(Base):
 sa_companies = Company.__table__
 
 
+@unique
+class Action(str, Enum):
+    insert = 'insert'
+    update = 'update'
+
+
 class Contractor(Base):
     __tablename__ = 'contractors'
     # id set from profile id on TutorCruncher
@@ -41,19 +47,21 @@ class Contractor(Base):
     company = Column(Integer, ForeignKey('companies.id'), nullable=False)
 
     first_name = Column(String(63), index=True)
-    last_name = Column(String(63), nullable=False)
+    last_name = Column(String(63))
 
-    location = Column(String(63))
+    town = Column(String(63))
     country = Column(String(63))
     latitude = Column(Float())
     longitude = Column(Float())
 
     tag_line = Column(String(63))
+    primary_description = Column(Text())
 
     extra_attributes = Column(JSONB)
-    image = Column(String(63))
+    photo = Column(String(63))
 
-    last_updated = Column(DateTime, index=True)
+    last_updated = Column(DateTime, nullable=False, index=True)
+    action = Column(sa_enum(Action), nullable=False)
 
 
 sa_contractors = Contractor.__table__

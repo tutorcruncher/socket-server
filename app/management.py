@@ -1,8 +1,9 @@
 import psycopg2
 from sqlalchemy import create_engine
 
-from .main import load_settings, pg_dsn
+from .main import pg_dsn
 from .models import Base
+from .settings import SETTINGS
 
 
 def prepare_database(delete_existing: bool) -> bool:
@@ -12,7 +13,7 @@ def prepare_database(delete_existing: bool) -> bool:
     :param delete_existing: whether or not to drop an existing database if it exists
     :return: whether or not a database as (re)created
     """
-    db = load_settings()['database']
+    db = SETTINGS['database']
 
     conn = psycopg2.connect(
         password=db['password'],
