@@ -99,6 +99,24 @@ CON_DATA = {
             'subject': 'Mathematics',
             'qual_level_ranking': 16.0,
             'category': 'Maths'
+        },
+        {
+            'qual_level': 'A Level',
+            'subject': 'Mathematics',
+            'qual_level_ranking': 16.0,
+            'category': 'Maths'
+        },
+        {
+            'qual_level': 'GCSE',
+            'subject': 'Algebra',
+            'qual_level_ranking': 16.0,
+            'category': 'Maths'
+        },
+        {
+            'qual_level': 'GCSE5',
+            'subject': 'Language3',
+            'qual_level_ranking': 16.0,
+            'category': 'English'
         }
     ],
     'labels': [],

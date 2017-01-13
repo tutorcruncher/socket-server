@@ -5,10 +5,12 @@ import re
 import trafaret as t
 from psycopg2._psycopg import IntegrityError
 from dateutil.parser import parse as dt_parse
-from sqlalchemy import select
+from sqlalchemy import literal, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.sql import and_, or_
 
-from .models import sa_companies, sa_contractors, Action, NameOptions
+from .models import sa_companies, sa_contractors, Action, NameOptions, sa_subjects, sa_qual_levels, sa_con_skills
 from .utils import HTTPBadRequestJson, json_response
 
 ANY_DICT = t.Dict()
@@ -33,15 +35,21 @@ VIEW_SCHEMAS = {
         t.Key('town', optional=True): t.String(max_length=63),
         t.Key('country', optional=True): t.String(max_length=63),
         t.Key('location', optional=True): t.Dict({
-            'latitude': t.Or(t.Float() | t.Null),
-            'longitude': t.Or(t.Float() | t.Null),
+            'latitude': t.Or(t.Float | t.Null),
+            'longitude': t.Or(t.Float | t.Null),
         }),
 
         t.Key('extra_attributes', optional=True): t.List(ANY_DICT),
+        t.Key('skills', optional=True): t.List(t.Dict({
+            'subject': t.String,
+            'category': t.String,
+            'qual_level': t.String,
+            'qual_level_ranking': t.Float,
+        })),
 
         t.Key('image', optional=True): t.String(max_length=63),
-        t.Key('last_updated', optional=True): t.String() >> dt_parse,
-        t.Key('photo', optional=True): t.URL(),
+        t.Key('last_updated', optional=True): t.String >> dt_parse,
+        t.Key('photo', optional=True): t.URL,
     })
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
@@ -81,11 +89,85 @@ async def company_create(request):
     }, request=request, status=201)
 
 
+async def set_skills(request, contractor_id, skills):
+    """
+    create missing subjects and qualification levels, then create contractor skills for them.
+    """
+    execute = request['conn'].execute
+    async with request['conn'].begin():
+        subject_cols = sa_subjects.c.id, sa_subjects.c.name, sa_subjects.c.category
+        cur = await execute(
+            select(subject_cols)
+            .where(or_(*[
+                and_(sa_subjects.c.name == s['subject'], sa_subjects.c.category == s['category'])
+                for s in skills
+            ]))
+        )
+        subjects = {(r.name, r.category): r.id for r in (await cur.fetchall())}
+
+        subjects_to_create = []
+        for skill in skills:
+            key = skill['subject'], skill['category']
+            if key not in subjects:
+                subjects[key] = None  # to make sure it's not created twice
+                subjects_to_create.append(dict(name=skill['subject'], category=skill['category']))
+
+        if subjects_to_create:
+            cur = await execute(sa_subjects.insert().values(subjects_to_create).returning(*subject_cols))
+            subjects.update({(r[1], r[2]): r[0] async for r in cur})
+
+        qual_level_cols = sa_qual_levels.c.id, sa_qual_levels.c.name
+        cur = await execute(
+            select(qual_level_cols)
+            .where(sa_qual_levels.c.name.in_({s['qual_level'] for s in skills}))
+        )
+        qual_levels = {r.name: r.id for r in (await cur.fetchall())}
+
+        qual_levels_to_create = []
+        for skill in skills:
+            ql_name = skill['qual_level']
+            if ql_name not in qual_levels:
+                qual_levels[ql_name] = None  # to make sure it's not created twice
+                qual_levels_to_create.append(dict(name=ql_name, ranking=skill['qual_level_ranking']))
+
+        if qual_levels_to_create:
+            cur = await execute(sa_qual_levels.insert().values(qual_levels_to_create).returning(*qual_level_cols))
+            qual_levels.update({r[1]: r[0] async for r in cur})
+
+        to_create = {(subjects[(s['subject'], s['category'])], qual_levels[s['qual_level']]) for s in skills}
+
+        q = (
+            select([sa_con_skills.c.subject, sa_con_skills.c.qual_level])
+            .where(sa_con_skills.c.contractor == contractor_id)
+        )
+        to_delete = []
+        async for r in execute(q):
+            key = r.subject, r.qual_level
+            if key in to_create:
+                to_create.remove(key)
+            else:
+                to_delete.append(and_(
+                    sa_con_skills.c.contractor == contractor_id,
+                    sa_con_skills.c.subject == r.subject,
+                    sa_con_skills.c.qual_level == r.qual_level,
+                ))
+
+        if to_delete:
+            await execute(sa_con_skills.delete().where(or_(*to_delete)))
+
+        if to_create:
+            q = sa_con_skills.insert().values([
+                dict(contractor=contractor_id, subject=subject, qual_level=qual_level)
+                for subject, qual_level in to_create
+            ])
+            await execute(q)
+
 async def contractor_set(request):
     """
     Create or update a contractor.
     """
     data = request['json_obj']
+    skills = data.pop('skills', [])
     location = data.pop('location', None)
     if location:
         data.update(location)
@@ -94,25 +176,25 @@ async def contractor_set(request):
         # TODO deal with photo
         pass
     data['last_updated'] = data.get('last_updated') or datetime.now()
+    extra_attrs = data.get('extra_attributes', [])
+    data['extra_attributes'] = literal(extra_attrs, JSONB)
+    cid = data.pop('id')
     company_id = request['company'].id
-    id = data.pop('id')
-    # FIXME https://bitbucket.org/zzzeek/sqlalchemy/issues/3888
-    update_data = data.copy()
-    update_data.pop('extra_attributes')
     v = await request['conn'].execute(
         pg_insert(sa_contractors)
-        .values(id=id, company=company_id, action=Action.insert, **data)
+        .values(id=cid, company=company_id, action=Action.insert, **data)
         .on_conflict_do_update(
             index_elements=[sa_contractors.c.id],
             where=sa_contractors.c.company == company_id,
-            set_=dict(action=Action.update, **update_data)
+            set_=dict(action=Action.update, **data)
         )
         .returning(sa_contractors.c.action)
     )
-    status, desc = (201, 'created') if (await v.first()).action == Action.insert else (200, 'updated')
+    status, status_text = (201, 'created') if (await v.first()).action == Action.insert else (200, 'updated')
+    await set_skills(request, cid, skills)
     return json_response({
         'status': 'success',
-        'details': f'contractor {desc}',
+        'details': f'contractor {status_text}',
     }, request=request, status=status)
 
 
@@ -140,9 +222,10 @@ async def contractor_list(request):
         )
     offset = (page - 1) * PAGINATION
     c = sa_contractors.c
-    cols = [c.id, c.first_name, c.last_name, c.photo, c.tag_line]
+    cols = c.id, c.first_name, c.last_name, c.photo, c.tag_line
     q = (
         select(cols)
+        .where(c.company == request['company'].id)
         .order_by(sort_on)
         .offset(offset)
         .limit(PAGINATION)
@@ -165,5 +248,7 @@ async def contractor_list(request):
         ))
     return json_response(results, request=request, status=200)
 
+
 async def contractor_get(request):
+    # TODO
     return json_response({}, request=request)

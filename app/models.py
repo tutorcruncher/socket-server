@@ -2,6 +2,7 @@ from enum import Enum, unique
 
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, PrimaryKeyConstraint, Sequence, String, Text
 from sqlalchemy import Enum as _SAEnum
+from sqlalchemy import UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -71,8 +72,12 @@ class Subject(Base):
     __tablename__ = 'subjects'
 
     id = Column(Integer, Sequence('subject_id_seq'), primary_key=True, nullable=False)
-    name = Column(String(63), nullable=False)
-    category = Column(String(63), nullable=False)
+    name = Column(String(63), nullable=False, index=True)
+    category = Column(String(63), nullable=False, index=True)
+
+    __table_args__ = (
+        UniqueConstraint('name', 'category', name='_subject_name_cat'),
+    )
 
 
 sa_subjects = Subject.__table__
@@ -82,7 +87,7 @@ class QualLevel(Base):
     __tablename__ = 'qual_levels'
 
     id = Column(Integer, Sequence('qual_level_id_seq'), primary_key=True, nullable=False)
-    name = Column(String(63), nullable=False)
+    name = Column(String(63), nullable=False, unique=True, index=True)
     ranking = Column(Float())
 
 
