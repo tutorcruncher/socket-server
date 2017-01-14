@@ -7,3 +7,10 @@ socket-server
 Backend application for [TutorCruncher's](https://tutorcruncher.com) web integration.
  
 **work in progress, not ready for use in the wild**
+
+
+# LICENSE
+
+Copyright TutorCruncher ltd. 2017.
+
+All rights reserved.
