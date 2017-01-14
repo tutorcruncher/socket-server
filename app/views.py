@@ -3,7 +3,6 @@ from secrets import token_hex
 
 import re
 import trafaret as t
-from psycopg2._psycopg import IntegrityError
 from dateutil.parser import parse as dt_parse
 from sqlalchemy import literal, select
 from sqlalchemy.dialects.postgresql import JSONB
@@ -69,24 +68,23 @@ async def company_create(request):
     """
     data = request['json_obj']
     data['key'] = token_hex(10)
-    try:
-        v = await request['conn'].execute((
-            sa_companies
-            .insert()
-            .values(**data)
-            .returning(sa_companies.c.id, sa_companies.c.key, sa_companies.c.name)
-        ))
-    except IntegrityError as e:
-        # TODO we could format the error message better here
-        raise HTTPBadRequestJson(
-            status='data integrity error',
-            details=f'Integrity Error: {e}',
-        )
+    v = await request['conn'].execute((
+        pg_insert(sa_companies)
+        .values(**data)
+        .on_conflict_do_nothing(index_elements=[sa_companies.c.name])
+        .returning(sa_companies.c.id, sa_companies.c.key, sa_companies.c.name)
+    ))
     new_data = await v.first()
-    return json_response({
-        'status': 'success',
-        'details': new_data
-    }, request=request, status=201)
+    if new_data is None:
+        raise HTTPBadRequestJson(
+            status='duplicate',
+            details=f'company with the name "{data["name"]}" already exists',
+        )
+    else:
+        return json_response({
+            'status': 'success',
+            'details': new_data
+        }, request=request, status=201)
 
 
 async def set_skills(request, contractor_id, skills):
@@ -146,9 +144,10 @@ async def set_skills(request, contractor_id, skills):
         to_delete = set()
         async for r in execute(q):
             key = r.subject, r.qual_level
-            if key in con_skills:
+            try:
                 con_skills.remove(key)
-            else:
+            except KeyError:
+                # skill doesn't exist in con_skills, it should be deleted
                 to_delete.add(r.id)
 
         to_delete and await execute(sa_con_skills.delete().where(sa_con_skills.c.id.in_(to_delete)))
@@ -188,7 +187,8 @@ async def contractor_set(request):
         )
         .returning(sa_contractors.c.action)
     )
-    status, status_text = (201, 'created') if (await v.first()).action == Action.insert else (200, 'updated')
+    r = await v.first()
+    status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
     await set_skills(request, cid, skills)
     return json_response({
         'status': 'success',

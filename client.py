@@ -32,6 +32,7 @@ async def index(arg):
 async def create_company(arg):
     data = {
         'name': f'foobar {datetime.now().strftime("%H:%M:%S")}',
+        # 'name': f'foobar',
     }
     payload = json.dumps(data)
     b_payload = payload.encode()

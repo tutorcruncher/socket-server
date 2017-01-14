@@ -102,5 +102,9 @@ class ConSkill(Base):
     subject = Column(Integer, ForeignKey('subjects.id'), nullable=False)
     qual_level = Column(Integer, ForeignKey('qual_levels.id'), nullable=False)
 
+    __table_args__ = (
+        UniqueConstraint('contractor', 'subject', 'qual_level', name='_con_skill_all'),
+    )
+
 
 sa_con_skills = ConSkill.__table__
