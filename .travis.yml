@@ -1,4 +1,13 @@
+dist: trusty
+
 language: python
+
+addons:
+  postgresql: '9.6'
+
+services:
+- postgresql
+- redis-server
 
 cache: pip
 
