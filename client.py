@@ -101,7 +101,7 @@ CON_DATA = {
             'category': 'Maths'
         },
         {
-            'qual_level': 'A Level',
+            'qual_level': 'GCSE',
             'subject': 'Mathematics',
             'qual_level_ranking': 16.0,
             'category': 'Maths'
@@ -113,8 +113,8 @@ CON_DATA = {
             'category': 'Maths'
         },
         {
-            'qual_level': 'GCSE5',
-            'subject': 'Language3',
+            'qual_level': 'KS3',
+            'subject': 'Language',
             'qual_level_ranking': 16.0,
             'category': 'English'
         }

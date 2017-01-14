@@ -44,7 +44,7 @@ class Action(str, Enum):
 class Contractor(Base):
     __tablename__ = 'contractors'
     # id set from profile id on TutorCruncher
-    id = Column(Integer, primary_key=True, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=False, nullable=False)
     company = Column(Integer, ForeignKey('companies.id'), nullable=False)
 
     first_name = Column(String(63), index=True)
@@ -71,7 +71,7 @@ sa_contractors = Contractor.__table__
 class Subject(Base):
     __tablename__ = 'subjects'
 
-    id = Column(Integer, Sequence('subject_id_seq'), primary_key=True, nullable=False)
+    id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String(63), nullable=False, index=True)
     category = Column(String(63), nullable=False, index=True)
 
@@ -86,7 +86,7 @@ sa_subjects = Subject.__table__
 class QualLevel(Base):
     __tablename__ = 'qual_levels'
 
-    id = Column(Integer, Sequence('qual_level_id_seq'), primary_key=True, nullable=False)
+    id = Column(Integer, primary_key=True, nullable=False)
     name = Column(String(63), nullable=False, unique=True, index=True)
     ranking = Column(Float())
 
@@ -97,13 +97,10 @@ sa_qual_levels = QualLevel.__table__
 class ConSkill(Base):
     __tablename__ = 'contractor_skills'
 
+    id = Column(Integer, primary_key=True, nullable=False)
     contractor = Column(Integer, ForeignKey('contractors.id'), nullable=False)
     subject = Column(Integer, ForeignKey('subjects.id'), nullable=False)
     qual_level = Column(Integer, ForeignKey('qual_levels.id'), nullable=False)
-
-    __table_args__ = (
-        PrimaryKeyConstraint('contractor', 'subject', 'qual_level', name='_con_skills'),
-    )
 
 
 sa_con_skills = ConSkill.__table__

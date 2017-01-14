@@ -72,7 +72,7 @@ async def pg_conn_middleware(app, handler):
                 else:
                     raise HTTPNotFoundJson(
                         status='company not found',
-                        details=f'No company found for key "{company_key}"',
+                        details=f'No company found for key {company_key}',
                     )
             return await handler(request)
     return _handler

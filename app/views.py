@@ -95,6 +95,7 @@ async def set_skills(request, contractor_id, skills):
     """
     execute = request['conn'].execute
     async with request['conn'].begin():
+        # get ids of subjects, creating them if necessary
         subject_cols = sa_subjects.c.id, sa_subjects.c.name, sa_subjects.c.category
         cur = await execute(
             select(subject_cols)
@@ -116,6 +117,7 @@ async def set_skills(request, contractor_id, skills):
             cur = await execute(sa_subjects.insert().values(subjects_to_create).returning(*subject_cols))
             subjects.update({(r[1], r[2]): r[0] async for r in cur})
 
+        # get ids of qualification levels, creating them if necessary
         qual_level_cols = sa_qual_levels.c.id, sa_qual_levels.c.name
         cur = await execute(
             select(qual_level_cols)
@@ -134,31 +136,27 @@ async def set_skills(request, contractor_id, skills):
             cur = await execute(sa_qual_levels.insert().values(qual_levels_to_create).returning(*qual_level_cols))
             qual_levels.update({r[1]: r[0] async for r in cur})
 
-        to_create = {(subjects[(s['subject'], s['category'])], qual_levels[s['qual_level']]) for s in skills}
+        # skills the contractor should have
+        con_skills = {(subjects[(s['subject'], s['category'])], qual_levels[s['qual_level']]) for s in skills}
 
         q = (
-            select([sa_con_skills.c.subject, sa_con_skills.c.qual_level])
+            select([sa_con_skills.c.id, sa_con_skills.c.subject, sa_con_skills.c.qual_level])
             .where(sa_con_skills.c.contractor == contractor_id)
         )
-        to_delete = []
+        to_delete = set()
         async for r in execute(q):
             key = r.subject, r.qual_level
-            if key in to_create:
-                to_create.remove(key)
+            if key in con_skills:
+                con_skills.remove(key)
             else:
-                to_delete.append(and_(
-                    sa_con_skills.c.contractor == contractor_id,
-                    sa_con_skills.c.subject == r.subject,
-                    sa_con_skills.c.qual_level == r.qual_level,
-                ))
+                to_delete.add(r.id)
 
-        if to_delete:
-            await execute(sa_con_skills.delete().where(or_(*to_delete)))
+        to_delete and await execute(sa_con_skills.delete().where(sa_con_skills.c.id.in_(to_delete)))
 
-        if to_create:
+        if con_skills:
             q = sa_con_skills.insert().values([
                 dict(contractor=contractor_id, subject=subject, qual_level=qual_level)
-                for subject, qual_level in to_create
+                for subject, qual_level in con_skills
             ])
             await execute(q)
 
