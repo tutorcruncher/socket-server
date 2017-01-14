@@ -19,7 +19,8 @@ async def test_list_contractors(cli, db_conn):
     r = await v.first()
     company_id = r.id
     await db_conn.execute(
-        sa_contractors.insert()
+        sa_contractors
+        .insert()
         .values(id=1, company=company_id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
     )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thekey'))
