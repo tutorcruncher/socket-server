@@ -1,13 +1,12 @@
-import json
 import datetime as datetime
+import json
 from decimal import Decimal
 from types import GeneratorType
 from uuid import UUID
 
-from aiopg.sa.result import RowProxy
-
 from aiohttp import web
 from aiohttp.web_reqrep import Response
+from aiopg.sa.result import RowProxy
 
 
 def isoformat(o):
@@ -41,6 +40,7 @@ class UniversalEncoder(json.JSONEncoder):
 
 def to_pretty_json(data):
     return json.dumps(data, indent=2, sort_keys=True, cls=UniversalEncoder) + '\n'
+
 
 JSON_CONTENT_TYPE = 'application/json'
 

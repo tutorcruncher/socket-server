@@ -1,15 +1,15 @@
+import re
 from datetime import datetime
 from secrets import token_hex
 
-import re
 import trafaret as t
 from dateutil.parser import parse as dt_parse
 from sqlalchemy import literal, select
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import and_, or_
 
-from .models import sa_companies, sa_contractors, Action, NameOptions, sa_subjects, sa_qual_levels, sa_con_skills
+from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .utils import HTTPBadRequestJson, json_response
 
 ANY_DICT = t.Dict()
@@ -57,7 +57,7 @@ VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
 async def index(request):
     return json_response({
         'title': 'TODO',
-    })
+    }, request=request)
 
 
 async def company_create(request):
@@ -74,8 +74,8 @@ async def company_create(request):
         .on_conflict_do_nothing(index_elements=[sa_companies.c.name])
         .returning(sa_companies.c.id, sa_companies.c.key, sa_companies.c.name)
     ))
-    new_data = await v.first()
-    if new_data is None:
+    new_company = await v.first()
+    if new_company is None:
         raise HTTPBadRequestJson(
             status='duplicate',
             details=f'company with the name "{data["name"]}" already exists',
@@ -83,7 +83,7 @@ async def company_create(request):
     else:
         return json_response({
             'status': 'success',
-            'details': new_data
+            'details': new_company
         }, request=request, status=201)
 
 
@@ -159,6 +159,7 @@ async def set_skills(request, contractor_id, skills):
             ])
             await execute(q)
 
+
 async def contractor_set(request):
     """
     Create or update a contractor.
@@ -205,7 +206,8 @@ PAGINATION = 20
 
 
 def _slugify(name):
-    return re.sub('[^a-z]', '', name.replace(' ', '-').lower())
+    name = (name or '').replace(' ', '-').lower()
+    return re.sub('[^a-z\-]', '', name)
 
 
 async def contractor_list(request):

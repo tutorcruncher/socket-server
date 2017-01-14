@@ -1,8 +1,7 @@
 from enum import Enum, unique
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, PrimaryKeyConstraint, Sequence, String, Text
 from sqlalchemy import Enum as _SAEnum
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -29,7 +28,7 @@ class Company(Base):
     name = Column(String(63), unique=True)
     site_domain = Column(String(63))
 
-    name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name, nullable=False)
+    name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name_initial, nullable=False)
 
 
 sa_companies = Company.__table__
@@ -62,7 +61,7 @@ class Contractor(Base):
     photo = Column(String(63))
 
     last_updated = Column(DateTime, nullable=False, index=True)
-    action = Column(sa_enum(Action), nullable=False)
+    action = Column(sa_enum(Action), default=Action.insert, nullable=False)
 
 
 sa_contractors = Contractor.__table__

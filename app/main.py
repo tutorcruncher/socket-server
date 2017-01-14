@@ -1,11 +1,10 @@
 from aiohttp import web
-
 from aiopg.sa import create_engine
 from sqlalchemy.engine.url import URL
 
-from .middleware import auth_middleware, pg_conn_middleware, json_middleware
+from .middleware import auth_middleware, json_middleware, pg_conn_middleware
 from .settings import load_settings
-from .views import index, company_create, contractor_get, contractor_list, contractor_set
+from .views import company_create, contractor_get, contractor_list, contractor_set, index
 
 
 def pg_dsn(db_settings: dict) -> str:
@@ -40,10 +39,11 @@ def setup_routes(app):
     app.router.add_post('/{company}/contractors/set', contractor_set, name='contractor-set')
 
 
-def create_app(loop):
+def create_app(loop, *, settings=None):
     app = web.Application(loop=loop, middlewares=[auth_middleware, json_middleware, pg_conn_middleware])
     app['name'] = 'socket-server'
-    app.update(load_settings())
+    settings = settings or load_settings()
+    app.update(settings)
 
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)

@@ -1,0 +1,17 @@
+language: python
+
+cache: pip
+
+python:
+- '3.6'
+
+install:
+- make install
+
+script:
+- make lint
+- make test
+
+after_success:
+- ls -lha
+- bash <(curl -s https://codecov.io/bash)

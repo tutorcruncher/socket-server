@@ -1,11 +1,26 @@
+.PHONY: install
+install:
+	pip install -U pip
+	pip install -r tests/requirements.txt
+
+.PHONY: isort
+isort:
+	isort -rc -w 120 app
+	isort -rc -w 120 tests
+
+.PHONY: lint
+lint:
+	flake8 app/ tests/
+	pytest app --isort -p no:sugar -q --cache-clear
+	pytest tests --isort -p no:sugar -q --cache-clear
+
 .PHONY: test
 test:
 	py.test --cov=app
 
 .PHONY: test-buildcov
-test-buildcov:
-	py.test --cov=app && (echo "building coverage html, view at './htmlcov/index.html'"; coverage html)
-
+testcov:
+	py.test --cov=app && (echo "building coverage html"; coverage html)
 
 .PHONY: reset-database
 reset-database:

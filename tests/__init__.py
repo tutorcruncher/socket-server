@@ -1,3 +1,0 @@
-"""
-socket-server tests
-"""

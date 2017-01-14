@@ -1,11 +1,12 @@
 import hashlib
 import hmac
 
-from aiohttp.hdrs import METH_POST
 import trafaret as t
+from aiohttp.hdrs import METH_POST
 from sqlalchemy import select
 
 from app.models import sa_companies
+
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson
 from .views import VIEW_SCHEMAS
 

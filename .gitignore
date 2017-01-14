@@ -2,3 +2,5 @@
 .idea
 env
 .coverage
+.cache
+htmlcov
