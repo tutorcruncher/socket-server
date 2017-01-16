@@ -38,24 +38,17 @@ def db():
 
 
 @pytest.yield_fixture
-def db_engine(loop, db):
+def db_conn(loop, db):
     engine = loop.run_until_complete(aio_create_engine(pg_dsn(DB), loop=loop))
-
-    yield engine
-
-    engine.close()
-    loop.run_until_complete(engine.wait_closed())
-
-
-@pytest.yield_fixture
-def db_conn(loop, db_engine):
-    conn = loop.run_until_complete(db_engine.acquire())
+    conn = loop.run_until_complete(engine.acquire())
     transaction = loop.run_until_complete(conn.begin())
 
     yield conn
 
     loop.run_until_complete(transaction.rollback())
-    loop.run_until_complete(db_engine.release(conn))
+    loop.run_until_complete(engine.release(conn))
+    engine.close()
+    loop.run_until_complete(engine.wait_closed())
 
 
 class TestAcquire:
