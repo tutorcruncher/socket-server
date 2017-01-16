@@ -210,6 +210,16 @@ def _slugify(name):
     return re.sub('[^a-z\-]', '', name)
 
 
+def _get_name(name_display, row):
+    name = row.first_name
+    if name_display != NameOptions.first_name and row.last_name:
+        if name_display == NameOptions.first_name_initial:
+            name += ' ' + row.last_name[0]
+        elif name_display == NameOptions.full_name:
+            name += ' ' + row.last_name
+    return name
+
+
 async def contractor_list(request):
     sort_on = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
     page = request.GET.get('page', 1)
@@ -222,9 +232,8 @@ async def contractor_list(request):
         )
     offset = (page - 1) * PAGINATION
     c = sa_contractors.c
-    cols = c.id, c.first_name, c.last_name, c.photo, c.tag_line
     q = (
-        select(cols)
+        select([c.id, c.first_name, c.last_name, c.photo, c.tag_line])
         .where(c.company == request['company'].id)
         .order_by(sort_on)
         .offset(offset)
@@ -233,12 +242,7 @@ async def contractor_list(request):
     results = []
     name_display = request['company'].name_display
     async for row in request['conn'].execute(q):
-        name = row.first_name
-        if name_display != NameOptions.first_name and row.last_name:
-            if name_display == NameOptions.first_name_initial:
-                name += ' ' + row.last_name[0]
-            elif name_display == NameOptions.full_name:
-                name += ' ' + row.last_name
+        name = _get_name(name_display, row)
         results.append(dict(
             id=row.id,
             slug=_slugify(name),
@@ -250,5 +254,36 @@ async def contractor_list(request):
 
 
 async def contractor_get(request):
-    # TODO
-    return json_response({}, request=request)
+    c = sa_contractors.c
+    cols = c.id, c.first_name, c.last_name, c.photo, c.tag_line, c.extra_attributes
+    con_id = request.match_info['id']
+    curr = await request['conn'].execute(
+        select(cols)
+        .where(and_(c.company == request['company'].id, c.id == con_id))
+        .limit(1)
+    )
+    con = await curr.first()
+
+    cols = sa_subjects.c.category, sa_subjects.c.name, sa_qual_levels.c.name, sa_qual_levels.c.ranking
+    skills_curr = await request['conn'].execute(
+        select(cols, use_labels=True)
+        .select_from(
+            sa_con_skills
+            .join(sa_subjects, sa_con_skills.c.subject == sa_subjects.c.id)
+            .join(sa_qual_levels, sa_con_skills.c.qual_level == sa_qual_levels.c.id)
+        )
+        .where(sa_con_skills.c.contractor == con_id)
+    )
+    return json_response(dict(
+        id=con.id,
+        name=_get_name(request['company'].name_display, con),
+        tag_line=con.tag_line,
+        photo=con.photo,  # TODO
+        extra_attributes=con.extra_attributes,
+        skills=[{
+            'subject': r.subjects_name,
+            'category': r.subjects_category,
+            'qual_level': r.qual_levels_name,
+            'ranking': r.qual_levels_ranking,
+        } for r in (await skills_curr.fetchall())]
+    ), request=request)

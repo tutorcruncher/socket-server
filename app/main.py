@@ -2,7 +2,7 @@ from aiohttp import web
 from aiopg.sa import create_engine
 from sqlalchemy.engine.url import URL
 
-from .middleware import auth_middleware, json_middleware, pg_conn_middleware
+from .middleware import middleware
 from .settings import load_settings
 from .views import company_create, contractor_get, contractor_list, contractor_set, index
 
@@ -35,12 +35,12 @@ def setup_routes(app):
     app.router.add_get('/', index, name='index')
     app.router.add_post('/companies/create', company_create, name='company-create')
     app.router.add_get('/{company}/contractors', contractor_list, name='contractor-list')
-    app.router.add_get('/{company}/contractors/{id:\d+}', contractor_get, name='contractor-get')
+    app.router.add_get('/{company}/contractors/{id:\d+}-{slug}', contractor_get, name='contractor-get')
     app.router.add_post('/{company}/contractors/set', contractor_set, name='contractor-set')
 
 
 def create_app(loop, *, settings=None):
-    app = web.Application(loop=loop, middlewares=[auth_middleware, json_middleware, pg_conn_middleware])
+    app = web.Application(loop=loop, middlewares=middleware)
     app['name'] = 'socket-server'
     settings = settings or load_settings()
     app.update(settings)

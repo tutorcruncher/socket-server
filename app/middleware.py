@@ -13,6 +13,7 @@ from .views import VIEW_SCHEMAS
 PUBLIC_VIEWS = {
     'index',
     'contractor-list',
+    'contractor-get',
 }
 
 
@@ -62,18 +63,26 @@ async def pg_conn_middleware(app, handler):
     async def _handler(request):
         async with app['pg_engine'].acquire() as conn:
             request['conn'] = conn
-            company_key = request.match_info.get('company')
-            if company_key:
-                select_fields = sa_companies.c.id, sa_companies.c.name_display
-                q = select(select_fields).where(sa_companies.c.key == company_key)
-                result = await request['conn'].execute(q)
-                company = await result.first()
-                if company:
-                    request['company'] = company
-                else:
-                    raise HTTPNotFoundJson(
-                        status='company not found',
-                        details=f'No company found for key {company_key}',
-                    )
             return await handler(request)
     return _handler
+
+
+async def company_middleware(app, handler):
+    async def _handler(request):
+        company_key = request.match_info.get('company')
+        if company_key:
+            select_fields = sa_companies.c.id, sa_companies.c.name_display
+            q = select(select_fields).where(sa_companies.c.key == company_key)
+            result = await request['conn'].execute(q)
+            company = await result.first()
+            if company:
+                request['company'] = company
+            else:
+                raise HTTPNotFoundJson(
+                    status='company not found',
+                    details=f'No company found for key {company_key}',
+                )
+        return await handler(request)
+    return _handler
+
+middleware = auth_middleware, json_middleware, pg_conn_middleware, company_middleware

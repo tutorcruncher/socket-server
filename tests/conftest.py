@@ -50,11 +50,37 @@ def db_engine(loop, db):
 @pytest.yield_fixture
 def db_conn(loop, db_engine):
     conn = loop.run_until_complete(db_engine.acquire())
+    transaction = loop.run_until_complete(conn.begin())
+
     yield conn
+
+    loop.run_until_complete(transaction.rollback())
     loop.run_until_complete(db_engine.release(conn))
 
 
+class TestAcquire:
+    def __init__(self, conn):
+        self._conn = conn
+
+    async def __aenter__(self):
+        return self._conn
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+
 @pytest.fixture
-def cli(loop, test_client, db):
+def cli(loop, test_client, db_conn):
+    """
+    Create an app and client to interact with it
+
+    The postgres pool's acquire method is changed to return a db connection which is in a transaction and is
+    used by the test itself.
+    """
+
+    async def modify_startup(app):
+        app['pg_engine'].acquire = lambda: TestAcquire(db_conn)
+
     app = create_app(loop, settings=SETTINGS)
+    app.on_startup.append(modify_startup)
     return loop.run_until_complete(test_client(app))
