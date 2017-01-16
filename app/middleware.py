@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.models import sa_companies
 
-from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson
+from .utils import HTTPBadRequestJson, HTTPNotFoundJson, HTTPUnauthorizedJson
 from .views import VIEW_SCHEMAS
 
 PUBLIC_VIEWS = {
@@ -22,9 +22,9 @@ async def auth_middleware(app, handler):
         if not hasattr(request.match_info.route, 'status') and request.match_info.route.name not in PUBLIC_VIEWS:
             body = await request.read()
             m = hmac.new(request.app['shared_secret'], body, hashlib.sha256)
-            signature = request.headers.get('Webhook-Signature', '-')
+            signature = request.headers.get('Webhook-Signature', '<missing>')
             if signature != m.hexdigest():
-                raise HTTPForbiddenJson(
+                raise HTTPUnauthorizedJson(
                     status='invalid signature',
                     details=f'Webhook-Signature header "{signature}" does not match computed signature',
                 )

@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 import trafaret as t
-from trafaret_config import read_and_validate
+from trafaret_config import ConfigError, read_and_validate
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR.parent
@@ -11,6 +11,14 @@ SETTINGS_FILE = BASE_DIR / 'settings.yml'  # type: Path
 DEV_DICT = t.Dict()
 DEV_DICT.allow_extra('*')
 ENV_PREFIX = 'APP_'
+
+
+def check_media_dir(p):
+    path = Path(p).resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    assert path.is_dir(), f'"{path}" is not a directory'
+    return path
+
 
 SETTINGS_STRUCTURE = t.Dict({
     # the "dev" dictionary contains information used by aiohttp-devtools to serve your app locally
@@ -26,6 +34,7 @@ SETTINGS_STRUCTURE = t.Dict({
     }),
     'shared_secret': t.String >> (lambda s: s.encode()),
     'debug': t.Bool,
+    'media': t.String >> check_media_dir,
 })
 
 
@@ -68,6 +77,9 @@ def load_settings() -> dict:
     :return: settings dict
     """
     settings_file = SETTINGS_FILE.resolve()
-    settings = read_and_validate(str(settings_file), SETTINGS_STRUCTURE)
+    try:
+        settings = read_and_validate(str(settings_file), SETTINGS_STRUCTURE)
+    except AssertionError as e:
+        raise ConfigError([str(e)]) from e
     settings = substitute_environ(settings, ENV_PREFIX)
     return settings

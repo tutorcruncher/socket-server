@@ -50,6 +50,10 @@ class HTTPClientErrorJson(web.HTTPClientError):
         super().__init__(body=to_pretty_json(data).encode(), content_type=JSON_CONTENT_TYPE)
 
 
+class HTTPUnauthorizedJson(HTTPClientErrorJson):
+    status_code = 401
+
+
 class HTTPBadRequestJson(HTTPClientErrorJson):
     status_code = 400
 

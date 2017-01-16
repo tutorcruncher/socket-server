@@ -19,7 +19,6 @@ ANY_DICT.allow_extra('*')
 VIEW_SCHEMAS = {
     'company-create': t.Dict({
         'name': t.String(min_length=4, max_length=63),
-        t.Key('site_domain', optional=True): t.String(min_length=4, max_length=63),
         t.Key('name_display', optional=True): t.Or(
             t.Atom('first_name') |
             t.Atom('first_name_initial') |
@@ -166,16 +165,12 @@ async def contractor_set(request):
     """
     data = request['json_obj']
     skills = data.pop('skills', [])
+    photo = data.pop('photo', None)
     location = data.pop('location', None)
     if location:
         data.update(location)
-    photo = data.pop('photo', None)
-    if photo:
-        # TODO deal with photo
-        pass
-    data['last_updated'] = data.get('last_updated') or datetime.now()
-    extra_attrs = data.get('extra_attributes', [])
-    data['extra_attributes'] = literal(extra_attrs, JSONB)
+    data['last_updated'] = data.get('last_updated', datetime.now())
+    data['extra_attributes'] = literal(data.get('extra_attributes', []), JSONB)
     cid = data.pop('id')
     company_id = request['company'].id
     v = await request['conn'].execute(
@@ -191,6 +186,7 @@ async def contractor_set(request):
     r = await v.first()
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
     await set_skills(request, cid, skills)
+    photo and await request.app['image_worker'].get_image(company_id, cid, photo)
     return json_response({
         'status': 'success',
         'details': f'contractor {status_text}',

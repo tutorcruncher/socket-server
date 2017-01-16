@@ -73,6 +73,7 @@ def cli(loop, test_client, db_conn):
 
     async def modify_startup(app):
         app['pg_engine'].acquire = lambda: TestAcquire(db_conn)
+        app['image_worker'].concurrency_enabled = False
 
     app = create_app(loop, settings=SETTINGS)
     app.on_startup.append(modify_startup)
