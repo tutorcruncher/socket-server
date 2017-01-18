@@ -27,7 +27,7 @@ async def test_list_contractors(cli, db_conn):
     assert r.status == 200
     obj = await r.json()
     assert [
-        {'id': 1, 'name': 'Fred B', 'photo': None, 'slug': 'fred-b', 'tag_line': None}
+        {'id': 1, 'name': 'Fred B', 'slug': 'fred-b', 'tag_line': None}
     ] == obj
 
 
@@ -84,7 +84,6 @@ async def test_get_contractor(cli, db_conn):
         'name': 'Fred B',
         'extra_attributes': [{'foo': 'bar'}],
         'tag_line': None,
-        'photo': None,
         'skills': [
             {
                 'category': 'Maths',

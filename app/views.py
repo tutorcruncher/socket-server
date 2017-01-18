@@ -229,7 +229,7 @@ async def contractor_list(request):
     offset = (page - 1) * PAGINATION
     c = sa_contractors.c
     q = (
-        select([c.id, c.first_name, c.last_name, c.photo, c.tag_line])
+        select([c.id, c.first_name, c.last_name, c.tag_line])
         .where(c.company == request['company'].id)
         .order_by(sort_on)
         .offset(offset)
@@ -244,14 +244,13 @@ async def contractor_list(request):
             slug=_slugify(name),
             name=name,
             tag_line=row.tag_line,
-            photo=row.photo,  # TODO
         ))
     return json_response(results, request=request, status=200)
 
 
 async def contractor_get(request):
     c = sa_contractors.c
-    cols = c.id, c.first_name, c.last_name, c.photo, c.tag_line, c.extra_attributes
+    cols = c.id, c.first_name, c.last_name, c.tag_line, c.extra_attributes
     con_id = request.match_info['id']
     curr = await request['conn'].execute(
         select(cols)
@@ -274,7 +273,6 @@ async def contractor_get(request):
         id=con.id,
         name=_get_name(request['company'].name_display, con),
         tag_line=con.tag_line,
-        photo=con.photo,  # TODO
         extra_attributes=con.extra_attributes,
         skills=[{
             'subject': r.subjects_name,

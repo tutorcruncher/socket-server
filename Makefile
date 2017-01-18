@@ -12,8 +12,7 @@ isort:
 .PHONY: lint
 lint:
 	flake8 app/ tests/
-	pytest app --isort -p no:sugar -q --cache-clear
-	pytest tests --isort -p no:sugar -q --cache-clear
+	pytest app -p no:sugar -q --cache-clear
 
 .PHONY: test
 test:

@@ -56,7 +56,6 @@ class Contractor(Base):
     primary_description = Column(Text())
 
     extra_attributes = Column(JSONB)
-    photo = Column(String(63))
 
     last_updated = Column(DateTime, nullable=False, index=True)
     action = Column(sa_enum(Action), default=Action.insert, nullable=False)

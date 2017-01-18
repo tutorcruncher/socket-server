@@ -26,7 +26,7 @@ def pg_dsn(db_settings: dict) -> str:
 async def startup(app: web.Application):
     app.update(
         pg_engine=await create_engine(pg_dsn(app['database']), loop=app.loop),
-        image_worker=ImageActor(),
+        image_worker=ImageActor(settings=app['settings']),
     )
 
 
@@ -48,7 +48,7 @@ def create_app(loop, *, settings=None):
     app = web.Application(loop=loop, middlewares=middleware)
     app['name'] = 'socket-server'
     settings = settings or load_settings()
-    app.update(settings)
+    app.update(settings, settings=settings)
 
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)

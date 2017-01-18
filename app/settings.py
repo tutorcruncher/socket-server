@@ -17,7 +17,7 @@ def check_media_dir(p):
     path = Path(p).resolve()
     path.mkdir(parents=True, exist_ok=True)
     assert path.is_dir(), f'"{path}" is not a directory'
-    return path
+    return str(path)
 
 
 SETTINGS_STRUCTURE = t.Dict({
@@ -32,7 +32,13 @@ SETTINGS_STRUCTURE = t.Dict({
         'host': t.String,
         'port': t.Int(gte=0) >> str,
     }),
-    'shared_secret': t.String >> (lambda s: s.encode()),
+    'redis': t.Dict({
+        'host': t.String,
+        'port': t.Int,
+        'password': t.Or(t.String | t.Null),
+        'database': t.Int,
+    }),
+    'shared_secret': t.String >> (lambda s: s.encode() if isinstance(s, bytes) else s),
     'debug': t.Bool,
     'media': t.String >> check_media_dir,
 })
@@ -73,13 +79,14 @@ def substitute_environ(s_dict: dict, prefix: str) -> dict:
 
 def load_settings() -> dict:
     """
-    Read settings.yml and, validation its content.
+    Read settings.yml, overwrite with environment variables, validate.
     :return: settings dict
     """
     settings_file = SETTINGS_FILE.resolve()
     try:
         settings = read_and_validate(str(settings_file), SETTINGS_STRUCTURE)
+        settings = substitute_environ(settings, ENV_PREFIX)
+        settings = SETTINGS_STRUCTURE.check(settings)
     except AssertionError as e:
         raise ConfigError([str(e)]) from e
-    settings = substitute_environ(settings, ENV_PREFIX)
     return settings

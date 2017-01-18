@@ -8,6 +8,7 @@ from app.main import create_app, pg_dsn
 from app.management import psycopg2_cursor
 from app.models import Base
 
+
 SETTINGS = {
     'database': {
         'name': 'socket_test',
@@ -16,8 +17,15 @@ SETTINGS = {
         'host': 'localhost',
         'port': 5432,
     },
+    'redis': {
+      'host': 'localhost',
+      'port': 6379,
+      'password': None,
+      'database': 0,
+    },
     'shared_secret': 'this is a secret',
     'debug': True,
+    'media': '/dev/null'
 }
 DB = SETTINGS['database']
 

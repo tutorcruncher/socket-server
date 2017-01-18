@@ -1,12 +1,18 @@
 dev:
   py_file: app/main.py
   static_path: static/
+  debug_toolbar: false
 database:
   name: 'socket'
   user: 'postgres'
   password: 'You need to set this!'
   host: localhost
   port: 5432
+redis:
+  host: localhost
+  port: 6379
+  password: null
+  database: 0
 # secret used between socket and secure.tutorcruncher.com to sign webhooks and authenticate API requests
 shared_secret: 'this is a secret'
 debug: true

@@ -1,10 +1,11 @@
-from PIL import Image
+from pathlib import Path
 from tempfile import TemporaryFile
+
 from aiohttp import ClientSession
-from arq import Actor, BaseWorker, concurrent
+from arq import Actor, BaseWorker, RedisSettings, concurrent
+from PIL import Image
 
-from app.settings import load_settings
-
+from .settings import load_settings
 
 CHUNK_SIZE = int(1e4)
 SIZE_LARGE = 1000, 1000
@@ -12,15 +13,16 @@ SIZE_SMALL = 128, 128
 
 
 class ImageActor(Actor):
-    def __init__(self, **kwargs):
+    def __init__(self, *, settings=None, **kwargs):
+        self.settings = settings or load_settings()
+        kwargs['redis_settings'] = RedisSettings(**self.settings['redis'])
         super().__init__(**kwargs)
         self.session = ClientSession(loop=self.loop)
-        # TODO fix arq to work with a standard settings config
-        self.app_settings = load_settings()
+        self.media = Path(self.settings['media'])
 
     @concurrent
     async def get_image(self, company, contractor_id, url):
-        save_dir = self.app_settings['media'] / company
+        save_dir = self.media / company
         save_dir.mkdir(exist_ok=True)
         path_str = str(save_dir / str(contractor_id))
         with TemporaryFile() as f:
@@ -43,8 +45,12 @@ class ImageActor(Actor):
 
     async def close(self):
         await super().close()
-        self.session.close()
+        await self.session.close()
 
 
 class Worker(BaseWorker):
     shadows = [ImageActor]
+
+    def __init__(self, **kwargs):
+        kwargs['redis_settings'] = RedisSettings(**load_settings()['redis'])
+        super().__init__(**kwargs)

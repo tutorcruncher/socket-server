@@ -1,5 +1,5 @@
 SQLAlchemy==1.1.4
-arq==0.2.0
+git+https://github.com/samuelcolvin/arq.git@master#egg=arq
 aiohttp==1.2.0
 aiopg==0.13.0
 python-dateutil==2.6.0
