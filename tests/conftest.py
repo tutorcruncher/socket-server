@@ -1,33 +1,39 @@
 import os
+from io import BytesIO
 
 import pytest
+from aiohttp.web import Application, Response
 from aiopg.sa import create_engine as aio_create_engine
+from PIL import Image
 from sqlalchemy import create_engine as sa_create_engine
 
 from app.main import create_app, pg_dsn
 from app.management import psycopg2_cursor
-from app.models import Base
+from app.models import Base, sa_companies
 
-
-SETTINGS = {
-    'database': {
-        'name': 'socket_test',
-        'user': 'postgres',
-        'password': os.getenv('APP_DATABASE_PASSWORD'),
-        'host': 'localhost',
-        'port': 5432,
-    },
-    'redis': {
-      'host': 'localhost',
-      'port': 6379,
-      'password': None,
-      'database': 0,
-    },
-    'shared_secret': b'this is the secret key',
-    'debug': True,
-    'media': '/dev/null'
+DB = {
+    'name': 'socket_test',
+    'user': 'postgres',
+    'password': os.getenv('APP_DATABASE_PASSWORD'),
+    'host': 'localhost',
+    'port': 5432,
 }
-DB = SETTINGS['database']
+
+
+@pytest.fixture
+def settings(tmpdir):
+    return {
+        'database': DB,
+        'redis': {
+          'host': 'localhost',
+          'port': 6379,
+          'password': None,
+          'database': 0,
+        },
+        'shared_secret': b'this is the secret key',
+        'debug': True,
+        'media': str(tmpdir)
+    }
 
 
 @pytest.yield_fixture(scope='session')
@@ -71,7 +77,7 @@ class TestAcquire:
 
 
 @pytest.fixture
-def cli(loop, test_client, db_conn):
+def cli(loop, test_client, db_conn, settings):
     """
     Create an app and client to interact with it
 
@@ -81,8 +87,37 @@ def cli(loop, test_client, db_conn):
 
     async def modify_startup(app):
         app['pg_engine'].acquire = lambda: TestAcquire(db_conn)
-        app['image_worker'].concurrency_enabled = False
+        app['image_worker']._concurrency_enabled = False
 
-    app = create_app(loop, settings=SETTINGS)
+    app = create_app(loop, settings=settings)
     app.on_startup.append(modify_startup)
     return loop.run_until_complete(test_client(app))
+
+
+async def test_image(request):
+    image = Image.new('RGB', (1200, 600), (50, 100, 150))
+
+    stream = BytesIO()
+    image.save(stream, format='JPEG', optimize=True)
+    return Response(body=stream.getvalue(), content_type='image/jpeg')
+
+
+@pytest.fixture
+def image_download_url(loop, test_server):
+    app = Application(loop=loop)
+    app.router.add_get('/_testing/image', test_image)
+    server = loop.run_until_complete(test_server(app))
+
+    return f'http://localhost:{server.port}/_testing/image'
+
+
+@pytest.fixture
+def company(loop, db_conn):
+    key = 'thekey'
+    coro = db_conn.execute(
+        sa_companies
+        .insert()
+        .values(name='foobar', key=key)
+    )
+    loop.run_until_complete(coro)
+    return key

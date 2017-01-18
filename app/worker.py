@@ -27,21 +27,23 @@ class ImageActor(Actor):
         path_str = str(save_dir / str(contractor_id))
         with TemporaryFile() as f:
             async with self.session.get(url) as r:
-                assert r.status == 200
+                if r.status != 200:
+                    # TODO logging
+                    return
                 while True:
                     chunk = await r.content.read(CHUNK_SIZE)
                     if not chunk:
                         break
                     f.write(chunk)
             f.seek(0)
-            im1 = Image.open(f)
-            im2 = im1.copy()
+            with Image.open(f) as im1:
+                im2 = im1.copy()
 
-            im1.thumbnail(SIZE_LARGE)
-            im1.save(path_str + '.jpg', 'JPEG')
+                im1.thumbnail(SIZE_LARGE)
+                im1.save(path_str + '.jpg', 'JPEG')
 
-            im2.thumbnail(SIZE_SMALL)
-            im2.save(path_str + '.thumb.jpg', 'JPEG')
+                im2.thumbnail(SIZE_SMALL)
+                im2.save(path_str + '.thumb.jpg', 'JPEG')
 
     async def close(self):
         await super().close()

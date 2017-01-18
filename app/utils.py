@@ -22,7 +22,7 @@ class UniversalEncoder(json.JSONEncoder):
         set: list,
         frozenset: list,
         GeneratorType: list,
-        bytes: lambda o: o.decode('utf8'),
+        bytes: lambda o: o.decode(),
         Decimal: str,
         RowProxy: dict,
     }
@@ -31,10 +31,7 @@ class UniversalEncoder(json.JSONEncoder):
         try:
             encoder = self.ENCODER_BY_TYPE[type(obj)]
         except KeyError:
-            try:
-                return json.JSONEncoder.default(self, obj)
-            except TypeError:
-                return '%s: %r' % (obj.__class__.__name__, obj)
+            return super().default(obj)
         return encoder(obj)
 
 

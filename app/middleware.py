@@ -71,7 +71,7 @@ async def company_middleware(app, handler):
     async def _handler(request):
         company_key = request.match_info.get('company')
         if company_key:
-            select_fields = sa_companies.c.id, sa_companies.c.name_display
+            select_fields = sa_companies.c.id, sa_companies.c.key, sa_companies.c.name_display
             q = select(select_fields).where(sa_companies.c.key == company_key)
             result = await request['conn'].execute(q)
             company = await result.first()

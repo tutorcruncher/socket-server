@@ -1,8 +1,9 @@
 import hashlib
 import hmac
 import json
+from pathlib import Path
 
-import pytest
+from PIL import Image
 
 from app.models import sa_companies, sa_con_skills, sa_contractors
 
@@ -60,18 +61,6 @@ async def signed_post(cli, url, **data):
         'Content-Type': 'application/json',
     }
     return await cli.post(url, data=payload, headers=headers)
-
-
-@pytest.fixture
-def company(loop, db_conn):
-    key = 'thekey'
-    coro = db_conn.execute(
-        sa_companies
-        .insert()
-        .values(name='foobar', key=key)
-    )
-    loop.run_until_complete(coro)
-    return key
 
 
 async def test_create_duplicate_company(cli, db_conn, company):
@@ -141,8 +130,7 @@ async def test_create_contractor_skills(cli, db_conn, company):
             }
         ]
     )
-    response_data = await r.json()
-    assert r.status == 201, response_data
+    assert r.status == 201, await r.text()
     con_skills = [cs async for cs in await db_conn.execute(sa_con_skills.select())]
     assert len(con_skills) == 2
     assert len(set(cs.subject for cs in con_skills)) == 2
@@ -177,13 +165,32 @@ async def test_create_contractor_extra_attributes(cli, db_conn, company):
         first_name='Fred',
         extra_attributes=eas
     )
-    response_data = await r.json()
-    assert r.status == 201, response_data
+    assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())
     result = await curr.first()
     assert result.id == 123
     assert result.first_name == 'Fred'
     assert result.extra_attributes == eas
+
+
+async def test_create_contractor_photo(cli, db_conn, company, image_download_url, tmpdir):
+    r = await signed_post(
+        cli,
+        f'/{company}/contractors/set',
+        id=123,
+        first_name='Fred',
+        photo=image_download_url
+    )
+    assert r.status == 201, await r.text()
+    assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
+    path = Path(tmpdir / company / '123.jpg')
+    assert path.exists()
+    with Image.open(str(path)) as im:
+        assert im.size == (1000, 500)
+    path = Path(tmpdir / company / '123.thumb.jpg')
+    assert path.exists()
+    with Image.open(str(path)) as im:
+        assert im.size == (128, 64)
 
 
 async def test_update_contractor(cli, db_conn, company):
