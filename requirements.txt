@@ -1,4 +1,4 @@
-SQLAlchemy==1.1.4
+SQLAlchemy==1.1.5
 git+https://github.com/samuelcolvin/arq.git@master#egg=arq
 aiohttp==1.2.0
 aiopg==0.13.0
