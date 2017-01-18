@@ -12,6 +12,8 @@ from sqlalchemy.sql import and_, or_
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .utils import HTTPBadRequestJson, HTTPNotFoundJson, json_response
 
+EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
+
 
 VIEW_SCHEMAS = {
     'company-create': t.Dict({
@@ -37,7 +39,7 @@ VIEW_SCHEMAS = {
 
         t.Key('extra_attributes', default=[]): t.List(t.Dict({
             'machine_name': t.Or(t.Null | t.String),
-            'type': t.String,
+            'type': t.Or(*[t.Atom(eat) for eat in EXTRA_ATTR_TYPES]),
             'name': t.String,
             'value': t.Or(t.Bool | t.String | t.Float),
             'id': t.Int,
@@ -168,6 +170,16 @@ async def set_skills(request, contractor_id, skills):
             await execute(q)
 
 
+def get_special_extra_attr(extra_attributes, machine_name, attr_type):
+    eas = [ea for ea in extra_attributes if ea['type'] == attr_type]
+    if eas:
+        eas.sort(key=lambda ea: (ea['machine_name'] != machine_name, ea['sort_index']))
+        ea = eas[0]
+        return ea['value'], [ea_ for ea_ in extra_attributes if ea_['id'] != ea['id']]
+    else:
+        return None, extra_attributes
+
+
 async def contractor_set(request):
     """
     Create or update a contractor.
@@ -199,8 +211,15 @@ async def contractor_set(request):
     if location:
         data.update(location)
 
-    data['last_updated'] = data.get('last_updated', datetime.now())
-    data['extra_attributes'] = literal(data['extra_attributes'], JSONB)
+    ex_attrs = data.pop('extra_attributes')
+    tag_line, ex_attrs = get_special_extra_attr(ex_attrs, 'tag_line', 'text_short')
+    primary_description, ex_attrs = get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
+    data.update(
+        last_updated=data.get('last_updated', datetime.now()),
+        extra_attributes=literal(ex_attrs, JSONB),
+        tag_line=tag_line,
+        primary_description=primary_description,
+    )
     v = await request['conn'].execute(
         pg_insert(sa_contractors)
         .values(id=con_id, company=company_id, action=Action.insert, **data)

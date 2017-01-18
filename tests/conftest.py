@@ -1,3 +1,6 @@
+import hashlib
+import hmac
+import json
 import os
 from io import BytesIO
 
@@ -121,3 +124,15 @@ def company(loop, db_conn):
     )
     loop.run_until_complete(coro)
     return key
+
+
+async def signed_post(cli, url, **data):
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the secret key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    return await cli.post(url, data=payload, headers=headers)
