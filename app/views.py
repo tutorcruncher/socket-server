@@ -10,10 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import and_, or_
 
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
-from .utils import HTTPBadRequestJson, json_response
-
-ANY_DICT = t.Dict()
-ANY_DICT.allow_extra('*')
+from .utils import HTTPBadRequestJson, HTTPNotFoundJson, json_response
 
 
 VIEW_SCHEMAS = {
@@ -27,6 +24,7 @@ VIEW_SCHEMAS = {
     }),
     'contractor-set': t.Dict({
         'id': t.Int(),
+        t.Key('deleted', default=False): t.Bool,
         t.Key('first_name', optional=True): t.String(max_length=63),
         t.Key('last_name', optional=True): t.String(max_length=63),
 
@@ -37,15 +35,22 @@ VIEW_SCHEMAS = {
             'longitude': t.Or(t.Float | t.Null),
         }),
 
-        t.Key('extra_attributes', optional=True): t.List(ANY_DICT),
-        t.Key('skills', optional=True): t.List(t.Dict({
+        t.Key('extra_attributes', default=[]): t.List(t.Dict({
+            'machine_name': t.Or(t.Null | t.String),
+            'type': t.String,
+            'name': t.String,
+            'value': t.Or(t.Bool | t.String | t.Float),
+            'id': t.Int,
+            'sort_index': t.Float,
+        })),
+
+        t.Key('skills', default=[]): t.List(t.Dict({
             'subject': t.String,
             'category': t.String,
             'qual_level': t.String,
             'qual_level_ranking': t.Float,
         })),
 
-        t.Key('image', optional=True): t.String(max_length=63),
         t.Key('last_updated', optional=True): t.String >> dt_parse,
         t.Key('photo', optional=True): t.URL,
     })
@@ -71,7 +76,7 @@ async def company_create(request):
         pg_insert(sa_companies)
         .values(**data)
         .on_conflict_do_nothing(index_elements=[sa_companies.c.name])
-        .returning(sa_companies.c.id, sa_companies.c.key, sa_companies.c.name)
+        .returning(sa_companies.c.key, sa_companies.c.name)
     ))
     new_company = await v.first()
     if new_company is None:
@@ -91,6 +96,10 @@ async def set_skills(request, contractor_id, skills):
     create missing subjects and qualification levels, then create contractor skills for them.
     """
     execute = request['conn'].execute
+    if not skills:
+        # just delete skills and return
+        await execute(sa_con_skills.delete().where(sa_con_skills.c.contractor == contractor_id))
+        return
     async with request['conn'].begin():
         # get ids of subjects, creating them if necessary
         subject_cols = sa_subjects.c.id, sa_subjects.c.name, sa_subjects.c.category
@@ -163,19 +172,38 @@ async def contractor_set(request):
     """
     Create or update a contractor.
     """
+    company_id = request['company'].id
     data = request['json_obj']
-    skills = data.pop('skills', [])
+    con_id = data.pop('id')
+    deleted = data.pop('deleted')
+    if deleted:
+        curr = await request['conn'].execute(
+            sa_contractors
+            .delete()
+            .where(and_(sa_contractors.c.company == company_id, sa_contractors.c.id == con_id))
+            .returning(sa_contractors.c.id)
+        )
+        if not await curr.first():
+            raise HTTPNotFoundJson(
+                status='not found',
+                details=f'contractor with id {con_id} not found',
+            )
+        return json_response({
+            'status': 'success',
+            'details': 'contractor deleted',
+        }, request=request)
+
+    skills = data.pop('skills')
     photo = data.pop('photo', None)
     location = data.pop('location', None)
     if location:
         data.update(location)
+
     data['last_updated'] = data.get('last_updated', datetime.now())
-    data['extra_attributes'] = literal(data.get('extra_attributes', []), JSONB)
-    cid = data.pop('id')
-    company_id = request['company'].id
+    data['extra_attributes'] = literal(data['extra_attributes'], JSONB)
     v = await request['conn'].execute(
         pg_insert(sa_contractors)
-        .values(id=cid, company=company_id, action=Action.insert, **data)
+        .values(id=con_id, company=company_id, action=Action.insert, **data)
         .on_conflict_do_update(
             index_elements=[sa_contractors.c.id],
             where=sa_contractors.c.company == company_id,
@@ -185,8 +213,8 @@ async def contractor_set(request):
     )
     r = await v.first()
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
-    await set_skills(request, cid, skills)
-    photo and await request.app['image_worker'].get_image(company_id, cid, photo)
+    await set_skills(request, con_id, skills)
+    photo and await request.app['image_worker'].get_image(company_id, con_id, photo)
     return json_response({
         'status': 'success',
         'details': f'contractor {status_text}',

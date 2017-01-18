@@ -23,7 +23,7 @@ SETTINGS = {
       'password': None,
       'database': 0,
     },
-    'shared_secret': 'this is a secret',
+    'shared_secret': b'this is the secret key',
     'debug': True,
     'media': '/dev/null'
 }
