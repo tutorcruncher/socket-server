@@ -4,8 +4,10 @@ import json
 from pathlib import Path
 
 from PIL import Image
+from sqlalchemy import select
+from sqlalchemy.sql.functions import count
 
-from app.models import sa_companies, sa_con_skills, sa_contractors
+from app.models import sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 
 
 async def test_create_company(cli, db_conn):
@@ -113,7 +115,6 @@ async def test_create_contractor_skills(cli, db_conn, company):
         cli,
         f'/{company}/contractors/set',
         id=123,
-        deleted=False,
         first_name='Fred',
         skills=[
             {
@@ -136,6 +137,54 @@ async def test_create_contractor_skills(cli, db_conn, company):
     assert len(set(cs.subject for cs in con_skills)) == 2
     assert len(set(cs.qual_level for cs in con_skills)) == 1
     assert set(cs.contractor for cs in con_skills) == {123}
+
+
+async def test_modify_contractor_skills(cli, db_conn, company):
+    r = await signed_post(
+        cli,
+        f'/{company}/contractors/set',
+        id=123,
+        skills=[
+            {
+                'qual_level': 'GCSE',
+                'subject': 'Algebra',
+                'category': 'Maths'
+            },
+            {
+                'qual_level': 'GCSE',
+                'subject': 'Language',
+                'category': 'English'
+            }
+        ]
+    )
+    assert r.status == 201, await r.text()
+    con_skills = [cs async for cs in await db_conn.execute(sa_con_skills.select())]
+    assert len(con_skills) == 2
+    assert set(cs.contractor for cs in con_skills) == {123}
+    assert len(set(cs.subject for cs in con_skills)) == 2
+    assert len(set(cs.qual_level for cs in con_skills)) == 1
+
+    r = await signed_post(
+        cli,
+        f'/{company}/contractors/set',
+        id=123,
+        skills=[
+            {
+                'qual_level': 'GCSE',
+                'subject': 'Literature',
+                'category': 'English'
+            }
+        ]
+    )
+    assert r.status == 200, await r.text()
+    con_skills = [cs async for cs in await db_conn.execute(sa_con_skills.select())]
+    assert len(con_skills) == 1
+    assert con_skills[0].contractor == 123
+
+    cur = await db_conn.execute(select([count()]).select_from(sa_subjects))
+    assert (await cur.first())[0] == 3
+    cur = await db_conn.execute(select([count()]).select_from(sa_qual_levels))
+    assert (await cur.first())[0] == 1
 
 
 async def test_create_contractor_extra_attributes(cli, db_conn, company):

@@ -48,7 +48,7 @@ VIEW_SCHEMAS = {
             'subject': t.String,
             'category': t.String,
             'qual_level': t.String,
-            'qual_level_ranking': t.Float,
+            t.Key('qual_level_ranking', default=0): t.Float,
         })),
 
         t.Key('last_updated', optional=True): t.String >> dt_parse,
