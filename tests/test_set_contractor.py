@@ -5,7 +5,7 @@ from pathlib import Path
 
 from PIL import Image
 from sqlalchemy import select
-from sqlalchemy.sql.functions import count
+from sqlalchemy.sql.functions import count as count_func
 
 from app.models import sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .conftest import signed_post
@@ -78,6 +78,11 @@ async def test_create_skills(cli, db_conn, company):
     assert set(cs.contractor for cs in con_skills) == {123}
 
 
+async def count(db_conn, sa_table):
+    cur = await db_conn.execute(select([count_func()]).select_from(sa_table))
+    return (await cur.first())[0]
+
+
 async def test_modify_skills(cli, db_conn, company):
     r = await signed_post(
         cli,
@@ -120,10 +125,8 @@ async def test_modify_skills(cli, db_conn, company):
     assert len(con_skills) == 1
     assert con_skills[0].contractor == 123
 
-    cur = await db_conn.execute(select([count()]).select_from(sa_subjects))
-    assert (await cur.first())[0] == 3
-    cur = await db_conn.execute(select([count()]).select_from(sa_qual_levels))
-    assert (await cur.first())[0] == 1
+    assert 3 == await count(db_conn, sa_subjects)
+    assert 1 == await count(db_conn, sa_qual_levels)
 
 
 async def test_extra_attributes(cli, db_conn, company):
@@ -256,15 +259,42 @@ async def test_update(cli, db_conn, company):
 
 
 async def test_delete(cli, db_conn, company):
-    assert len([cs async for cs in await db_conn.execute(sa_contractors.select())]) == 0
+    assert 0 == await count(db_conn, sa_contractors)
     r = await signed_post(cli, f'/{company}/contractors/set', id=123, first_name='Fred')
     assert r.status == 201
-    assert len([cs async for cs in await db_conn.execute(sa_contractors.select())]) == 1
+    assert 1 == await count(db_conn, sa_contractors)
 
     r = await signed_post(cli, f'/{company}/contractors/set', id=123, deleted=True)
     assert r.status == 200
-    assert len([cs async for cs in await db_conn.execute(sa_contractors.select())]) == 0
+    assert 0 == await count(db_conn, sa_contractors)
 
     r = await signed_post(cli, f'/{company}/contractors/set', id=123, deleted=True)
     assert r.status == 404
-    assert len([cs async for cs in await db_conn.execute(sa_contractors.select())]) == 0
+    assert 0 == await count(db_conn, sa_contractors)
+
+
+async def test_delete_skills(cli, db_conn, company):
+    r = await signed_post(
+        cli,
+        f'/{company}/contractors/set',
+        id=123,
+        skills=[
+            {
+                'qual_level': 'GCSE',
+                'subject': 'Literature',
+                'category': 'English'
+            }
+        ]
+    )
+    assert r.status == 201, await r.text()
+    assert 1 == await count(db_conn, sa_contractors)
+    assert 1 == await count(db_conn, sa_con_skills)
+    assert 1 == await count(db_conn, sa_subjects)
+    assert 1 == await count(db_conn, sa_qual_levels)
+
+    r = await signed_post(cli, f'/{company}/contractors/set', id=123, deleted=True)
+    assert r.status == 200
+    assert 0 == await count(db_conn, sa_contractors)
+    assert 0 == await count(db_conn, sa_con_skills)
+    assert 1 == await count(db_conn, sa_subjects)
+    assert 1 == await count(db_conn, sa_qual_levels)

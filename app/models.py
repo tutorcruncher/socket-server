@@ -94,7 +94,7 @@ class ConSkill(Base):
     __tablename__ = 'contractor_skills'
 
     id = Column(Integer, primary_key=True, nullable=False)
-    contractor = Column(Integer, ForeignKey('contractors.id'), nullable=False)  # , ondelete='CASCADE'
+    contractor = Column(Integer, ForeignKey('contractors.id', ondelete='CASCADE'), nullable=False)
     subject = Column(Integer, ForeignKey('subjects.id'), nullable=False)
     qual_level = Column(Integer, ForeignKey('qual_levels.id'), nullable=False)
 
