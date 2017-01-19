@@ -1,5 +1,11 @@
 version: '2'
 services:
+  logs:
+    image: gliderlabs/logspout
+    volumes:
+    - '/var/run/docker.sock:/var/run/docker.sock'
+    restart: always
+
   postgres:
     image: postgres:9.6
     environment:
@@ -7,11 +13,17 @@ services:
       POSTGRES_PASSWORD: docker
       PGDATA: '/var/lib/postgresql/data/pgdata'
     volumes:
-      - ./pgdata:/var/lib/postgresql/data/pgdata
+    - './pgdata:/var/lib/postgresql/data/pgdata'
     restart: always
+    depends_on:
+    - logs
+
   redis:
     image: redis:3.0-alpine
     restart: always
+    depends_on:
+    - logs
+
   web:
     build: .
     environment:
@@ -20,24 +32,23 @@ services:
       APP_REDIS_HOST: redis
       BIND: 0.0.0.0:8000
       CHECK: web
-    ports:
-      - "8000:8000"
     restart: always
     depends_on:
-      - postgres
-      - redis
+    - postgres
+    - redis
+
   worker:
     build: .
     volumes:
-      - ./media:/media
+    - ./media:/media
     entrypoint:
-      - ./run.py
-      - worker
+    - ./run.py
+    - worker
     environment:
       APP_REDIS_HOST: redis
       APP_MEDIA: '/media'
       CHECK: worker
     restart: always
     depends_on:
-      # currently doesn't use postgres
-      - redis
+    # currently doesn't use postgres
+    - redis

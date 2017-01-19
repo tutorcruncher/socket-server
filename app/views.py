@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, or_
 
+from .logs import logger
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, json_response
 
@@ -77,7 +78,7 @@ async def company_create(request):
         pg_insert(sa_companies)
         .values(**data)
         .on_conflict_do_nothing(index_elements=[sa_companies.c.name])
-        .returning(sa_companies.c.key, sa_companies.c.name)
+        .returning(sa_companies.c.id, sa_companies.c.key, sa_companies.c.name)
     ))
     new_company = await v.first()
     if new_company is None:
@@ -86,9 +87,13 @@ async def company_create(request):
             details=f'company with the name "{data["name"]}" already exists',
         )
     else:
+        logger.info('created company "%s", id %d, key %s', new_company.name, new_company.id, new_company.key)
         return json_response({
             'status': 'success',
-            'details': new_company
+            'details': {
+                'name': new_company.name,
+                'key': new_company.key,
+            }
         }, request=request, status=201)
 
 
@@ -239,6 +244,7 @@ async def contractor_set(request):
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
     await set_skills(request, con_id, skills)
     photo and await request.app['image_worker'].get_image(request['company'].key, con_id, photo)
+    logger.info('%s contractor on %s', status_text, company_id)
     return json_response({
         'status': 'success',
         'details': f'contractor {status_text}',

@@ -1,11 +1,7 @@
+version: '2'
 services:
-  postgres:
-    restart: always
-  redis:
-    restart: always
+  logs:
+    ports: []
   web:
     ports:
-      - "80:8000"
-    restart: always
-  worker:
-    restart: always
+      - '5000:8000'
