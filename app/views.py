@@ -4,9 +4,8 @@ from secrets import token_hex
 
 import trafaret as t
 from dateutil.parser import parse as dt_parse
-from sqlalchemy import literal, select
+from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import and_, or_
 
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
@@ -216,7 +215,7 @@ async def contractor_set(request):
     primary_description, ex_attrs = get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
     data.update(
         last_updated=data.get('last_updated', datetime.now()),
-        extra_attributes=literal(ex_attrs, JSONB),
+        extra_attributes=ex_attrs,
         tag_line=tag_line,
         primary_description=primary_description,
     )
