@@ -27,7 +27,7 @@ SETTINGS_STRUCTURE = t.Dict({
     'dev': DEV_DICT,
     'database': t.Dict({
         'name': t.String,
-        'password': t.String,
+        'password': t.Or(t.String | t.Null),
         'user': t.String,
         'host': t.String,
         'port': t.Int(gte=0) >> str,
@@ -38,7 +38,7 @@ SETTINGS_STRUCTURE = t.Dict({
         'password': t.Or(t.String | t.Null),
         'database': t.Int,
     }),
-    'shared_secret': t.String >> (lambda s: s.encode() if isinstance(s, bytes) else s),
+    'shared_secret': t.String >> (lambda s: s.encode() if isinstance(s, str) else s),
     'debug': t.Bool,
     'media': t.String >> check_media_dir,
 })

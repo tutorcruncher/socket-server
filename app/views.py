@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, or_
 
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
-from .utils import HTTPBadRequestJson, HTTPNotFoundJson, json_response
+from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, json_response
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -230,6 +230,12 @@ async def contractor_set(request):
         .returning(sa_contractors.c.action)
     )
     r = await v.first()
+    if r is None:
+        # the contractor already exists but on another company
+        raise HTTPForbiddenJson(
+            status='permission denied',
+            details=f'you do not have permission to update contractor {con_id}',
+        )
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
     await set_skills(request, con_id, skills)
     photo and await request.app['image_worker'].get_image(request['company'].key, con_id, photo)

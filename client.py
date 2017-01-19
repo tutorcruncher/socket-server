@@ -61,38 +61,24 @@ CON_DATA = {
         'latitude': None,
         'longitude': None
     },
-    'photo': 'http://www.foobar.com/whatever',
+    'photo': 'http://unsplash.com/photos/vltMzn0jqsA/download',
     'extra_attributes': [
         {
+            'machine_name': None,
             'name': 'Bio',
+            'type': 'text_extended',
             'sort_index': 0,
             'value': 'applecart',
             'id': 195
         },
         {
-            'name': 'Membership start',
-            'sort_index': 0,
-            'value': '2015-04-01T00:00:00Z',
-            'id': 401
-        },
-        {
-            'name': 'Terms and Conditions agreement',
-            'sort_index': 0,
-            'value': True,
-            'id': 381
-        },
-        {
+            'machine_name': None,
             'name': 'Teaching Experience',
+            'type': 'text_short',
             'sort_index': 0,
             'value': 'Harvard',
             'id': 196
         },
-        {
-            'name': 'Has a car',
-            'sort_index': 0,
-            'value': True,
-            'id': 981
-        }
     ],
     'skills': [
         {

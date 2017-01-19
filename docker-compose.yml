@@ -1,0 +1,39 @@
+version: '2'
+services:
+  pg:
+    image: postgres:9.6
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: docker
+      PGDATA: '/var/lib/postgresql/data/pgdata'
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/pgdata
+  redis:
+    image: redis:3.0-alpine
+  web:
+    build: .
+    environment:
+      APP_DATABASE_HOST: pg
+      APP_DATABASE_PASSWORD: docker
+      APP_REDIS_HOST: redis
+      BIND: 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - pg
+      - redis
+  worker:
+    build: .
+    volumes:
+      - ./media:/media
+    entrypoint:
+      - ./run.py
+      - worker
+    environment:
+      APP_DATABASE_HOST: pg
+      APP_DATABASE_PASSWORD: docker
+      APP_REDIS_HOST: redis
+      APP_MEDIA: '/media'
+    depends_on:
+      - pg
+      - redis

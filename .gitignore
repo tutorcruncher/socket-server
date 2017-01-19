@@ -5,3 +5,4 @@ env
 .cache
 htmlcov
 media
+pgdata

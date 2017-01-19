@@ -5,10 +5,12 @@ from aiohttp import ClientSession
 from arq import Actor, BaseWorker, RedisSettings, concurrent
 from PIL import Image
 
+from .logs import logger
 from .settings import load_settings
 
 CHUNK_SIZE = int(1e4)
 SIZE_LARGE = 1000, 1000
+# TODO needs to be 256
 SIZE_SMALL = 128, 128
 
 
@@ -28,8 +30,9 @@ class ImageActor(Actor):
         with TemporaryFile() as f:
             async with self.session.get(url) as r:
                 if r.status != 200:
-                    # TODO logging
-                    return
+                    logger.warning('company %s, contractor %d, unable to download %s: %d',
+                                   company, contractor_id, url, r.status)
+                    return r.status
                 while True:
                     chunk = await r.content.read(CHUNK_SIZE)
                     if not chunk:
@@ -42,8 +45,10 @@ class ImageActor(Actor):
                 im1.thumbnail(SIZE_LARGE)
                 im1.save(path_str + '.jpg', 'JPEG')
 
+                # TODO needs to crop so images are always the same shape
                 im2.thumbnail(SIZE_SMALL)
                 im2.save(path_str + '.thumb.jpg', 'JPEG')
+        return 200
 
     async def close(self):
         await super().close()

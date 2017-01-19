@@ -21,7 +21,3 @@ test:
 .PHONY: test-buildcov
 testcov:
 	py.test --cov=app && (echo "building coverage html"; coverage html)
-
-.PHONY: reset-database
-reset-database:
-	python -c "from app.management import prepare_database; prepare_database(True)"
