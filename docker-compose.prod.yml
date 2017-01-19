@@ -1,0 +1,11 @@
+services:
+  postgres:
+    restart: always
+  redis:
+    restart: always
+  web:
+    ports:
+      - "80:8000"
+    restart: always
+  worker:
+    restart: always

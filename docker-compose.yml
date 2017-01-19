@@ -1,6 +1,6 @@
 version: '2'
 services:
-  pg:
+  postgres:
     image: postgres:9.6
     environment:
       POSTGRES_USER: postgres
@@ -8,19 +8,23 @@ services:
       PGDATA: '/var/lib/postgresql/data/pgdata'
     volumes:
       - ./pgdata:/var/lib/postgresql/data/pgdata
+    restart: always
   redis:
     image: redis:3.0-alpine
+    restart: always
   web:
     build: .
     environment:
-      APP_DATABASE_HOST: pg
+      APP_DATABASE_HOST: postgres
       APP_DATABASE_PASSWORD: docker
       APP_REDIS_HOST: redis
       BIND: 0.0.0.0:8000
+      CHECK: web
     ports:
       - "8000:8000"
+    restart: always
     depends_on:
-      - pg
+      - postgres
       - redis
   worker:
     build: .
@@ -30,10 +34,10 @@ services:
       - ./run.py
       - worker
     environment:
-      APP_DATABASE_HOST: pg
-      APP_DATABASE_PASSWORD: docker
       APP_REDIS_HOST: redis
       APP_MEDIA: '/media'
+      CHECK: worker
+    restart: always
     depends_on:
-      - pg
+      # currently doesn't use postgres
       - redis
