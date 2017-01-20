@@ -1,7 +1,6 @@
 import asyncio
 import os
 from functools import partial
-from time import sleep
 
 import click
 from aiohttp import ClientSession
@@ -11,6 +10,7 @@ from gunicorn.app.base import BaseApplication
 from .logs import logger
 from .main import create_app
 from .management import prepare_database
+from .settings import load_settings
 
 commands = []
 
@@ -20,6 +20,41 @@ def command(func):
     return func
 
 
+async def _check_port_open(conf, loop):
+    host, port = conf['host'], conf['port']
+    steps, delay = 100, 0.1
+    for i in range(steps):
+        try:
+            await loop.create_connection(lambda: asyncio.Protocol(), host=host, port=port)
+        except OSError:
+            await asyncio.sleep(delay, loop=loop)
+        else:
+            logger.info('Connected successfully to %s:%s after %0.2fs', host, port, delay * i)
+            return
+    raise RuntimeError(f'Unable to connect to {host}:{port} after {steps * delay}s')
+
+
+def check_services_ready(*, postgres=True, redis=True):
+    settings = load_settings()
+    loop = asyncio.get_event_loop()
+    coros = []
+    if postgres:
+        coros.append(_check_port_open(settings['database'], loop))
+    if redis:
+        coros.append(_check_port_open(settings['redis'], loop))
+    loop.run_until_complete(asyncio.gather(*coros, loop=loop))
+
+
+def check_app():
+    loop = asyncio.get_event_loop()
+    logger.info("initialising aiohttp app to check it's working...")
+    app = create_app(loop)
+    loop.run_until_complete(app.startup())
+    loop.run_until_complete(app.cleanup())
+    del app
+    logger.info('app started and stopped successfully, apparently configured correctly')
+
+
 @command
 def web(**kwargs):
     """
@@ -27,17 +62,17 @@ def web(**kwargs):
 
     If the database doesn't already exist it will be created.
     """
-    # TODO improve this with a real checker
-    wait = 4
-    logger.info('sleeping %ds to let database come up...', wait)
-    sleep(wait)
+    logger.info('waiting for postgres and redis to come up...')
+    check_services_ready()
+
+    logger.info('preparing the database...')
     prepare_database(False, print_func=logger.info)
-    # TODO logger.info("initialising application to check it's working...")
+
+    check_app()
 
     config = dict(
-        worker_class='aiohttp.worker.GunicornWebWorker',
+        worker_class='aiohttp.worker.GunicornUVLoopWebWorker',
         bind=os.getenv('BIND', '127.0.0.1:8000'),
-        workers=int(os.getenv('WEB_CONCURRENCY', '1')),
         max_requests=5000,
         max_requests_jitter=500,
     )
@@ -51,6 +86,7 @@ def web(**kwargs):
             loop = asyncio.get_event_loop()
             return create_app(loop)
 
+    logger.info('starting gunicorn...')
     Application().run()
 
 
@@ -98,6 +134,8 @@ def worker(**kwargs):
     """
     Run the worker
     """
+    logger.info('waiting for redis to come up...')
+    check_services_ready(postgres=False)
     RunWorkerProcess('app/worker.py', 'Worker')
 
 

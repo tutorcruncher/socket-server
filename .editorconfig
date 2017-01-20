@@ -14,7 +14,7 @@ indent_size = 2
 indent_style = spaceg
 indent_size = 2
 
-[*.txt,*.yml,*.yaml]
+[*.txt,*.yml,*.yaml,*.conf,*.nginx]
 indent_style = space
 indent_size = 2
 
