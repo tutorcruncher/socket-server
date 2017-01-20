@@ -1,10 +1,9 @@
 version: '2'
 
 volumes:
- pg_data:
-   external: false
- media:
-   external: false
+ pg_data: {}
+ media: {}
+ redis_data: {}
 
 services:
   logs:
@@ -26,6 +25,8 @@ services:
 
   redis:
     image: redis:3.0-alpine
+    volumes:
+    - redis_data:/data
     restart: always
     depends_on:
     - logs
@@ -66,3 +67,5 @@ services:
     depends_on:
     # currently doesn't use postgres
     - redis
+
+  # TODO: https://github.com/schickling/dockerfiles/tree/master/postgres-backup-s3

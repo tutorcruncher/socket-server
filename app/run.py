@@ -1,21 +1,16 @@
 import asyncio
 import os
-from contextlib import contextmanager
 from functools import partial
 from time import sleep
-from typing import Union
 
 import click
-import psycopg2
 from aiohttp import ClientSession
 from arq import RunWorkerProcess
 from gunicorn.app.base import BaseApplication
-from sqlalchemy import create_engine
 
 from .logs import logger
-from .main import create_app, pg_dsn
-from .models import Base
-from .settings import load_settings
+from .main import create_app
+from .management import prepare_database
 
 commands = []
 
@@ -25,60 +20,6 @@ def command(func):
     return func
 
 
-@contextmanager
-def psycopg2_cursor(**db_settings):
-    conn = psycopg2.connect(
-        password=db_settings['password'],
-        host=db_settings['host'],
-        port=db_settings['port'],
-        user=db_settings['user'],
-    )
-    conn.autocommit = True
-    cur = conn.cursor()
-
-    yield cur
-
-    cur.close()
-    conn.close()
-
-
-def prepare_database(delete_existing: Union[bool, callable], print_func=print) -> bool:
-    """
-    (Re)create a fresh database and run migrations.
-
-    :param delete_existing: whether or not to drop an existing database if it exists
-    :param print_func: function to use for printing, eg. could be set to `logger.info`
-    :return: whether or not a database as (re)created
-    """
-    db = load_settings()['database']
-
-    with psycopg2_cursor(**db) as cur:
-        cur.execute('SELECT EXISTS (SELECT datname FROM pg_catalog.pg_database WHERE datname=%s)', (db['name'],))
-        already_exists = bool(cur.fetchone()[0])
-        if already_exists:
-            if callable(delete_existing):
-                _delete_existing = delete_existing()
-            else:
-                _delete_existing = bool(delete_existing)
-            if not _delete_existing:
-                print_func('database "{name}" already exists, not recreating it'.format(**db))
-                return False
-            else:
-                print_func('dropping database "{name}" as it already exists...'.format(**db))
-                cur.execute('DROP DATABASE {name}'.format(**db))
-        else:
-            print_func('database "{name}" does not yet exist'.format(**db))
-
-        print_func('creating database "{name}"...'.format(**db))
-        cur.execute('CREATE DATABASE {name}'.format(**db))
-
-    engine = create_engine(pg_dsn(db))
-    print_func('creating tables from model definition...')
-    Base.metadata.create_all(engine)
-    engine.dispose()
-    return True
-
-
 @command
 def web(**kwargs):
     """
@@ -86,11 +27,12 @@ def web(**kwargs):
 
     If the database doesn't already exist it will be created.
     """
+    # TODO improve this with a real checker
     wait = 4
     logger.info('sleeping %ds to let database come up...', wait)
     sleep(wait)
     prepare_database(False, print_func=logger.info)
-    logger.info("initialising application to check it's working...")
+    # TODO logger.info("initialising application to check it's working...")
 
     config = dict(
         worker_class='aiohttp.worker.GunicornWebWorker',

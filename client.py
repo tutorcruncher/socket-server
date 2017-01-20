@@ -9,7 +9,11 @@ import aiohttp
 import click
 
 SHARED_KEY = b'this is a secret'
-BASE_URL = 'http://localhost:8000/'
+BASE_URL = 'https://localhost:8000/'
+HEADERS = {
+    'Host': 'socket.tutorcruncher.com'
+}
+CONN = aiohttp.TCPConnector(verify_ssl=False)
 
 commands = []
 
@@ -21,8 +25,8 @@ def command(func):
 
 @command
 async def index(arg):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(BASE_URL) as r:
+    async with aiohttp.ClientSession(connector=CONN) as session:
+        async with session.get(BASE_URL, headers=HEADERS) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')
@@ -41,9 +45,10 @@ async def create_company(arg):
         'Webhook-Signature': m.hexdigest(),
         'User-Agent': 'TutorCruncher',
         'Content-Type': 'application/json',
+        'Host': 'socket.tutorcruncher.com',
     }
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=CONN) as session:
         async with session.post(BASE_URL + 'companies/create', data=payload, headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
@@ -122,8 +127,9 @@ async def create_contractor(company):
         'Webhook-Signature': m.hexdigest(),
         'User-Agent': 'TutorCruncher',
         'Content-Type': 'application/json',
+        'Host': 'socket.tutorcruncher.com',
     }
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=CONN) as session:
         async with session.post(BASE_URL + f'{company}/contractors/set', data=payload, headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
@@ -132,8 +138,8 @@ async def create_contractor(company):
 
 @command
 async def list_contractors(company):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(BASE_URL + f'{company}/contractors?sort=thing') as r:
+    async with aiohttp.ClientSession(connector=CONN) as session:
+        async with session.get(BASE_URL + f'{company}/contractors?sort=thing', headers=HEADERS) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')

@@ -2,7 +2,7 @@
 import click
 
 from app.logs import logger, setup_logging
-from app.management import commands
+from app.run import commands
 
 
 @click.command()

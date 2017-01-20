@@ -295,11 +295,12 @@ async def contractor_list(request):
     )
     results = []
     name_display = request['company'].name_display
+    # TODO include link to photo
     async for row in request['conn'].execute(q):
         name = _get_name(name_display, row)
         results.append(dict(
             id=row.id,
-            slug=_slugify(name),
+            slug=_slugify(name),  # add id to slug
             name=name,
             tag_line=row.tag_line,
         ))
@@ -327,6 +328,7 @@ async def contractor_get(request):
         )
         .where(sa_con_skills.c.contractor == con_id)
     )
+    # TODO include link to photo
     return json_response(dict(
         id=con.id,
         name=_get_name(request['company'].name_display, con),
