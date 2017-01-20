@@ -7,3 +7,4 @@ htmlcov
 media
 pgdata
 nginx/keys
+env.sh

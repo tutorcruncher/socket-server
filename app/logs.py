@@ -17,8 +17,7 @@ def setup_logging(verbose: bool=False):
         'disable_existing_loggers': False,
         'formatters': {
             'socket.default': {
-                'format': '[%(asctime)s] %(message)s',
-                'datefmt': '%H:%M:%S',
+                'format': '%(message)s',
             },
         },
         'handlers': {

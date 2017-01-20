@@ -1,5 +1,9 @@
 version: '2'
 services:
+  logs:
+    entrypoint:
+    - '/bin/logspout'
+    - '${LOGSPOUT_ENDPOINT}'
   nginx:
     ports:
     - 443:443
