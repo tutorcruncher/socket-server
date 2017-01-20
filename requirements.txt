@@ -1,7 +1,7 @@
 SQLAlchemy==1.1.5
 aiohttp==1.2.0
 aiopg==0.13.0
-arq==0.3.0
+arq==0.3.1
 gunicorn==19.6.0
 python-dateutil==2.6.0
 trafaret==0.7.5
