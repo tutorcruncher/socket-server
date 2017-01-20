@@ -6,3 +6,4 @@ env
 htmlcov
 media
 pgdata
+nginx/keys

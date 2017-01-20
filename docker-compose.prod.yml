@@ -1,7 +1,5 @@
 version: '2'
 services:
-  logs:
-    ports: []
-  web:
+  nginx:
     ports:
-      - '5000:8000'
+    - 443:443
