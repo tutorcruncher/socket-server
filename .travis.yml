@@ -23,7 +23,7 @@ install:
 script:
 - make lint
 - make test
-- ./deploy/up.sh
+- ./tests/end2end.sh
 
 after_success:
 - ls -lha
