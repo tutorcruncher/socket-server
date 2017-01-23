@@ -73,7 +73,8 @@ async def company_create(request):
     """
     data = request['json_obj']
     data['key'] = token_hex(10)
-    v = await request['conn'].execute((
+    conn = await request['conn_manager'].get_connection()
+    v = await conn.execute((
         pg_insert(sa_companies)
         .values(**data)
         .on_conflict_do_nothing(index_elements=[sa_companies.c.name])
@@ -97,19 +98,18 @@ async def company_create(request):
         )
 
 
-async def _set_skills(request, contractor_id, skills):
+async def _set_skills(conn, contractor_id, skills):
     """
     create missing subjects and qualification levels, then create contractor skills for them.
     """
-    execute = request['conn'].execute
     if not skills:
         # just delete skills and return
-        await execute(sa_con_skills.delete().where(sa_con_skills.c.contractor == contractor_id))
+        await conn.execute(sa_con_skills.delete().where(sa_con_skills.c.contractor == contractor_id))
         return
-    async with request['conn'].begin():
+    async with conn.begin():
         # get ids of subjects, creating them if necessary
         subject_cols = sa_subjects.c.id, sa_subjects.c.name, sa_subjects.c.category
-        cur = await execute(
+        cur = await conn.execute(
             select(subject_cols)
             .where(or_(*[
                 and_(sa_subjects.c.name == s['subject'], sa_subjects.c.category == s['category'])
@@ -126,12 +126,12 @@ async def _set_skills(request, contractor_id, skills):
                 subjects_to_create.append(dict(name=skill['subject'], category=skill['category']))
 
         if subjects_to_create:
-            cur = await execute(sa_subjects.insert().values(subjects_to_create).returning(*subject_cols))
+            cur = await conn.execute(sa_subjects.insert().values(subjects_to_create).returning(*subject_cols))
             subjects.update({(r[1], r[2]): r[0] async for r in cur})
 
         # get ids of qualification levels, creating them if necessary
         qual_level_cols = sa_qual_levels.c.id, sa_qual_levels.c.name
-        cur = await execute(
+        cur = await conn.execute(
             select(qual_level_cols)
             .where(sa_qual_levels.c.name.in_({s['qual_level'] for s in skills}))
         )
@@ -145,7 +145,7 @@ async def _set_skills(request, contractor_id, skills):
                 qual_levels_to_create.append(dict(name=ql_name, ranking=skill['qual_level_ranking']))
 
         if qual_levels_to_create:
-            cur = await execute(sa_qual_levels.insert().values(qual_levels_to_create).returning(*qual_level_cols))
+            cur = await conn.execute(sa_qual_levels.insert().values(qual_levels_to_create).returning(*qual_level_cols))
             qual_levels.update({r[1]: r[0] async for r in cur})
 
         # skills the contractor should have
@@ -156,7 +156,7 @@ async def _set_skills(request, contractor_id, skills):
             .where(sa_con_skills.c.contractor == contractor_id)
         )
         to_delete = set()
-        async for r in execute(q):
+        async for r in conn.execute(q):
             key = r.subject, r.qual_level
             try:
                 con_skills.remove(key)
@@ -164,14 +164,14 @@ async def _set_skills(request, contractor_id, skills):
                 # skill doesn't exist in con_skills, it should be deleted
                 to_delete.add(r.id)
 
-        to_delete and await execute(sa_con_skills.delete().where(sa_con_skills.c.id.in_(to_delete)))
+        to_delete and await conn.execute(sa_con_skills.delete().where(sa_con_skills.c.id.in_(to_delete)))
 
         if con_skills:
             q = sa_con_skills.insert().values([
                 dict(contractor=contractor_id, subject=subject, qual_level=qual_level)
                 for subject, qual_level in con_skills
             ])
-            await execute(q)
+            await conn.execute(q)
 
 
 def get_special_extra_attr(extra_attributes, machine_name, attr_type):
@@ -192,8 +192,9 @@ async def contractor_set(request):
     data = request['json_obj']
     con_id = data.pop('id')
     deleted = data.pop('deleted')
+    conn = await request['conn_manager'].get_connection()
     if deleted:
-        curr = await request['conn'].execute(
+        curr = await conn.execute(
             sa_contractors
             .delete()
             .where(and_(sa_contractors.c.company == company_id, sa_contractors.c.id == con_id))
@@ -224,7 +225,7 @@ async def contractor_set(request):
         tag_line=tag_line,
         primary_description=primary_description,
     )
-    v = await request['conn'].execute(
+    v = await conn.execute(
         pg_insert(sa_contractors)
         .values(id=con_id, company=company_id, action=Action.insert, **data)
         .on_conflict_do_update(
@@ -242,7 +243,7 @@ async def contractor_set(request):
             details=f'you do not have permission to update contractor {con_id}',
         )
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
-    await _set_skills(request, con_id, skills)
+    await _set_skills(conn, con_id, skills)
     photo and await request.app['image_worker'].get_image(request['company'].key, con_id, photo)
     logger.info('%s contractor on %s', status_text, company_id)
     return pretty_json_response(
@@ -307,7 +308,8 @@ async def contractor_list(request):
     results = []
     name_display = request['company'].name_display
 
-    async for row in request['conn'].execute(q):
+    conn = await request['conn_manager'].get_connection()
+    async for row in conn.execute(q):
         name = _get_name(name_display, row)
         results.append(dict(
             id=row.id,
@@ -324,7 +326,8 @@ async def contractor_get(request):
     c = sa_contractors.c
     cols = c.id, c.first_name, c.last_name, c.tag_line, c.extra_attributes
     con_id = request.match_info['id']
-    curr = await request['conn'].execute(
+    conn = await request['conn_manager'].get_connection()
+    curr = await conn.execute(
         select(cols)
         .where(and_(c.company == request['company'].id, c.id == con_id))
         .limit(1)
@@ -332,7 +335,7 @@ async def contractor_get(request):
     con = await curr.first()
 
     cols = sa_subjects.c.category, sa_subjects.c.name, sa_qual_levels.c.name, sa_qual_levels.c.ranking
-    skills_curr = await request['conn'].execute(
+    skills_curr = await conn.execute(
         select(cols, use_labels=True)
         .select_from(
             sa_con_skills

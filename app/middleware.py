@@ -59,10 +59,33 @@ async def json_request_middleware(app, handler):
     return _handler
 
 
+class ConnectionManager:
+    """
+    Copies engine.acquire()'s context manager but is lazy in that you need to call get_connection()
+    for a connection to be found, otherwise does nothing.
+    """
+    def __init__(self, engine):
+        self._engine = engine
+
+    async def __aenter__(self):
+        self._conn = None
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._conn is not None:
+            await self._engine.release(self._conn)
+            self._conn = None
+
+    async def get_connection(self):
+        if self._conn is None:
+            self._conn = await self._engine._acquire()
+        return self._conn
+
+
 async def pg_conn_middleware(app, handler):
     async def _handler(request):
-        async with app['pg_engine'].acquire() as conn:
-            request['conn'] = conn
+        async with ConnectionManager(app['pg_engine']) as conn_manager:
+            request['conn_manager'] = conn_manager
             return await handler(request)
     return _handler
 
@@ -73,7 +96,8 @@ async def company_middleware(app, handler):
         if company_key:
             select_fields = sa_companies.c.id, sa_companies.c.key, sa_companies.c.name_display
             q = select(select_fields).where(sa_companies.c.key == company_key)
-            result = await request['conn'].execute(q)
+            conn = await request['conn_manager'].get_connection()
+            result = await conn.execute(q)
             company = await result.first()
             if company:
                 request['company'] = company

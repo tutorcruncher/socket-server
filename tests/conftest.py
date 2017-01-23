@@ -69,14 +69,20 @@ def db_conn(loop, db):
     loop.run_until_complete(engine.wait_closed())
 
 
-class TestAcquire:
+class TestEngine:
     def __init__(self, conn):
         self._conn = conn
 
-    async def __aenter__(self):
+    async def _acquire(self):
         return self._conn
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def release(self, conn):
+        pass
+
+    def close(self):
+        pass
+
+    async def wait_closed(self):
         pass
 
 
@@ -90,7 +96,7 @@ def cli(loop, test_client, db_conn, settings):
     """
 
     async def modify_startup(app):
-        app['pg_engine'].acquire = lambda: TestAcquire(db_conn)
+        app['pg_engine'] = TestEngine(db_conn)
         app['image_worker']._concurrency_enabled = False
 
     app = create_app(loop, settings=settings)
