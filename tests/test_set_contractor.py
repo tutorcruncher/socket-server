@@ -298,3 +298,49 @@ async def test_delete_skills(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_con_skills)
     assert 1 == await count(db_conn, sa_subjects)
     assert 1 == await count(db_conn, sa_qual_levels)
+
+
+async def test_invalid_json(cli, company):
+    payload = 'foobar'
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the secret key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post(f'/{company}/contractors/set', data=payload, headers=headers)
+    assert r.status == 400, await r.text()
+    response_data = await r.json()
+    assert response_data == {
+        'details': 'Value Error: Expecting value: line 1 column 1 (char 0)',
+        'status': 'invalid request data',
+    }
+
+
+async def test_invalid_schema(cli, company):
+    r = await signed_post(
+        cli,
+        f'/{company}/contractors/set',
+        id='not an int',
+    )
+    assert r.status == 400, await r.text()
+    response_data = await r.json()
+    assert response_data == {
+        'details': {'id': "value can't be converted to int"},
+        'status': 'invalid request data',
+    }
+
+
+async def test_missing_company(cli, company):
+    r = await signed_post(
+        cli,
+        f'/not-{company}/contractors/set',
+        id=123,
+    )
+    assert r.status == 404, await r.text()
+    response_data = await r.json()
+    assert response_data == {
+        'details': 'No company found for key not-thekey',
+        'status': 'company not found',
+    }

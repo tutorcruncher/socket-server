@@ -34,14 +34,9 @@ async def auth_middleware(app, handler):
 
 async def json_request_middleware(app, handler):
     async def _handler(request):
-        view_name = request.match_info.route.name
-        if request.method == METH_POST and view_name:
+        if request.method == METH_POST and request.match_info.route.name:
             error_details = None
-            try:
-                schema = VIEW_SCHEMAS[view_name]
-            except KeyError as e:
-                raise KeyError(f'can\'t find "{view_name}" in {sorted(VIEW_SCHEMAS.keys())}') from e
-
+            schema = VIEW_SCHEMAS[request.match_info.route.name]
             try:
                 data = await request.json()
                 request['json_obj'] = schema.check(data)
@@ -66,9 +61,11 @@ class ConnectionManager:
     """
     def __init__(self, engine):
         self._engine = engine
+        self._conn = None
+        self._entered = False
 
     async def __aenter__(self):
-        self._conn = None
+        self._entered = True
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -77,6 +74,7 @@ class ConnectionManager:
             self._conn = None
 
     async def get_connection(self):
+        assert self._entered
         if self._conn is None:
             self._conn = await self._engine._acquire()
         return self._conn
