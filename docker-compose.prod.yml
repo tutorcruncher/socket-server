@@ -6,7 +6,7 @@ services:
     - '${LOGSPOUT_ENDPOINT}'
 
   nginx:
-    build: ./nginx-prod
+    build: nginx/prod
     volumes:
     - media:/media:ro
     restart: always

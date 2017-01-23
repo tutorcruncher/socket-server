@@ -5,7 +5,7 @@ services:
     - 8001:80
 
   nginx:
-    build: ./nginx-dev
+    build: nginx/dev
     volumes:
     - media:/media:ro
     ports:

@@ -1,7 +1,6 @@
-from asyncio import CancelledError
-
 import hashlib
 import hmac
+from asyncio import CancelledError
 
 import trafaret as t
 from aiohttp.hdrs import METH_POST
