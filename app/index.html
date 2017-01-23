@@ -9,7 +9,10 @@
       margin: 10px auto;
       width: 35rem;
       font-family: monospace;
-      white-space: pre;
+    }
+    section {
+      text-align: center;
+      padding-top: 20px;
     }
     @media (max-width: 35rem) {
       main {
@@ -20,6 +23,7 @@
 </head>
 <body>
 <main>
+<pre>
  _____     _             _____                       _
 |_   _|   | |           /  __ \                     | |
   | |_   _| |_ ___  _ __| /  \/_ __ _   _ _ __   ___| |__   ___ _ __
@@ -33,14 +37,19 @@
                     `--. \/ _ \ / __| |/ / _ \ __|
                    /\__/ / (_) | (__|   <  __/ |_
                    \____/ \___/ \___|_|\_\___|\__|
-
-
-            COMMIT: {{ commit }}
-      RELEASE DATE: {{ release_date }}
-
-You're looking at TutorCruncher socket's API server, for more
-information see <a href="https://tutorcruncher.com/socket">tutorcruncher.com/socket</a>.
-
-For help integrating with socket, see <a href="https://help.tutorcruncher.com/socket">help.tutorcruncher.com/socket</a>.
+</pre>
+<section>
+  COMMIT: {{ commit }}
+  <br>
+  RELEASE DATE: {{ release_date }}
+</section>
+<section>
+  You're looking at TutorCruncher socket's API, for more
+  information see <a href="https://tutorcruncher.com/socket">tutorcruncher.com/socket</a>.
+</section>
+<section>
+  For help integrating with socket, see
+  <a href="https://help.tutorcruncher.com/socket">help.tutorcruncher.com/socket</a>.
+</section>
 </main>
 </body>
