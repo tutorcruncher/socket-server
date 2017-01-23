@@ -2,9 +2,9 @@ from datetime import datetime
 
 import pytest
 
-from app.logs import logger, setup_logging
-from app.settings import load_settings
-from app.utils import to_pretty_json
+from tcsocket.app.logs import logger, setup_logging
+from tcsocket.app.settings import load_settings
+from tcsocket.app.utils import to_pretty_json
 
 
 def test_load_settings():

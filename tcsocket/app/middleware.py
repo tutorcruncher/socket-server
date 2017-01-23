@@ -7,8 +7,7 @@ from aiohttp.hdrs import METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest
 from sqlalchemy import select
 
-from app.models import sa_companies
-
+from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPNotFoundJson, HTTPUnauthorizedJson
 from .views import VIEW_SCHEMAS
 

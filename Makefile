@@ -1,7 +1,7 @@
 .PHONY: install
 install:
 	pip install -U pip
-	pip install -r requirements.txt
+	pip install -r tcsocket/requirements.txt
 	pip install -r tests/requirements.txt
 
 .PHONY: isort
@@ -11,12 +11,12 @@ isort:
 
 .PHONY: lint
 lint:
-	flake8 app/ tests/
-	pytest app -p no:sugar -q --cache-clear
+	flake8 tcsocket/ tests/
+	pytest tcsocket -p no:sugar -q --cache-clear
 
 .PHONY: test
 test:
-	py.test --cov=app
+	py.test --cov=tcsocket
 
 .PHONY: testcov
 testcov: test
@@ -24,4 +24,4 @@ testcov: test
 
 .PHONY: all
 all: testcov lint
-	echo "building coverage html"; coverage html
+

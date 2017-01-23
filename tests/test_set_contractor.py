@@ -7,7 +7,7 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.sql.functions import count as count_func
 
-from app.models import sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .conftest import signed_post
 
 

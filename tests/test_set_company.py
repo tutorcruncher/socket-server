@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import json
 
-from app.models import sa_companies
+from tcsocket.app.models import sa_companies
 from .conftest import signed_post
 
 

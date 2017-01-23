@@ -10,9 +10,9 @@ from aiopg.sa import create_engine as aio_create_engine
 from PIL import Image
 from sqlalchemy import create_engine as sa_create_engine
 
-from app.main import create_app, pg_dsn
-from app.management import psycopg2_cursor
-from app.models import Base, sa_companies
+from tcsocket.app.main import create_app, pg_dsn
+from tcsocket.app.management import psycopg2_cursor
+from tcsocket.app.models import Base, sa_companies
 
 DB = {
     'name': 'socket_test',

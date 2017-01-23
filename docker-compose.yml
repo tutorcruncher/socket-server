@@ -32,7 +32,7 @@ services:
     - logs
 
   web:
-    build: .
+    build: tcsocket
     environment:
       APP_DATABASE_HOST: postgres
       APP_DATABASE_PASSWORD: docker
@@ -47,7 +47,7 @@ services:
     - redis
 
   worker:
-    build: .
+    build: tcsocket
     volumes:
     - media:/media
     entrypoint:

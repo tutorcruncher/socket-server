@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from app.models import sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 
 
 async def test_index(cli):
