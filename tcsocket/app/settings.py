@@ -38,7 +38,7 @@ SETTINGS_STRUCTURE = t.Dict({
         'password': t.Or(t.String | t.Null),
         'database': t.Int,
     }),
-    'shared_secret': t.String >> (lambda s: s.encode() if isinstance(s, str) else s),
+    'shared_secret': t.String(allow_blank=True) >> (lambda s: s.encode() if isinstance(s, str) else s),
     'root_url': t.URL,
     'media_dir': t.String >> check_media_dir,
     'media_url': t.URL,

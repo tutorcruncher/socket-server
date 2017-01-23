@@ -1,6 +1,7 @@
 #!/usr/bin/env python3.6
 import asyncio
 import json
+import os
 import hmac
 import hashlib
 from datetime import datetime
@@ -8,9 +9,10 @@ from datetime import datetime
 import aiohttp
 import click
 
-SHARED_KEY = b'this is a secret'
+SHARED_KEY = os.getenv('SHARED_SECRET', 'this is a secret').encode()
+print(f'using shared secret {SHARED_KEY}')
 BASE_URL = 'http://localhost:8000/'
-# BASE_URL = 'https://socket.tutorcruncher.com/'
+BASE_URL = 'https://socket.tutorcruncher.com/'
 CONN = aiohttp.TCPConnector(verify_ssl=False)
 
 commands = []

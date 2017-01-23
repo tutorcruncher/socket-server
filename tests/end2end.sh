@@ -14,15 +14,12 @@ deploy/up.sh
 
 sleep 10
 
-docker-compose logs
-
 docker ps
 docker-compose ps
 
-# the first command prints the response
-# the second command fails if the response is not ok
+# the first curl prints the response
+# the second curl fails if the response is not ok
 curl -kv -H "Host: socket.tutorcruncher.com" https://localhost:443
-printf "\n\n"
-curl -kfs -H "Host: socket.tutorcruncher.com" https://localhost:443 > /dev/null
+docker-compose logs -t
 
-docker-compose logs
+curl -kfs -H "Host: socket.tutorcruncher.com" https://localhost:443 > /dev/null
