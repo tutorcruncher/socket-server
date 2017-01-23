@@ -1,8 +1,11 @@
+from asyncio import CancelledError
+
 import hashlib
 import hmac
 
 import trafaret as t
 from aiohttp.hdrs import METH_POST
+from aiohttp.web_exceptions import HTTPBadRequest
 from sqlalchemy import select
 
 from app.models import sa_companies
@@ -69,9 +72,12 @@ class ConnectionManager:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._conn is not None:
-            await self._engine.release(self._conn)
-            self._conn = None
+        try:
+            if self._conn is not None:
+                await self._engine.release(self._conn)
+                self._conn = None
+        except CancelledError:
+            raise HTTPBadRequest()
 
     async def get_connection(self):
         assert self._entered
@@ -90,21 +96,24 @@ async def pg_conn_middleware(app, handler):
 
 async def company_middleware(app, handler):
     async def _handler(request):
-        company_key = request.match_info.get('company')
-        if company_key:
-            select_fields = sa_companies.c.id, sa_companies.c.key, sa_companies.c.name_display
-            q = select(select_fields).where(sa_companies.c.key == company_key)
-            conn = await request['conn_manager'].get_connection()
-            result = await conn.execute(q)
-            company = await result.first()
-            if company:
-                request['company'] = company
-            else:
-                raise HTTPNotFoundJson(
-                    status='company not found',
-                    details=f'No company found for key {company_key}',
-                )
-        return await handler(request)
+        try:
+            company_key = request.match_info.get('company')
+            if company_key:
+                select_fields = sa_companies.c.id, sa_companies.c.key, sa_companies.c.name_display
+                q = select(select_fields).where(sa_companies.c.key == company_key)
+                conn = await request['conn_manager'].get_connection()
+                result = await conn.execute(q)
+                company = await result.first()
+                if company:
+                    request['company'] = company
+                else:
+                    raise HTTPNotFoundJson(
+                        status='company not found',
+                        details=f'No company found for key {company_key}',
+                    )
+            return await handler(request)
+        except CancelledError:
+            raise HTTPBadRequest()
     return _handler
 
 middleware = auth_middleware, json_request_middleware, pg_conn_middleware, company_middleware

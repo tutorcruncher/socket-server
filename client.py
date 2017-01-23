@@ -10,7 +10,7 @@ import click
 
 SHARED_KEY = b'this is a secret'
 BASE_URL = 'http://localhost:8000/'
-BASE_URL = 'https://socket.tutorcruncher.com/'
+# BASE_URL = 'https://socket.tutorcruncher.com/'
 CONN = aiohttp.TCPConnector(verify_ssl=False)
 
 commands = []
