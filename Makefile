@@ -1,6 +1,6 @@
 .PHONY: install
 install:
-	pip install -U pip
+	pip install -U pip docker-compose
 	pip install -r tcsocket/requirements.txt
 	pip install -r tests/requirements.txt
 

@@ -1,3 +1,5 @@
+sudo: required
+
 dist: trusty
 
 language: python
@@ -8,6 +10,7 @@ addons:
 services:
 - postgresql
 - redis-server
+- docker
 
 cache: pip
 
@@ -20,6 +23,7 @@ install:
 script:
 - make lint
 - make test
+- ./deploy/up.sh
 
 after_success:
 - ls -lha
