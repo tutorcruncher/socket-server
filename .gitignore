@@ -5,6 +5,5 @@ env
 .cache
 htmlcov
 media
-pgdata
-nginx/keys
+nginx-prod/keys
 env.sh

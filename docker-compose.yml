@@ -39,18 +39,12 @@ services:
       APP_REDIS_HOST: redis
       BIND: 0.0.0.0:8000
       CHECK: web
+      COMMIT: ${COMMIT}
+      RELEASE_DATE: ${RELEASE_DATE}
     restart: always
     depends_on:
     - postgres
     - redis
-
-  nginx:
-    build: ./nginx
-    volumes:
-    - media:/media:ro
-    restart: always
-    depends_on:
-    - web
 
   worker:
     build: .

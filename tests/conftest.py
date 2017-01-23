@@ -34,9 +34,9 @@ def settings(tmpdir):
           'database': 0,
         },
         'shared_secret': b'this is the secret key',
-        'debug': True,
+        'root_url': 'http://socket.tutorcruncher.com',
         'media_dir': str(tmpdir),
-        'media_url': str(tmpdir),
+        'media_url': 'http://socket.tutorcruncher.com/media',
     }
 
 

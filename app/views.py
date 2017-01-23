@@ -280,6 +280,11 @@ def _photo_url(request, con, thumb):
     return request.app['media_url'] + '/' + request['company'].key + '/' + str(con.id) + ext
 
 
+def _route_url(request, view_name, **kwargs):
+    uri = request.app.router[view_name].url_for(**kwargs)
+    return '{}{}'.format(request.app['root_url'], uri)
+
+
 async def contractor_list(request):
     sort_on = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
     page = request.GET.get('page', 1)
@@ -306,7 +311,7 @@ async def contractor_list(request):
         name = _get_name(name_display, row)
         results.append(dict(
             id=row.id,
-            url=str(request.app.router['contractor-get'].url_for(company=request['company'].key, id=row.id)),
+            url=_route_url(request, 'contractor-get', company=request['company'].key, id=row.id),
             link='{}-{}'.format(row.id, _slugify(name)),
             name=name,
             tag_line=row.tag_line,

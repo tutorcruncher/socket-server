@@ -9,7 +9,7 @@ async def test_index(cli):
     # TODO test content when we have some
 
 
-async def test_list_contractors(cli, db_conn, tmpdir):
+async def test_list_contractors(cli, db_conn):
     v = await db_conn.execute(
         sa_companies
         .insert()
@@ -31,14 +31,14 @@ async def test_list_contractors(cli, db_conn, tmpdir):
             'id': 1,
             'link': '1-fred-b',
             'name': 'Fred B',
-            'photo': str(tmpdir) + '/thekey/1.thumb.jpg',
+            'photo': 'http://socket.tutorcruncher.com/media/thekey/1.thumb.jpg',
             'tag_line': None,
-            'url': '/thekey/contractors/1',
+            'url': 'http://socket.tutorcruncher.com/thekey/contractors/1',
         }
     ] == obj
 
 
-async def test_get_contractor(cli, db_conn, tmpdir):
+async def test_get_contractor(cli, db_conn):
     v = await db_conn.execute(
         sa_companies
         .insert()
@@ -91,7 +91,7 @@ async def test_get_contractor(cli, db_conn, tmpdir):
         'name': 'Fred B',
         'extra_attributes': [{'foo': 'bar'}],
         'tag_line': None,
-        'photo': str(tmpdir) + '/thekey/1.jpg',
+        'photo': 'http://socket.tutorcruncher.com/media/thekey/1.jpg',
         'skills': [
             {
                 'category': 'Maths',

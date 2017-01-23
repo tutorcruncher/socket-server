@@ -3,6 +3,12 @@ services:
   logs:
     ports:
     - 8001:80
+
   nginx:
+    build: ./nginx-dev
+    volumes:
+    - media:/media:ro
     ports:
-    - 8000:443
+    - 8000:80
+    depends_on:
+    - web
