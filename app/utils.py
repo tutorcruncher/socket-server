@@ -63,8 +63,9 @@ class HTTPNotFoundJson(HTTPClientErrorJson):
     status_code = 404
 
 
-def json_response(data, *, request, status=200):
-    if request.app['debug']:
-        return Response(text=to_pretty_json(data), status=status, content_type=JSON_CONTENT_TYPE)
-    else:
-        return Response(text=json.dumps(data), status=status, content_type=JSON_CONTENT_TYPE)
+def pretty_json_response(*, status_=200, list_=None, **data):
+    return Response(text=to_pretty_json(list_ or data), status=status_, content_type=JSON_CONTENT_TYPE)
+
+
+def fast_json_response(*, status_=200, list_=None, **data):
+    return Response(text=json.dumps(list_ or data), status=status_, content_type=JSON_CONTENT_TYPE)

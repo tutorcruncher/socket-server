@@ -20,7 +20,7 @@ class ImageActor(Actor):
         kwargs['redis_settings'] = RedisSettings(**self.settings['redis'])
         super().__init__(**kwargs)
         self.session = ClientSession(loop=self.loop)
-        self.media = Path(self.settings['media'])
+        self.media = Path(self.settings['media_dir'])
 
     @concurrent
     async def get_image(self, company, contractor_id, url):

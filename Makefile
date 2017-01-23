@@ -18,6 +18,10 @@ lint:
 test:
 	py.test --cov=app
 
-.PHONY: test-buildcov
-testcov:
-	py.test --cov=app && (echo "building coverage html"; coverage html)
+.PHONY: testcov
+testcov: test
+	echo "building coverage html"; coverage html
+
+.PHONY: all
+all: testcov lint
+	echo "building coverage html"; coverage html

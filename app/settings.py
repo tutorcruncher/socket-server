@@ -40,7 +40,8 @@ SETTINGS_STRUCTURE = t.Dict({
     }),
     'shared_secret': t.String >> (lambda s: s.encode() if isinstance(s, str) else s),
     'debug': t.Bool,
-    'media': t.String >> check_media_dir,
+    'media_dir': t.String >> check_media_dir,
+    'media_url': t.String,
 })
 
 

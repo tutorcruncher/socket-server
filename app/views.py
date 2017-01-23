@@ -3,6 +3,7 @@ from datetime import datetime
 from secrets import token_hex
 
 import trafaret as t
+from aiohttp.web_reqrep import Response
 from dateutil.parser import parse as dt_parse
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -10,7 +11,7 @@ from sqlalchemy.sql import and_, or_
 
 from .logs import logger
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
-from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, json_response
+from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, fast_json_response, pretty_json_response
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -61,9 +62,7 @@ VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
 
 
 async def index(request):
-    return json_response({
-        'title': 'TODO',
-    }, request=request)
+    return Response(text=request.app['index_html'], content_type='text/html')
 
 
 async def company_create(request):
@@ -88,16 +87,17 @@ async def company_create(request):
         )
     else:
         logger.info('created company "%s", id %d, key %s', new_company.name, new_company.id, new_company.key)
-        return json_response({
-            'status': 'success',
-            'details': {
+        return pretty_json_response(
+            status_=201,
+            status='success',
+            details={
                 'name': new_company.name,
                 'key': new_company.key,
             }
-        }, request=request, status=201)
+        )
 
 
-async def set_skills(request, contractor_id, skills):
+async def _set_skills(request, contractor_id, skills):
     """
     create missing subjects and qualification levels, then create contractor skills for them.
     """
@@ -204,10 +204,10 @@ async def contractor_set(request):
                 status='not found',
                 details=f'contractor with id {con_id} not found',
             )
-        return json_response({
-            'status': 'success',
-            'details': 'contractor deleted',
-        }, request=request)
+        return pretty_json_response(
+            status='success',
+            details='contractor deleted',
+        )
 
     skills = data.pop('skills')
     photo = data.pop('photo', None)
@@ -242,13 +242,14 @@ async def contractor_set(request):
             details=f'you do not have permission to update contractor {con_id}',
         )
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
-    await set_skills(request, con_id, skills)
+    await _set_skills(request, con_id, skills)
     photo and await request.app['image_worker'].get_image(request['company'].key, con_id, photo)
     logger.info('%s contractor on %s', status_text, company_id)
-    return json_response({
-        'status': 'success',
-        'details': f'contractor {status_text}',
-    }, request=request, status=status)
+    return pretty_json_response(
+        status_=status,
+        status='success',
+        details=f'contractor {status_text}',
+    )
 
 
 SORT_OPTIONS = {
@@ -274,6 +275,11 @@ def _get_name(name_display, row):
     return name
 
 
+def _photo_url(request, con, thumb):
+    ext = '.thumb.jpg' if thumb else '.jpg'
+    return request.app['media_url'] + '/' + request['company'].key + '/' + str(con.id) + ext
+
+
 async def contractor_list(request):
     sort_on = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
     page = request.GET.get('page', 1)
@@ -295,16 +301,18 @@ async def contractor_list(request):
     )
     results = []
     name_display = request['company'].name_display
-    # TODO include link to photo
+
     async for row in request['conn'].execute(q):
         name = _get_name(name_display, row)
         results.append(dict(
             id=row.id,
-            slug=_slugify(name),  # add id to slug
+            url=str(request.app.router['contractor-get'].url_for(company=request['company'].key, id=row.id)),
+            link='{}-{}'.format(row.id, _slugify(name)),
             name=name,
             tag_line=row.tag_line,
+            photo=_photo_url(request, row, True),
         ))
-    return json_response(results, request=request, status=200)
+    return fast_json_response(list_=results)
 
 
 async def contractor_get(request):
@@ -328,11 +336,11 @@ async def contractor_get(request):
         )
         .where(sa_con_skills.c.contractor == con_id)
     )
-    # TODO include link to photo
-    return json_response(dict(
+    return fast_json_response(
         id=con.id,
         name=_get_name(request['company'].name_display, con),
         tag_line=con.tag_line,
+        photo=_photo_url(request, con, False),
         extra_attributes=con.extra_attributes,
         skills=[{
             'subject': r.subjects_name,
@@ -340,4 +348,4 @@ async def contractor_get(request):
             'qual_level': r.qual_levels_name,
             'ranking': r.qual_levels_ranking,
         } for r in (await skills_curr.fetchall())]
-    ), request=request)
+    )

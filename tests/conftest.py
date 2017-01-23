@@ -35,7 +35,8 @@ def settings(tmpdir):
         },
         'shared_secret': b'this is the secret key',
         'debug': True,
-        'media': str(tmpdir)
+        'media_dir': str(tmpdir),
+        'media_url': str(tmpdir),
     }
 
 

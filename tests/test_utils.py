@@ -2,8 +2,9 @@ from datetime import datetime
 
 import pytest
 
+from app.logs import logger, setup_logging
 from app.settings import load_settings
-from app.utils import json_response, to_pretty_json
+from app.utils import to_pretty_json
 
 
 def test_load_settings():
@@ -35,16 +36,16 @@ def test_universal_encoder_error():
         to_pretty_json(d)
 
 
-class MockRequest:
-    def __init__(self, debug):
-        self.app = {'debug': debug}
+def test_no_logging(capsys):
+    logger.info('foobar')
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
 
 
-def test_json_response_debug():
-    r = json_response({'x': 'y'}, request=MockRequest(True))
-    assert '{\n  "x": "y"\n}\n' == r.text
-
-
-def test_json_response_not_debug():
-    r = json_response({'x': 'y'}, request=MockRequest(False))
-    assert '{"x": "y"}' == r.text
+def test_setup_logging(capsys):
+    setup_logging()
+    logger.info('foobar')
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == 'foobar\n'

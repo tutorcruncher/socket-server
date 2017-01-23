@@ -1,9 +1,12 @@
+import os
+import re
+
 from aiohttp import web
 from aiopg.sa import create_engine
 from sqlalchemy.engine.url import URL
 
 from .middleware import middleware
-from .settings import load_settings
+from .settings import THIS_DIR, load_settings
 from .views import company_create, contractor_get, contractor_list, contractor_set, index
 from .worker import ImageActor
 
@@ -39,17 +42,24 @@ async def cleanup(app: web.Application):
 def setup_routes(app):
     app.router.add_get('/', index, name='index')
     app.router.add_post('/companies/create', company_create, name='company-create')
-    app.router.add_get('/{company}/contractors', contractor_list, name='contractor-list')
-    app.router.add_get('/{company}/contractors/{id:\d+}-{slug}', contractor_get, name='contractor-get')
     app.router.add_post('/{company}/contractors/set', contractor_set, name='contractor-set')
+    app.router.add_get('/{company}/contractors', contractor_list, name='contractor-list')
+    app.router.add_get('/{company}/contractors/{id:\d+}', contractor_get, name='contractor-get')
 
 
 def create_app(loop, *, settings=None):
     app = web.Application(loop=loop, middlewares=middleware)
-    app['name'] = 'socket-server'
     settings = settings or load_settings()
     app.update(settings, settings=settings)
 
+    ctx = dict(
+        commit=os.getenv('COMMIT', '-'),
+        release_date=os.getenv('RELEASE_DATE', '-'),
+    )
+    index_html = (THIS_DIR / 'index.html').read_text()
+    for key, value in ctx.items():
+        index_html = re.sub('\{\{ ?%s ?\}\}' % key, value, index_html)
+    app['index_html'] = index_html
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)
 

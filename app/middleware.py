@@ -32,7 +32,7 @@ async def auth_middleware(app, handler):
     return _handler
 
 
-async def json_middleware(app, handler):
+async def json_request_middleware(app, handler):
     async def _handler(request):
         view_name = request.match_info.route.name
         if request.method == METH_POST and view_name:
@@ -85,4 +85,4 @@ async def company_middleware(app, handler):
         return await handler(request)
     return _handler
 
-middleware = auth_middleware, json_middleware, pg_conn_middleware, company_middleware
+middleware = auth_middleware, json_request_middleware, pg_conn_middleware, company_middleware
