@@ -105,7 +105,7 @@ def cli(loop, test_client, db_conn, settings):
 
 
 async def test_image(request):
-    image = Image.new('RGB', (1200, 600), (50, 100, 150))
+    image = Image.new('RGB', (2000, 1200), (50, 100, 150))
 
     stream = BytesIO()
     image.save(stream, format='JPEG', optimize=True)

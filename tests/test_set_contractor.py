@@ -240,11 +240,11 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir):
     path = Path(tmpdir / company / '123.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
-        assert im.size == (1000, 500)
+        assert im.size == (1000, 1000)
     path = Path(tmpdir / company / '123.thumb.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
-        assert im.size == (128, 64)
+        assert im.size == (256, 256)
 
 
 async def test_update(cli, db_conn, company):

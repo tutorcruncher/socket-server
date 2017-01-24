@@ -11,7 +11,7 @@ from sqlalchemy.sql import and_, or_
 
 from .logs import logger
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
-from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, fast_json_response, pretty_json_response
+from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, pretty_json_response, public_json_response
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -319,12 +319,12 @@ async def contractor_list(request):
             tag_line=row.tag_line,
             photo=_photo_url(request, row, True),
         ))
-    return fast_json_response(list_=results)
+    return public_json_response(list_=results)
 
 
 async def contractor_get(request):
     c = sa_contractors.c
-    cols = c.id, c.first_name, c.last_name, c.tag_line, c.extra_attributes
+    cols = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
     curr = await conn.execute(
@@ -344,10 +344,11 @@ async def contractor_get(request):
         )
         .where(sa_con_skills.c.contractor == con_id)
     )
-    return fast_json_response(
+    return public_json_response(
         id=con.id,
         name=_get_name(request['company'].name_display, con),
         tag_line=con.tag_line,
+        primary_description=con.primary_description,
         photo=_photo_url(request, con, False),
         extra_attributes=con.extra_attributes,
         skills=[{

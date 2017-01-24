@@ -1,17 +1,17 @@
 from pathlib import Path
+
 from tempfile import TemporaryFile
 
 from aiohttp import ClientSession
 from arq import Actor, BaseWorker, RedisSettings, concurrent
-from PIL import Image
+from PIL import Image, ImageOps
 
 from .logs import logger
 from .settings import load_settings
 
 CHUNK_SIZE = int(1e4)
 SIZE_LARGE = 1000, 1000
-# TODO needs to be 256
-SIZE_SMALL = 128, 128
+SIZE_SMALL = 256, 256
 
 
 class ImageActor(Actor):
@@ -39,15 +39,12 @@ class ImageActor(Actor):
                         break
                     f.write(chunk)
             f.seek(0)
-            with Image.open(f) as im1:
-                im2 = im1.copy()
+            with Image.open(f) as img:
+                img_thumb = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
+                img_thumb.save(path_str + '.jpg', 'JPEG')
 
-                im1.thumbnail(SIZE_LARGE)
-                im1.save(path_str + '.jpg', 'JPEG')
-
-                # TODO needs to crop so images are always the same shape
-                im2.thumbnail(SIZE_SMALL)
-                im2.save(path_str + '.thumb.jpg', 'JPEG')
+                img_large = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
+                img_large.save(path_str + '.thumb.jpg', 'JPEG')
         return 200
 
     async def close(self):

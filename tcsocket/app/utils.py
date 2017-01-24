@@ -40,6 +40,10 @@ def to_pretty_json(data):
 
 
 JSON_CONTENT_TYPE = 'application/json'
+# we could change this to enforce the right site, but it wouldn't add much security and would confuse people
+PUBLIC_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+}
 
 
 class HTTPClientErrorJson(web.HTTPClientError):
@@ -67,5 +71,10 @@ def pretty_json_response(*, status_=200, list_=None, **data):
     return Response(text=to_pretty_json(list_ or data), status=status_, content_type=JSON_CONTENT_TYPE)
 
 
-def fast_json_response(*, status_=200, list_=None, **data):
-    return Response(text=json.dumps(list_ or data), status=status_, content_type=JSON_CONTENT_TYPE)
+def public_json_response(*, status_=200, list_=None, **data):
+    return Response(
+        text=json.dumps(list_ or data),
+        status=status_,
+        content_type=JSON_CONTENT_TYPE,
+        headers=PUBLIC_HEADERS,
+    )

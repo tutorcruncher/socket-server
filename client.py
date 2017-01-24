@@ -10,9 +10,9 @@ import aiohttp
 import click
 
 SHARED_KEY = os.getenv('SHARED_SECRET', 'this is a secret').encode()
-print(f'using shared secret {SHARED_KEY}')
-BASE_URL = 'http://localhost:8000/'
-BASE_URL = 'https://socket.tutorcruncher.com/'
+BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000/')
+print(f'using shared secret {SHARED_KEY} and url {BASE_URL}')
+# BASE_URL = 'https://socket.tutorcruncher.com/'
 CONN = aiohttp.TCPConnector(verify_ssl=False)
 
 commands = []

@@ -25,6 +25,7 @@ async def test_list_contractors(cli, db_conn):
     )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thekey'))
     assert r.status == 200
+    assert r.headers.get('Access-Control-Allow-Origin') == '*'
     obj = await r.json()
     assert [
         {
@@ -92,6 +93,7 @@ async def test_get_contractor(cli, db_conn):
         'extra_attributes': [{'foo': 'bar'}],
         'tag_line': None,
         'photo': 'http://socket.tutorcruncher.com/media/thekey/1.jpg',
+        'primary_description': None,
         'skills': [
             {
                 'category': 'Maths',
