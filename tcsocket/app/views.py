@@ -1,5 +1,7 @@
 import re
 from datetime import datetime
+from itertools import groupby
+from operator import attrgetter
 from secrets import token_hex
 
 import trafaret as t
@@ -322,6 +324,31 @@ async def contractor_list(request):
     return public_json_response(list_=results)
 
 
+def _group_skills(skills):
+    for sub_cat, g in groupby(skills, attrgetter('subjects_name', 'subjects_category')):
+        yield {
+            'subject': sub_cat[0],
+            'category': sub_cat[1],
+            'qual_levels': [s.qual_levels_name for s in g]
+        }
+
+
+async def _get_skills(conn, con_id):
+    cols = sa_subjects.c.category, sa_subjects.c.name, sa_qual_levels.c.name, sa_qual_levels.c.ranking
+    skills_curr = await conn.execute(
+        select(cols, use_labels=True)
+        .select_from(
+            sa_con_skills
+            .join(sa_subjects, sa_con_skills.c.subject == sa_subjects.c.id)
+            .join(sa_qual_levels, sa_con_skills.c.qual_level == sa_qual_levels.c.id)
+        )
+        .where(sa_con_skills.c.contractor == con_id)
+        .order_by(sa_subjects.c.name, sa_qual_levels.c.ranking)
+    )
+    skills = await skills_curr.fetchall()
+    return list(_group_skills(skills))
+
+
 async def contractor_get(request):
     c = sa_contractors.c
     cols = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes
@@ -334,16 +361,6 @@ async def contractor_get(request):
     )
     con = await curr.first()
 
-    cols = sa_subjects.c.category, sa_subjects.c.name, sa_qual_levels.c.name, sa_qual_levels.c.ranking
-    skills_curr = await conn.execute(
-        select(cols, use_labels=True)
-        .select_from(
-            sa_con_skills
-            .join(sa_subjects, sa_con_skills.c.subject == sa_subjects.c.id)
-            .join(sa_qual_levels, sa_con_skills.c.qual_level == sa_qual_levels.c.id)
-        )
-        .where(sa_con_skills.c.contractor == con_id)
-    )
     return public_json_response(
         id=con.id,
         name=_get_name(request['company'].name_display, con),
@@ -351,10 +368,5 @@ async def contractor_get(request):
         primary_description=con.primary_description,
         photo=_photo_url(request, con, False),
         extra_attributes=con.extra_attributes,
-        skills=[{
-            'subject': r.subjects_name,
-            'category': r.subjects_category,
-            'qual_level': r.qual_levels_name,
-            'ranking': r.qual_levels_ranking,
-        } for r in (await skills_curr.fetchall())]
+        skills=await _get_skills(conn, con_id)
     )

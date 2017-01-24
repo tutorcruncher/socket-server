@@ -96,16 +96,14 @@ async def test_get_contractor(cli, db_conn):
         'primary_description': None,
         'skills': [
             {
-                'category': 'Maths',
-                'qual_level': 'GCSE',
-                'ranking': 16.0,
-                'subject': 'Mathematics'
+                'category': 'English',
+                'qual_levels': ['A Level'],
+                'subject': 'Language'
             },
             {
-                'category': 'English',
-                'qual_level': 'A Level',
-                'ranking': 18.0,
-                'subject': 'Language'
+                'category': 'Maths',
+                'qual_levels': ['GCSE'],
+                'subject': 'Mathematics'
             }
         ],
     } == obj

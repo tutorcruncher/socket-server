@@ -1,6 +1,5 @@
 dev:
   py_file: app/main.py
-  static_path: static/
   debug_toolbar: false
 database:
   name: 'socket'

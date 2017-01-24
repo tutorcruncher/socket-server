@@ -88,7 +88,7 @@ CON_DATA = {
         {
             'qual_level': 'A Level',
             'subject': 'Mathematics',
-            'qual_level_ranking': 16.0,
+            'qual_level_ranking': 18.0,
             'category': 'Maths'
         },
         {
@@ -106,9 +106,15 @@ CON_DATA = {
         {
             'qual_level': 'KS3',
             'subject': 'Language',
-            'qual_level_ranking': 16.0,
+            'qual_level_ranking': 13.0,
             'category': 'English'
-        }
+        },
+        {
+            'qual_level': 'Degree',
+            'subject': 'Mathematics',
+            'qual_level_ranking': 21.0,
+            'category': 'Maths'
+        },
     ],
     'labels': [],
     'last_updated': '2017-01-08T12:20:46.244Z',
