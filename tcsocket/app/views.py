@@ -301,7 +301,7 @@ async def contractor_list(request):
     offset = (page - 1) * PAGINATION
     c = sa_contractors.c
     q = (
-        select([c.id, c.first_name, c.last_name, c.tag_line])
+        select([c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country])
         .where(c.company == request['company'].id)
         .order_by(sort_on)
         .offset(offset)
@@ -311,15 +311,18 @@ async def contractor_list(request):
     name_display = request['company'].name_display
 
     conn = await request['conn_manager'].get_connection()
-    async for row in conn.execute(q):
-        name = _get_name(name_display, row)
+    async for con in conn.execute(q):
+        name = _get_name(name_display, con)
         results.append(dict(
-            id=row.id,
-            url=_route_url(request, 'contractor-get', company=request['company'].key, id=row.id),
-            link='{}-{}'.format(row.id, _slugify(name)),
+            id=con.id,
+            url=_route_url(request, 'contractor-get', company=request['company'].key, id=con.id),
+            link='{}-{}'.format(con.id, _slugify(name)),
             name=name,
-            tag_line=row.tag_line,
-            photo=_photo_url(request, row, True),
+            tag_line=con.tag_line,
+            primary_description=con.primary_description,
+            town=con.town,
+            country=con.country,
+            photo=_photo_url(request, con, True),
         ))
     return public_json_response(list_=results)
 
@@ -351,7 +354,7 @@ async def _get_skills(conn, con_id):
 
 async def contractor_get(request):
     c = sa_contractors.c
-    cols = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes
+    cols = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town, c.country
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
     curr = await conn.execute(
@@ -366,6 +369,8 @@ async def contractor_get(request):
         name=_get_name(request['company'].name_display, con),
         tag_line=con.tag_line,
         primary_description=con.primary_description,
+        town=con.town,
+        country=con.country,
         photo=_photo_url(request, con, False),
         extra_attributes=con.extra_attributes,
         skills=await _get_skills(conn, con_id)

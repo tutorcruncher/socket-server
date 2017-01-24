@@ -72,7 +72,9 @@ CON_DATA = {
             'name': 'Bio',
             'type': 'text_extended',
             'sort_index': 0,
-            'value': 'applecart',
+            'value': 'The returned group is itself an iterator that shares the underlying iterable with groupby(). '
+                     'Because the source is shared, when the groupby() object is advanced, the previous group is no '
+                     'longer visible. So, if that data is needed later, it should be stored as a list:',
             'id': 195
         },
         {

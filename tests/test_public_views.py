@@ -34,6 +34,9 @@ async def test_list_contractors(cli, db_conn):
             'name': 'Fred B',
             'photo': 'http://socket.tutorcruncher.com/media/thekey/1.thumb.jpg',
             'tag_line': None,
+            'primary_description': None,
+            'town': None,
+            'country': None,
             'url': 'http://socket.tutorcruncher.com/thekey/contractors/1',
         }
     ] == obj
@@ -90,6 +93,8 @@ async def test_get_contractor(cli, db_conn):
     assert {
         'id': 1,
         'name': 'Fred B',
+        'town': None,
+        'country': None,
         'extra_attributes': [{'foo': 'bar'}],
         'tag_line': None,
         'photo': 'http://socket.tutorcruncher.com/media/thekey/1.jpg',
