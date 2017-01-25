@@ -92,7 +92,8 @@ async def company_create(request):
             details=f'company with the name "{data["name"]}" already exists',
         )
     else:
-        logger.info('created company "%s", id %d, key %s', new_company.name, new_company.id, new_company.public_key)
+        logger.info('created company "%s", id %d, public key %s, private key %s',
+                    new_company.name, new_company.id, new_company.public_key, new_company.private_key)
         return pretty_json_response(
             status_=201,
             status='success',
@@ -102,6 +103,18 @@ async def company_create(request):
                 'private_key': new_company.private_key,
             }
         )
+
+
+async def company_list(request):
+    """
+    List companies.
+    """
+    c = sa_companies.c
+    q = select([c.id, c.public_key, c.name, c.name_display]).limit(1000)
+
+    conn = await request['conn_manager'].get_connection()
+    results = [dict(r) async for r in conn.execute(q)]
+    return pretty_json_response(list_=results)
 
 
 async def _set_skills(conn, contractor_id, skills):
@@ -251,7 +264,7 @@ async def contractor_set(request):
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
     await _set_skills(conn, con_id, skills)
     photo and await request.app['image_worker'].get_image(request['company'].public_key, con_id, photo)
-    logger.info('%s contractor on %s', status_text, company_id)
+    logger.info('%s contractor on %s', status_text, request['company'].public_key)
     return pretty_json_response(
         status_=status,
         status='success',

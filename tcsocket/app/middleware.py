@@ -1,14 +1,15 @@
 import hashlib
 import hmac
 from asyncio import CancelledError
+from datetime import datetime, timedelta
 
 import trafaret as t
-from aiohttp.hdrs import METH_POST
+from aiohttp.hdrs import METH_GET, METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest
 from sqlalchemy import select
 
 from .models import sa_companies
-from .utils import HTTPBadRequestJson, HTTPNotFoundJson, HTTPUnauthorizedJson
+from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson
 from .views import VIEW_SCHEMAS
 
 PUBLIC_VIEWS = {
@@ -103,14 +104,28 @@ async def company_middleware(app, handler):
 
 
 async def authenticate(request, api_key=None):
-    body = await request.read()
-    signature = request.headers.get('Webhook-Signature', '<missing>')
-    for _api_key in (api_key, request.app['master_key']):
+    api_key_choices = api_key, request.app['master_key']
+    if request.method == METH_GET:
+        r_time = request.headers.get('Request-Time', '<missing>')
+        now = datetime.now()
+        try:
+            assert (now - timedelta(seconds=10)) < datetime.fromtimestamp(int(r_time)) < now
+        except (ValueError, AssertionError):
+            raise HTTPForbiddenJson(
+                status='invalid request time',
+                details=f'Request-Time header "{r_time}" not in the last 10 seconds',
+            )
+        else:
+            body = r_time.encode()
+    else:
+        body = await request.read()
+    signature = request.headers.get('Signature', request.headers.get('Webhook-Signature', '<missing>'))
+    for _api_key in api_key_choices:
         if _api_key and signature == hmac.new(_api_key, body, hashlib.sha256).hexdigest():
             return
     raise HTTPUnauthorizedJson(
         status='invalid signature',
-        details=f'Webhook-Signature header "{signature}" does not match computed signature',
+        details=f'Signature header "{signature}" does not match computed signature',
     )
 
 

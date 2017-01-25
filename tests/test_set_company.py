@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+from datetime import datetime, timedelta
 
 from tcsocket.app.models import sa_companies
 from .conftest import signed_post
@@ -55,3 +56,43 @@ async def test_create_duplicate(cli, company):
     assert r.status == 400
     response_data = await r.json()
     assert response_data == {'details': 'company with the name "foobar" already exists', 'status': 'duplicate'}
+
+
+async def test_list(cli, company):
+    payload = (datetime.now() - timedelta(seconds=2)).strftime('%s')
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Signature': m.hexdigest(),
+        'Request-Time': payload,
+    }
+    r = await cli.get('/companies', headers=headers)
+    assert r.status == 200, await r.text()
+    response_data = await r.json()
+    assert isinstance(response_data[0].pop('id'), int)
+    assert [
+        {
+            'name': 'foobar',
+            'name_display': 'first_name_initial',
+            'public_key': 'thepublickey'
+        },
+    ] == response_data
+
+
+async def test_list_invalid_time(cli, company):
+    payload = '1000000000'
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Signature': m.hexdigest(),
+        'Request-Time': payload,
+    }
+    r = await cli.get('/companies', headers=headers)
+    assert r.status == 403, await r.text()
+    response_data = await r.json()
+    assert {
+        'status': 'invalid request time',
+        'details': 'Request-Time header "1000000000" not in the last 10 seconds',
+    } == response_data

@@ -7,7 +7,7 @@ from sqlalchemy.engine.url import URL
 
 from .middleware import middleware
 from .settings import THIS_DIR, load_settings
-from .views import company_create, contractor_get, contractor_list, contractor_set, index
+from .views import company_create, company_list, contractor_get, contractor_list, contractor_set, index
 from .worker import ImageActor
 
 
@@ -42,6 +42,8 @@ async def cleanup(app: web.Application):
 def setup_routes(app):
     app.router.add_get('/', index, name='index')
     app.router.add_post('/companies/create', company_create, name='company-create')
+    app.router.add_get('/companies', company_list, name='company-list')
+
     app.router.add_post('/{company}/contractors/set', contractor_set, name='contractor-set')
     app.router.add_get('/{company}/contractors', contractor_list, name='contractor-list')
     app.router.add_get('/{company}/contractors/{id:\d+}', contractor_get, name='contractor-get')
