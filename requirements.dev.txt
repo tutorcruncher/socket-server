@@ -3,4 +3,4 @@
 -r tests/requirements.txt
 aiohttp-devtools
 docker-compose
-ipython
+ipython==5.1.0
