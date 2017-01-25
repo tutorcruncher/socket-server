@@ -9,7 +9,7 @@ from .conftest import signed_post
 async def test_create(cli, db_conn):
     payload = json.dumps({'name': 'foobar'})
     b_payload = payload.encode()
-    m = hmac.new(b'this is the secret key', b_payload, hashlib.sha256)
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
     headers = {
         'Webhook-Signature': m.hexdigest(),
@@ -24,7 +24,8 @@ async def test_create(cli, db_conn):
     assert response_data == {
         'details': {
             'name': 'foobar',
-            'key': result.key
+            'public_key': result.public_key,
+            'private_key': result.private_key,
         },
         'status': 'success'
     }
@@ -39,7 +40,7 @@ async def test_create_not_auth(cli):
 async def test_create_bad_auth(cli):
     payload = json.dumps({'name': 'foobar'})
     b_payload = payload.encode()
-    m = hmac.new(b'this is the secret key', b_payload, hashlib.sha256)
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
     headers = {
         'Webhook-Signature': m.hexdigest() + '1',

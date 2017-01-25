@@ -18,21 +18,6 @@ PUBLIC_VIEWS = {
 }
 
 
-async def auth_middleware(app, handler):
-    async def _handler(request):
-        if not hasattr(request.match_info.route, 'status') and request.match_info.route.name not in PUBLIC_VIEWS:
-            body = await request.read()
-            m = hmac.new(request.app['shared_secret'], body, hashlib.sha256)
-            signature = request.headers.get('Webhook-Signature', '<missing>')
-            if signature != m.hexdigest():
-                raise HTTPUnauthorizedJson(
-                    status='invalid signature',
-                    details=f'Webhook-Signature header "{signature}" does not match computed signature',
-                )
-        return await handler(request)
-    return _handler
-
-
 async def json_request_middleware(app, handler):
     async def _handler(request):
         if request.method == METH_POST and request.match_info.route.name:
@@ -94,11 +79,13 @@ async def pg_conn_middleware(app, handler):
 
 async def company_middleware(app, handler):
     async def _handler(request):
+        # if hasattr(request.match_info.route, 'status'):
         try:
-            company_key = request.match_info.get('company')
-            if company_key:
-                select_fields = sa_companies.c.id, sa_companies.c.key, sa_companies.c.name_display
-                q = select(select_fields).where(sa_companies.c.key == company_key)
+            public_key = request.match_info.get('company')
+            if public_key:
+                c = sa_companies.c
+                select_fields = c.id, c.public_key, c.private_key, c.name_display
+                q = select(select_fields).where(c.public_key == public_key)
                 conn = await request['conn_manager'].get_connection()
                 result = await conn.execute(q)
                 company = await result.first()
@@ -107,11 +94,35 @@ async def company_middleware(app, handler):
                 else:
                     raise HTTPNotFoundJson(
                         status='company not found',
-                        details=f'No company found for key {company_key}',
+                        details=f'No company found for key {public_key}',
                     )
             return await handler(request)
         except CancelledError:
             raise HTTPBadRequest()
     return _handler
 
-middleware = auth_middleware, json_request_middleware, pg_conn_middleware, company_middleware
+
+async def authenticate(request, api_key=None):
+    body = await request.read()
+    signature = request.headers.get('Webhook-Signature', '<missing>')
+    for _api_key in (api_key, request.app['master_key']):
+        if _api_key and signature == hmac.new(_api_key, body, hashlib.sha256).hexdigest():
+            return
+    raise HTTPUnauthorizedJson(
+        status='invalid signature',
+        details=f'Webhook-Signature header "{signature}" does not match computed signature',
+    )
+
+
+async def auth_middleware(app, handler):
+    async def _handler(request):
+        if request.match_info.route.name not in PUBLIC_VIEWS:
+            company = request.get('company')
+            if company:
+                await authenticate(request, company.private_key.encode())
+            else:
+                await authenticate(request)
+        return await handler(request)
+    return _handler
+
+middleware = pg_conn_middleware, company_middleware, json_request_middleware, auth_middleware

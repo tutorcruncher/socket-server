@@ -1,12 +1,6 @@
-.PHONY: install
-install:
-	pip install -U pip docker-compose
-	pip install -r tcsocket/requirements.txt
-	pip install -r tests/requirements.txt
-
 .PHONY: isort
 isort:
-	isort -rc -w 120 app
+	isort -rc -w 120 tcsocket
 	isort -rc -w 120 tests
 
 .PHONY: lint

@@ -24,7 +24,7 @@ SETTINGS_STRUCTURE = t.Dict({
     # the "dev" dictionary contains information used by aiohttp-devtools to serve your app locally
     # you may wish to use it yourself,
     # eg. you might use dev.static_path in a management script to deploy static assets
-    'dev': DEV_DICT,
+    t.Key('dev', default={}): DEV_DICT,
     'database': t.Dict({
         'name': t.String,
         'password': t.Or(t.String | t.Null),
@@ -38,7 +38,7 @@ SETTINGS_STRUCTURE = t.Dict({
         'password': t.Or(t.String | t.Null),
         'database': t.Int,
     }),
-    'shared_secret': t.String(allow_blank=True) >> (lambda s: s.encode() if isinstance(s, str) else s),
+    'master_key': t.String >> (lambda s: s if isinstance(s, bytes) else s.encode()),
     'root_url': t.URL,
     'media_dir': t.String >> check_media_dir,
     'media_url': t.URL,
@@ -78,12 +78,12 @@ def substitute_environ(s_dict: dict, prefix: str) -> dict:
     return s_dict
 
 
-def load_settings() -> dict:
+def load_settings(settings_file: Path=None) -> dict:
     """
     Read settings.yml, overwrite with environment variables, validate.
     :return: settings dict
     """
-    settings_file = SETTINGS_FILE.resolve()
+    settings_file = settings_file or SETTINGS_FILE.resolve()
     try:
         settings = read_and_validate(str(settings_file), SETTINGS_STRUCTURE)
         settings = substitute_environ(settings, ENV_PREFIX)

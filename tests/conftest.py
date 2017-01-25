@@ -2,9 +2,11 @@ import hashlib
 import hmac
 import json
 import os
+from collections import namedtuple
 from io import BytesIO
 
 import pytest
+import yaml
 from aiohttp.web import Application, Response
 from aiopg.sa import create_engine as aio_create_engine
 from PIL import Image
@@ -13,6 +15,7 @@ from sqlalchemy import create_engine as sa_create_engine
 from tcsocket.app.main import create_app, pg_dsn
 from tcsocket.app.management import psycopg2_cursor
 from tcsocket.app.models import Base, sa_companies
+from tcsocket.app.settings import load_settings
 
 DB = {
     'name': 'socket_test',
@@ -22,10 +25,12 @@ DB = {
     'port': 5432,
 }
 
+MASTER_KEY = 'this is the master key'
+
 
 @pytest.fixture
 def settings(tmpdir):
-    return {
+    settings = {
         'database': DB,
         'redis': {
           'host': 'localhost',
@@ -33,11 +38,14 @@ def settings(tmpdir):
           'password': None,
           'database': 0,
         },
-        'shared_secret': b'this is the secret key',
+        'master_key': MASTER_KEY,
         'root_url': 'http://socket.tutorcruncher.com',
-        'media_dir': str(tmpdir),
+        'media_dir': str(tmpdir / 'media'),
         'media_url': 'http://socket.tutorcruncher.com/media',
     }
+    s_file = tmpdir / 'settings.yaml'
+    s_file.write(yaml.dump(settings, default_flow_style=False))
+    return load_settings(s_file)
 
 
 @pytest.yield_fixture(scope='session')
@@ -123,21 +131,22 @@ def image_download_url(loop, test_server):
 
 @pytest.fixture
 def company(loop, db_conn):
-    key = 'thekey'
+    public_key = 'thepublickey'
+    private_key = 'theprivatekey'
     coro = db_conn.execute(
         sa_companies
         .insert()
-        .values(name='foobar', key=key)
+        .values(name='foobar', public_key=public_key, private_key=private_key)
     )
     loop.run_until_complete(coro)
-    return key
+    Company = namedtuple('Point', ['public_key', 'private_key'])
+    return Company(public_key, private_key)
 
 
-async def signed_post(cli, url, **data):
+async def signed_post(cli, url, *, signing_key_=MASTER_KEY, **data):
     payload = json.dumps(data)
     b_payload = payload.encode()
-    m = hmac.new(b'this is the secret key', b_payload, hashlib.sha256)
-
+    m = hmac.new(signing_key_.encode(), b_payload, hashlib.sha256)
     headers = {
         'Webhook-Signature': m.hexdigest(),
         'Content-Type': 'application/json',

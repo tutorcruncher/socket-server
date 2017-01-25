@@ -37,7 +37,7 @@ services:
       APP_DATABASE_HOST: postgres
       APP_DATABASE_PASSWORD: docker
       APP_REDIS_HOST: redis
-      APP_SHARED_SECRET: ${SHARED_SECRET}
+      APP_MASTER_KEY: ${APP_MASTER_KEY}
       BIND: 0.0.0.0:8000
       CHECK: web
       COMMIT: ${COMMIT}

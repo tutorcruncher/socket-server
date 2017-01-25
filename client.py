@@ -9,9 +9,9 @@ from datetime import datetime
 import aiohttp
 import click
 
-SHARED_KEY = os.getenv('SHARED_SECRET', 'this is a secret').encode()
-BASE_URL = os.getenv('BASE_URL', 'http://localhost:8000/')
-print(f'using shared secret {SHARED_KEY} and url {BASE_URL}')
+SIGNING_KEY = os.getenv('CLIENT_SIGNING_KEY', 'this is a secret').encode()
+BASE_URL = os.getenv('CLIENT_BASE_URL', 'http://localhost:8000/')
+print(f'using shared secret {SIGNING_KEY} and url {BASE_URL}')
 # BASE_URL = 'https://socket.tutorcruncher.com/'
 CONN = aiohttp.TCPConnector(verify_ssl=False)
 
@@ -40,7 +40,7 @@ async def create_company(arg):
     }
     payload = json.dumps(data)
     b_payload = payload.encode()
-    m = hmac.new(SHARED_KEY, b_payload, hashlib.sha256)
+    m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
     headers = {
         'Webhook-Signature': m.hexdigest(),
         'User-Agent': 'TutorCruncher',
@@ -129,7 +129,7 @@ CON_DATA = {
 async def create_contractor(company):
     payload = json.dumps(CON_DATA)
     b_payload = payload.encode()
-    m = hmac.new(SHARED_KEY, b_payload, hashlib.sha256)
+    m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
     headers = {
         'Webhook-Signature': m.hexdigest(),
         'User-Agent': 'TutorCruncher',

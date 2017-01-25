@@ -13,7 +13,7 @@ async def test_list_contractors(cli, db_conn):
     v = await db_conn.execute(
         sa_companies
         .insert()
-        .values(name='testing', key='thekey')
+        .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
         .returning(sa_companies.c.id)
     )
     r = await v.first()
@@ -23,7 +23,7 @@ async def test_list_contractors(cli, db_conn):
         .insert()
         .values(id=1, company=company_id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
     )
-    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thekey'))
+    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
     assert r.status == 200
     assert r.headers.get('Access-Control-Allow-Origin') == '*'
     obj = await r.json()
@@ -32,12 +32,12 @@ async def test_list_contractors(cli, db_conn):
             'id': 1,
             'link': '1-fred-b',
             'name': 'Fred B',
-            'photo': 'http://socket.tutorcruncher.com/media/thekey/1.thumb.jpg',
+            'photo': 'http://socket.tutorcruncher.com/media/thepublickey/1.thumb.jpg',
             'tag_line': None,
             'primary_description': None,
             'town': None,
             'country': None,
-            'url': 'http://socket.tutorcruncher.com/thekey/contractors/1',
+            'url': 'http://socket.tutorcruncher.com/thepublickey/contractors/1',
         }
     ] == obj
 
@@ -46,7 +46,7 @@ async def test_get_contractor(cli, db_conn):
     v = await db_conn.execute(
         sa_companies
         .insert()
-        .values(name='testing', key='thekey')
+        .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
         .returning(sa_companies.c.id)
     )
     r = await v.first()
@@ -87,7 +87,7 @@ async def test_get_contractor(cli, db_conn):
         .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in zip(subjects, qual_levels)])
     )
 
-    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thekey', id=con_id, slug='x'))
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=con_id, slug='x'))
     assert r.status == 200
     obj = await r.json()
     assert {
@@ -97,7 +97,7 @@ async def test_get_contractor(cli, db_conn):
         'country': None,
         'extra_attributes': [{'foo': 'bar'}],
         'tag_line': None,
-        'photo': 'http://socket.tutorcruncher.com/media/thekey/1.jpg',
+        'photo': 'http://socket.tutorcruncher.com/media/thepublickey/1.jpg',
         'primary_description': None,
         'skills': [
             {

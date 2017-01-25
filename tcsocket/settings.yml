@@ -13,7 +13,7 @@ redis:
   password: null
   database: 0
 # secret used between socket and secure.tutorcruncher.com to sign webhooks and authenticate API requests
-shared_secret: 'this is a secret'
+master_key: 'this is a secret'
 root_url: https://socket.tutorcruncher.com
 media_dir: ./media
 media_url: https://socket.tutorcruncher.com/media

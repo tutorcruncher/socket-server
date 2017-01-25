@@ -74,13 +74,16 @@ async def company_create(request):
     Authentication and json parsing are done by middleware.
     """
     data = request['json_obj']
-    data['key'] = token_hex(10)
+    data.update(
+        public_key=token_hex(10),
+        private_key=token_hex(10),
+    )
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute((
         pg_insert(sa_companies)
         .values(**data)
         .on_conflict_do_nothing(index_elements=[sa_companies.c.name])
-        .returning(sa_companies.c.id, sa_companies.c.key, sa_companies.c.name)
+        .returning(sa_companies.c.id, sa_companies.c.public_key, sa_companies.c.private_key, sa_companies.c.name)
     ))
     new_company = await v.first()
     if new_company is None:
@@ -89,13 +92,14 @@ async def company_create(request):
             details=f'company with the name "{data["name"]}" already exists',
         )
     else:
-        logger.info('created company "%s", id %d, key %s', new_company.name, new_company.id, new_company.key)
+        logger.info('created company "%s", id %d, key %s', new_company.name, new_company.id, new_company.public_key)
         return pretty_json_response(
             status_=201,
             status='success',
             details={
                 'name': new_company.name,
-                'key': new_company.key,
+                'public_key': new_company.public_key,
+                'private_key': new_company.private_key,
             }
         )
 
@@ -246,7 +250,7 @@ async def contractor_set(request):
         )
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
     await _set_skills(conn, con_id, skills)
-    photo and await request.app['image_worker'].get_image(request['company'].key, con_id, photo)
+    photo and await request.app['image_worker'].get_image(request['company'].public_key, con_id, photo)
     logger.info('%s contractor on %s', status_text, company_id)
     return pretty_json_response(
         status_=status,
@@ -280,7 +284,7 @@ def _get_name(name_display, row):
 
 def _photo_url(request, con, thumb):
     ext = '.thumb.jpg' if thumb else '.jpg'
-    return request.app['media_url'] + '/' + request['company'].key + '/' + str(con.id) + ext
+    return request.app['media_url'] + '/' + request['company'].public_key + '/' + str(con.id) + ext
 
 
 def _route_url(request, view_name, **kwargs):
@@ -315,7 +319,7 @@ async def contractor_list(request):
         name = _get_name(name_display, con)
         results.append(dict(
             id=con.id,
-            url=_route_url(request, 'contractor-get', company=request['company'].key, id=con.id),
+            url=_route_url(request, 'contractor-get', company=request['company'].public_key, id=con.id),
             link='{}-{}'.format(con.id, _slugify(name)),
             name=name,
             tag_line=con.tag_line,

@@ -1,0 +1,6 @@
+# this should install everything you need for development
+-r tcsocket/requirements.txt
+-r tests/requirements.txt
+aiohttp-devtools
+docker-compose
+ipython

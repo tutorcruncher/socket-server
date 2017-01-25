@@ -11,10 +11,31 @@ from tcsocket.app.models import sa_con_skills, sa_contractors, sa_qual_levels, s
 from .conftest import signed_post
 
 
-async def test_create(cli, db_conn, company):
+async def test_create_master_key(cli, db_conn, company):
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
+        signing_key_='this is the master key',
+        id=123,
+        deleted=False,
+        first_name='Fred',
+        last_name='Bloggs',
+    )
+    assert r.status == 201, await r.text()
+    response_data = await r.json()
+    assert response_data == {'details': 'contractor created', 'status': 'success'}
+    curr = await db_conn.execute(sa_contractors.select())
+    result = await curr.first()
+    assert result.id == 123
+    assert result.first_name == 'Fred'
+    assert result.extra_attributes == []
+
+
+async def test_create_company_key(cli, db_conn, company):
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/contractors/set',
+        signing_key_=company.private_key,
         id=123,
         deleted=False,
         first_name='Fred',
@@ -45,14 +66,14 @@ async def test_create_bad_auth(cli, company):
         'Webhook-Signature': m.hexdigest(),
         'Content-Type': 'application/json',
     }
-    r = await cli.post(f'/{company}/contractors/set', data=payload, headers=headers)
+    r = await cli.post(f'/{company.public_key}/contractors/set', data=payload, headers=headers)
     assert r.status == 401
 
 
 async def test_create_skills(cli, db_conn, company):
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id=123,
         first_name='Fred',
         skills=[
@@ -86,7 +107,7 @@ async def count(db_conn, sa_table):
 async def test_modify_skills(cli, db_conn, company):
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id=123,
         skills=[
             {
@@ -110,7 +131,7 @@ async def test_modify_skills(cli, db_conn, company):
 
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id=123,
         skills=[
             {
@@ -150,7 +171,7 @@ async def test_extra_attributes(cli, db_conn, company):
     ]
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id=123,
         deleted=False,
         first_name='Fred',
@@ -211,7 +232,7 @@ async def test_extra_attributes_special(cli, db_conn, company):
     ]
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id=123,
         deleted=False,
         first_name='Fred',
@@ -230,18 +251,18 @@ async def test_extra_attributes_special(cli, db_conn, company):
 async def test_photo(cli, db_conn, company, image_download_url, tmpdir):
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id=123,
         first_name='Fred',
         photo=image_download_url
     )
     assert r.status == 201, await r.text()
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
-    path = Path(tmpdir / company / '123.jpg')
+    path = Path(tmpdir / 'media' / company.public_key / '123.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (1000, 1000)
-    path = Path(tmpdir / company / '123.thumb.jpg')
+    path = Path(tmpdir / 'media' / company.public_key / '123.thumb.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (256, 256)
@@ -249,26 +270,26 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir):
 
 async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == []
-    r = await signed_post(cli, f'/{company}/contractors/set', id=123, first_name='Fred')
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, first_name='Fred')
     assert r.status == 201
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
 
-    r = await signed_post(cli, f'/{company}/contractors/set', id=123, first_name='George')
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, first_name='George')
     assert r.status == 200
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
 
 
 async def test_delete(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_contractors)
-    r = await signed_post(cli, f'/{company}/contractors/set', id=123, first_name='Fred')
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, first_name='Fred')
     assert r.status == 201
     assert 1 == await count(db_conn, sa_contractors)
 
-    r = await signed_post(cli, f'/{company}/contractors/set', id=123, deleted=True)
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, deleted=True)
     assert r.status == 200
     assert 0 == await count(db_conn, sa_contractors)
 
-    r = await signed_post(cli, f'/{company}/contractors/set', id=123, deleted=True)
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, deleted=True)
     assert r.status == 404
     assert 0 == await count(db_conn, sa_contractors)
 
@@ -276,7 +297,7 @@ async def test_delete(cli, db_conn, company):
 async def test_delete_skills(cli, db_conn, company):
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id=123,
         skills=[
             {
@@ -292,7 +313,7 @@ async def test_delete_skills(cli, db_conn, company):
     assert 1 == await count(db_conn, sa_subjects)
     assert 1 == await count(db_conn, sa_qual_levels)
 
-    r = await signed_post(cli, f'/{company}/contractors/set', id=123, deleted=True)
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, deleted=True)
     assert r.status == 200
     assert 0 == await count(db_conn, sa_contractors)
     assert 0 == await count(db_conn, sa_con_skills)
@@ -303,13 +324,13 @@ async def test_delete_skills(cli, db_conn, company):
 async def test_invalid_json(cli, company):
     payload = 'foobar'
     b_payload = payload.encode()
-    m = hmac.new(b'this is the secret key', b_payload, hashlib.sha256)
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
     headers = {
         'Webhook-Signature': m.hexdigest(),
         'Content-Type': 'application/json',
     }
-    r = await cli.post(f'/{company}/contractors/set', data=payload, headers=headers)
+    r = await cli.post(f'/{company.public_key}/contractors/set', data=payload, headers=headers)
     assert r.status == 400, await r.text()
     response_data = await r.json()
     assert response_data == {
@@ -321,7 +342,7 @@ async def test_invalid_json(cli, company):
 async def test_invalid_schema(cli, company):
     r = await signed_post(
         cli,
-        f'/{company}/contractors/set',
+        f'/{company.public_key}/contractors/set',
         id='not an int',
     )
     assert r.status == 400, await r.text()
@@ -335,12 +356,12 @@ async def test_invalid_schema(cli, company):
 async def test_missing_company(cli, company):
     r = await signed_post(
         cli,
-        f'/not-{company}/contractors/set',
+        f'/not-{company.public_key}/contractors/set',
         id=123,
     )
     assert r.status == 404, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'details': 'No company found for key not-thekey',
+        'details': 'No company found for key not-thepublickey',
         'status': 'company not found',
     }
