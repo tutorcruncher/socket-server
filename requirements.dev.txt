@@ -2,5 +2,5 @@
 -r tcsocket/requirements.txt
 -r tests/requirements.txt
 aiohttp-devtools==0.1.3
-docker-compose
+docker-compose==1.10.0
 ipython==5.1.0
