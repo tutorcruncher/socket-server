@@ -1,3 +1,7 @@
+.PHONY: install
+install:
+	pip install -r requirements.txt
+
 .PHONY: isort
 isort:
 	isort -rc -w 120 tcsocket

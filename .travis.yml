@@ -18,9 +18,8 @@ python:
 - '3.6'
 
 install:
-- pip install -U pip docker-compose
-- pip install -r tcsocket/requirements.txt
-- pip install -r tests/requirements.txt
+- pip install -U pip
+- make install
 
 script:
 - make lint
