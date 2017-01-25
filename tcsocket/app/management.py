@@ -42,6 +42,13 @@ def psycopg2_cursor(**db_settings):
     conn.close()
 
 
+DROP_CONNECTIONS = """\
+SELECT pg_terminate_backend(pg_stat_activity.pid)
+FROM pg_stat_activity
+WHERE pg_stat_activity.datname = %s AND pid <> pg_backend_pid();
+"""
+
+
 def prepare_database(delete_existing: Union[bool, callable], print_func=print) -> bool:
     """
     (Re)create a fresh database and run migrations.
@@ -64,6 +71,8 @@ def prepare_database(delete_existing: Union[bool, callable], print_func=print) -
                 print_func('database "{name}" already exists, not recreating it'.format(**db))
                 return False
             else:
+                print_func('dropping existing connections to "{name}"...'.format(**db))
+                cur.execute(DROP_CONNECTIONS, (db['name'],))
                 print_func('dropping database "{name}" as it already exists...'.format(**db))
                 cur.execute('DROP DATABASE {name}'.format(**db))
         else:
@@ -76,6 +85,7 @@ def prepare_database(delete_existing: Union[bool, callable], print_func=print) -
     print_func('creating tables from model definition...')
     Base.metadata.create_all(engine)
     engine.dispose()
+    print_func('db and tables creation finished.')
     return True
 
 

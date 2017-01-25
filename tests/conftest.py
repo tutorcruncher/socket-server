@@ -45,7 +45,7 @@ def settings(tmpdir):
     }
     s_file = tmpdir / 'settings.yaml'
     s_file.write(yaml.dump(settings, default_flow_style=False))
-    return load_settings(s_file)
+    return load_settings(s_file, env_prefix='TESTING_APP_')
 
 
 @pytest.yield_fixture(scope='session')

@@ -68,7 +68,7 @@ def substitute_environ(s_dict: dict, prefix: str) -> dict:
             pass
         else:
             env_var = os.getenv((prefix + key).upper(), None)
-            if env_var is not None:
+            if env_var:
                 # basic attempt to convert the new value to match the original type
                 if isinstance(value, int):
                     s_dict[key] = int(env_var)
@@ -78,7 +78,7 @@ def substitute_environ(s_dict: dict, prefix: str) -> dict:
     return s_dict
 
 
-def load_settings(settings_file: Path=None) -> dict:
+def load_settings(settings_file: Path=None, *, env_prefix: str=ENV_PREFIX) -> dict:
     """
     Read settings.yml, overwrite with environment variables, validate.
     :return: settings dict
@@ -86,7 +86,7 @@ def load_settings(settings_file: Path=None) -> dict:
     settings_file = settings_file or SETTINGS_FILE.resolve()
     try:
         settings = read_and_validate(str(settings_file), SETTINGS_STRUCTURE)
-        settings = substitute_environ(settings, ENV_PREFIX)
+        settings = substitute_environ(settings, env_prefix)
         settings = SETTINGS_STRUCTURE.check(settings)
     except AssertionError as e:
         raise ConfigError([str(e)]) from e

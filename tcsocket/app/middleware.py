@@ -116,7 +116,8 @@ async def authenticate(request, api_key=None):
 
 async def auth_middleware(app, handler):
     async def _handler(request):
-        if request.match_info.route.name not in PUBLIC_VIEWS:
+        # status check avoids messing with requests which have already been processed, eg. 404
+        if not hasattr(request.match_info.route, 'status') and request.match_info.route.name not in PUBLIC_VIEWS:
             company = request.get('company')
             if company:
                 await authenticate(request, company.private_key.encode())

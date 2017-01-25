@@ -21,7 +21,6 @@ def sa_enum(enum: Enum):
 
 class Company(Base):
     __tablename__ = 'companies'
-    # id set from profile id on TutorCruncher
     id = Column(Integer, primary_key=True, nullable=False)
     public_key = Column(String(20), index=True, nullable=False, unique=True)
     private_key = Column(String(20), index=True, nullable=False, unique=True)

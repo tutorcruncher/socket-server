@@ -6,7 +6,7 @@ from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_
 async def test_index(cli):
     r = await cli.get('/')
     assert r.status == 200
-    # TODO test content when we have some
+    assert "You're looking at TutorCruncher socket's API" in await r.text()
 
 
 async def test_list_contractors(cli, db_conn):
@@ -112,3 +112,8 @@ async def test_get_contractor(cli, db_conn):
             }
         ],
     } == obj
+
+
+async def test_missing_url(cli):
+    r = await cli.get('/foobar')
+    assert r.status == 404, await r.text()
