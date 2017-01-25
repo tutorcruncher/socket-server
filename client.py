@@ -4,7 +4,7 @@ import json
 import os
 import hmac
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import aiohttp
 import click
@@ -27,6 +27,23 @@ def command(func):
 async def index(arg):
     async with aiohttp.ClientSession(connector=CONN) as session:
         async with session.get(BASE_URL) as r:
+            print(f'status: {r.status}')
+            text = await r.text()
+            print(f'response: {text}')
+
+
+@command
+async def list_companies(arg):
+    payload = (datetime.now() - timedelta(seconds=1)).strftime('%s')
+    b_payload = payload.encode()
+    m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
+
+    headers = {
+        'Signature': m.hexdigest(),
+        'Request-Time': payload,
+    }
+    async with aiohttp.ClientSession(connector=CONN) as session:
+        async with session.get(BASE_URL + 'companies', headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')

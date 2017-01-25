@@ -3,6 +3,8 @@ import hmac
 import json
 from datetime import datetime, timedelta
 
+import pytest
+
 from tcsocket.app.models import sa_companies
 from .conftest import signed_post
 
@@ -75,13 +77,20 @@ async def test_list(cli, company):
         {
             'name': 'foobar',
             'name_display': 'first_name_initial',
-            'public_key': 'thepublickey'
+            'private_key': 'theprivatekey',
+            'public_key': 'thepublickey',
         },
     ] == response_data
 
 
-async def test_list_invalid_time(cli, company):
-    payload = '1000000000'
+@pytest.mark.parametrize('payload', [
+    (datetime.now() - timedelta(seconds=12)).strftime('%s'),
+    (datetime.now() + timedelta(seconds=2)).strftime('%s'),
+    '10000',
+    '-1',
+    'null',
+])
+async def test_list_invalid_time(cli, company, payload):
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
@@ -91,8 +100,3 @@ async def test_list_invalid_time(cli, company):
     }
     r = await cli.get('/companies', headers=headers)
     assert r.status == 403, await r.text()
-    response_data = await r.json()
-    assert {
-        'status': 'invalid request time',
-        'details': 'Request-Time header "1000000000" not in the last 10 seconds',
-    } == response_data

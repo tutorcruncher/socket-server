@@ -110,7 +110,7 @@ async def company_list(request):
     List companies.
     """
     c = sa_companies.c
-    q = select([c.id, c.public_key, c.name, c.name_display]).limit(1000)
+    q = select([c.id, c.name, c.name_display, c.public_key, c.private_key]).limit(1000)
 
     conn = await request['conn_manager'].get_connection()
     results = [dict(r) async for r in conn.execute(q)]
