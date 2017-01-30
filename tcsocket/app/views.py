@@ -51,8 +51,10 @@ VIEW_SCHEMAS = {
 
         t.Key('skills', default=[]): t.List(t.Dict({
             'subject': t.String,
+            t.Key('subject_id', optional=True): t.Int,  # not currently used
             'category': t.String,
             'qual_level': t.String,
+            t.Key('qual_level_id', optional=True): t.Int,  # not currently used
             t.Key('qual_level_ranking', default=0): t.Float,
         })),
 
