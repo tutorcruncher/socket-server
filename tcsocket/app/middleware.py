@@ -22,18 +22,16 @@ PUBLIC_VIEWS = {
 }
 
 
-def log_warning(request, response):
-    extra = dict(
-        response_status=response.status,
-        response_headers=dict(response.headers),
-        response_body=response.text,
-    ) if response else {}
+async def log_warning(request, response):
     data = dict(
         request_url=str(request.rel_url),
         request_method=request.method,
         request_host=request.host,
         request_headers=dict(request.headers),
-        **extra
+        request_text=await request.text(),
+        response_status=response.status,
+        response_headers=dict(response.headers),
+        response_text=response.text,
     )
     access_logger.warning('%s %d', request.rel_url, response.status, extra={'data': data})
 
@@ -48,11 +46,11 @@ async def warning_middleware(app, handler):
             else:
                 r = await handler(request)
         except HTTPException as e:
-            log_warning(request, e)
+            await log_warning(request, e)
             raise
         else:
             if r.status > 310:
-                log_warning(request, r)
+                await log_warning(request, r)
         return r
     return _handler
 

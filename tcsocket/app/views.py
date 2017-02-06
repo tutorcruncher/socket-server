@@ -30,15 +30,15 @@ VIEW_SCHEMAS = {
     'contractor-set': t.Dict({
         'id': t.Int(),
         t.Key('deleted', default=False): t.Bool,
-        t.Key('first_name', optional=True): t.String(max_length=63),
-        t.Key('last_name', optional=True): t.String(max_length=63),
+        t.Key('first_name', optional=True): t.Or(t.Null | t.String(max_length=63)),
+        t.Key('last_name', optional=True): t.Or(t.Null | t.String(max_length=63)),
 
-        t.Key('town', optional=True): t.String(max_length=63),
-        t.Key('country', optional=True): t.String(max_length=63),
-        t.Key('location', optional=True): t.Dict({
+        t.Key('town', optional=True): t.Or(t.Null | t.String(max_length=63)),
+        t.Key('country', optional=True): t.Or(t.Null | t.String(max_length=63)),
+        t.Key('location', optional=True): t.Or(t.Null | t.Dict({
             'latitude': t.Or(t.Float | t.Null),
             'longitude': t.Or(t.Float | t.Null),
-        }),
+        })),
 
         t.Key('extra_attributes', default=[]): t.List(t.Dict({
             'machine_name': t.Or(t.Null | t.String),
@@ -58,8 +58,8 @@ VIEW_SCHEMAS = {
             t.Key('qual_level_ranking', default=0): t.Float,
         })),
 
-        t.Key('last_updated', optional=True): t.String >> dt_parse,
-        t.Key('photo', optional=True): t.URL,
+        t.Key('last_updated', optional=True): t.Or(t.Null | t.String >> dt_parse),
+        t.Key('photo', optional=True): t.Or(t.Null | t.URL),
     })
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')

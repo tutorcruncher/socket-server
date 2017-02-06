@@ -294,6 +294,38 @@ async def test_delete(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_contractors)
 
 
+async def test_delete_all_fields(cli, db_conn, company):
+    assert 0 == await count(db_conn, sa_contractors)
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, first_name='Fred')
+    assert r.status == 201
+    assert 1 == await count(db_conn, sa_contractors)
+
+    data = {
+        'country': None,
+        'created': None,
+        'deleted': True,
+        'extra_attributes': [],
+        'first_name': None,
+        'id': 123,
+        'labels': [],
+        'last_name': None,
+        'last_updated': None,
+        'location': None,
+        'photo': None,
+        'release_timestamp': '2032-02-06T14:17:05.548260Z',
+        'skills': [],
+        'town': None
+    }
+
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', **data)
+    assert r.status == 200, await r.text()
+    assert 0 == await count(db_conn, sa_contractors)
+
+    r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123, deleted=True)
+    assert r.status == 404
+    assert 0 == await count(db_conn, sa_contractors)
+
+
 async def test_delete_skills(cli, db_conn, company):
     r = await signed_post(
         cli,
