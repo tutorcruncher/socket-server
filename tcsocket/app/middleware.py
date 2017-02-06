@@ -1,12 +1,12 @@
-import logging
 import hashlib
 import hmac
+import logging
 from asyncio import CancelledError
 from datetime import datetime, timedelta
 
 import trafaret as t
 from aiohttp.hdrs import METH_GET, METH_POST
-from aiohttp.web_exceptions import HTTPBadRequest, HTTPNotFound, HTTPException
+from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPNotFound
 from sqlalchemy import select
 
 from .models import sa_companies

@@ -48,4 +48,4 @@ def test_setup_logging(capsys):
     logger.info('foobar')
     out, err = capsys.readouterr()
     assert out == ''
-    assert err == 'foobar\n'
+    assert err == 'INFO foobar\n'

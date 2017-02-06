@@ -1,5 +1,4 @@
 from pathlib import Path
-
 from tempfile import TemporaryFile
 
 from aiohttp import ClientSession
