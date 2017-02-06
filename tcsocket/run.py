@@ -113,7 +113,7 @@ def _check_web():
 
 def _check_worker():
     # TODO
-    logger.warning('worker check not yet implemented')
+    logger.info('worker check not yet implemented')
 
 
 @command
