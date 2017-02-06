@@ -127,7 +127,7 @@ def check(**kwargs):
     elif check_mode == 'worker':
         _check_worker()
     else:
-        raise ValueError('to use this the "CHECK" environment variable should be set to "web" or "worker"')
+        raise ValueError(f'"CHECK" environment variable should be set to "web" or "worker" not "{check_mode}"')
 
 
 @command

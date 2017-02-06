@@ -9,4 +9,5 @@ python-dateutil==2.6.0
 trafaret==0.7.5
 trafaret-config==1.0.1
 pillow==4.0.0
+raven==5.32.0
 uvloop==0.7.2

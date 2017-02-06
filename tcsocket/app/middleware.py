@@ -1,3 +1,4 @@
+import logging
 import hashlib
 import hmac
 from asyncio import CancelledError
@@ -5,12 +6,14 @@ from datetime import datetime, timedelta
 
 import trafaret as t
 from aiohttp.hdrs import METH_GET, METH_POST
-from aiohttp.web_exceptions import HTTPBadRequest
+from aiohttp.web_exceptions import HTTPBadRequest, HTTPNotFound, HTTPException
 from sqlalchemy import select
 
 from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson
 from .views import VIEW_SCHEMAS
+
+access_logger = logging.getLogger('socket.access')
 
 PUBLIC_VIEWS = {
     'index',
@@ -19,25 +22,38 @@ PUBLIC_VIEWS = {
 }
 
 
-async def json_request_middleware(app, handler):
-    async def _handler(request):
-        if request.method == METH_POST and request.match_info.route.name:
-            error_details = None
-            schema = VIEW_SCHEMAS[request.match_info.route.name]
-            try:
-                data = await request.json()
-                request['json_obj'] = schema.check(data)
-            except t.DataError as e:
-                error_details = e.as_dict()
-            except ValueError as e:
-                error_details = f'Value Error: {e}'
+def log_warning(request, response):
+    extra = dict(
+        response_status=response.status,
+        response_headers=dict(response.headers),
+        response_body=response.text,
+    ) if response else {}
+    data = dict(
+        request_url=str(request.rel_url),
+        request_method=request.method,
+        request_host=request.host,
+        request_headers=dict(request.headers),
+        **extra
+    )
+    access_logger.warning('%s %d', request.rel_url, response.status, extra={'data': data})
 
-            if error_details:
-                raise HTTPBadRequestJson(
-                    status='invalid request data',
-                    details=error_details,
-                )
-        return await handler(request)
+
+async def warning_middleware(app, handler):
+    async def _handler(request):
+        try:
+            if hasattr(request.match_info.route, 'status'):
+                # 404 no matching route
+                assert request.match_info.route.status == 404
+                raise HTTPNotFound(reason='no matching route')
+            else:
+                r = await handler(request)
+        except HTTPException as e:
+            log_warning(request, e)
+            raise
+        else:
+            if r.status > 310:
+                log_warning(request, r)
+        return r
     return _handler
 
 
@@ -103,6 +119,28 @@ async def company_middleware(app, handler):
     return _handler
 
 
+async def json_request_middleware(app, handler):
+    async def _handler(request):
+        if request.method == METH_POST and request.match_info.route.name:
+            error_details = None
+            schema = VIEW_SCHEMAS[request.match_info.route.name]
+            try:
+                data = await request.json()
+                request['json_obj'] = schema.check(data)
+            except t.DataError as e:
+                error_details = e.as_dict()
+            except ValueError as e:
+                error_details = f'Value Error: {e}'
+
+            if error_details:
+                raise HTTPBadRequestJson(
+                    status='invalid request data',
+                    details=error_details,
+                )
+        return await handler(request)
+    return _handler
+
+
 async def authenticate(request, api_key=None):
     api_key_choices = api_key, request.app['master_key']
     if request.method == METH_GET:
@@ -132,7 +170,7 @@ async def authenticate(request, api_key=None):
 async def auth_middleware(app, handler):
     async def _handler(request):
         # status check avoids messing with requests which have already been processed, eg. 404
-        if not hasattr(request.match_info.route, 'status') and request.match_info.route.name not in PUBLIC_VIEWS:
+        if request.match_info.route.name not in PUBLIC_VIEWS:
             company = request.get('company')
             if company:
                 await authenticate(request, company.private_key.encode())
@@ -141,4 +179,10 @@ async def auth_middleware(app, handler):
         return await handler(request)
     return _handler
 
-middleware = pg_conn_middleware, company_middleware, json_request_middleware, auth_middleware
+middleware = (
+    warning_middleware,
+    pg_conn_middleware,
+    company_middleware,
+    json_request_middleware,
+    auth_middleware,
+)
