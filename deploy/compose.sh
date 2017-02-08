@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 if [ "$MODE" != "PRODUCTION" ]; then
-    echo "environment variable APP_MASTER_KEY not set or blank"
+    echo "MODE not set to PRODUCTION, use 'source activate.prod.sh'"
     exit 2
 fi
 export COMMIT=`git rev-parse HEAD`

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
-eval `cat ./env.sh`
+if [ "$MODE" != "PRODUCTION" ]; then
+    echo "MODE not set to PRODUCTION, use 'source activate.prod.sh'"
+    exit 2
+fi
 NAME='tc-socket'
 docker-machine create -d scaleway --scaleway-commercial-type 'C2M' --scaleway-name ${NAME} ${NAME}

@@ -37,7 +37,10 @@ async def log_extra(request, response=None):
 
 
 async def log_warning(request, response):
-    request_logger.warning('%s %d', request.rel_url, response.status, extra=await log_extra(request, response))
+    request_logger.warning('%s %d', request.rel_url, response.status, extra={
+        'fingerprint': [request.rel_url, str(response.status)],
+        'data': await log_extra(request, response)
+    })
 
 
 async def error_middleware(app, handler):
@@ -52,7 +55,10 @@ async def error_middleware(app, handler):
             await log_warning(request, e)
             raise
         except BaseException as e:
-            request_logger.exception('%s: %s', e.__class__.__name__, e, extra=await log_extra(request))
+            request_logger.exception('%s: %s', e.__class__.__name__, e, extra={
+                'fingerprint': [e.__class__.__name__, str(e)],
+                'data': await log_extra(request)
+            })
             raise HTTPInternalServerError()
         else:
             if r.status > 310:
