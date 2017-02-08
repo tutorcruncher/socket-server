@@ -6,48 +6,54 @@ from datetime import datetime, timedelta
 
 import trafaret as t
 from aiohttp.hdrs import METH_GET, METH_POST
-from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPNotFound
+from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError
 from sqlalchemy import select
 
 from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson
 from .views import VIEW_SCHEMAS
 
-access_logger = logging.getLogger('socket.access')
+request_logger = logging.getLogger('socket.request')
 
 PUBLIC_VIEWS = {
     'index',
+    'fail',
     'contractor-list',
     'contractor-get',
 }
 
 
-async def log_warning(request, response):
-    data = dict(
+async def log_extra(request, response=None):
+    return {'data': dict(
         request_url=str(request.rel_url),
         request_method=request.method,
         request_host=request.host,
         request_headers=dict(request.headers),
-        request_text=await request.text(),
-        response_status=response.status,
-        response_headers=dict(response.headers),
-        response_text=response.text,
-    )
-    access_logger.warning('%s %d', request.rel_url, response.status, extra={'data': data})
+        request_text=response and await request.text(),
+        response_status=response and response.status,
+        response_headers=response and dict(response.headers),
+        response_text=response and response.text,
+    )}
 
 
-async def warning_middleware(app, handler):
+async def log_warning(request, response):
+    request_logger.warning('%s %d', request.rel_url, response.status, extra=await log_extra(request, response))
+
+
+async def error_middleware(app, handler):
     async def _handler(request):
         try:
-            if hasattr(request.match_info.route, 'status'):
-                # 404 no matching route
-                assert request.match_info.route.status == 404
-                raise HTTPNotFound(reason='no matching route')
+            http_exception = getattr(request.match_info, 'http_exception', None)
+            if http_exception:
+                raise http_exception
             else:
                 r = await handler(request)
         except HTTPException as e:
             await log_warning(request, e)
             raise
+        except BaseException as e:
+            request_logger.exception('%s: %s', e.__class__.__name__, e, extra=await log_extra(request))
+            raise HTTPInternalServerError()
         else:
             if r.status > 310:
                 await log_warning(request, r)
@@ -178,7 +184,7 @@ async def auth_middleware(app, handler):
     return _handler
 
 middleware = (
-    warning_middleware,
+    error_middleware,
     pg_conn_middleware,
     company_middleware,
     json_request_middleware,

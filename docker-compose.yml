@@ -45,6 +45,7 @@ services:
       COMMIT: ${COMMIT}
       RELEASE_DATE: ${RELEASE_DATE}
       RAVEN_DSN: ${RAVEN_DSN}
+      SERVER_NAME: ${SERVER_NAME}
     restart: always
     depends_on:
     - postgres
@@ -61,7 +62,9 @@ services:
       APP_REDIS_HOST: redis
       APP_MEDIA_DIR: /media
       CHECK: worker
+      COMMIT: ${COMMIT}
       RAVEN_DSN: ${RAVEN_DSN}
+      SERVER_NAME: ${SERVER_NAME}
     restart: always
     depends_on:
     # currently doesn't use postgres

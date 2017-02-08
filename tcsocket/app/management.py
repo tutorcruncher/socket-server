@@ -25,14 +25,26 @@ def command(func):
     return func
 
 
+def lenient_connection(retries=5, **db_settings):
+    try:
+        return psycopg2.connect(
+            password=db_settings['password'],
+            host=db_settings['host'],
+            port=db_settings['port'],
+            user=db_settings['user'],
+        )
+    except psycopg2.Error as e:
+        if retries <= 0:
+            raise
+        else:
+            logger.warning('%s: %s (%d retries remaining)', e.__class__.__name__, e, retries)
+            sleep(1)
+            return lenient_connection(retries=retries - 1, **db_settings)
+
+
 @contextmanager
 def psycopg2_cursor(**db_settings):
-    conn = psycopg2.connect(
-        password=db_settings['password'],
-        host=db_settings['host'],
-        port=db_settings['port'],
-        user=db_settings['user'],
-    )
+    conn = lenient_connection(**db_settings)
     conn.autocommit = True
     cur = conn.cursor()
 
