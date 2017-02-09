@@ -51,7 +51,7 @@ async def list_companies(arg):
 
 @command
 async def create_company(arg):
-    data = {'name': os.getenv('COMPANY_NAME', f'test company {datetime.now():%H:%M:%S}')}
+    data = {'name': os.getenv('COMPANY_NAME', f'test company {datetime.now():%y-%m-%d %H:%M:%S}')}
     payload = json.dumps(data)
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
