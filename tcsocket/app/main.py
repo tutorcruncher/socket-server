@@ -13,14 +13,14 @@ from .worker import RequestActor
 async def startup(app: web.Application):
     app.update(
         pg_engine=await create_engine(pg_dsn(app['database']), loop=app.loop),
-        request_worker=RequestActor(settings=app['settings']),
+        worker=RequestActor(settings=app['settings']),
     )
 
 
 async def cleanup(app: web.Application):
     app['pg_engine'].close()
     await app['pg_engine'].wait_closed()
-    await app['request_worker'].close()
+    await app['worker'].close()
 
 
 def setup_routes(app):

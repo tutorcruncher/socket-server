@@ -37,9 +37,34 @@ async def test_image_view(request):
 
 async def contractor_list_view(request):
     data = {
-        'foo': 'TODO'
+        1: {
+            'count': 2,
+            'next': f'{request.app["server_name"]}/api/contractors/?page=2',
+            'previous': None,
+            'results': [
+                {
+                    'id': 22,
+                    'first_name': 'James',
+                    'last_name': 'Higgins',
+                    'town': 'London',
+                    'country': 'United Kingdom',
+                }
+            ]
+        },
+        2: {
+            'count': 2,
+            'next': None,
+            'previous': f'{request.app["server_name"]}/api/contractors/?page=1',
+            'results': [
+                {
+                    'id': 23,
+                    'last_name': 'Person 2',
+                }
+            ]
+        },
     }
-    return json_response(data)
+    page = int(request.GET.get('page', 1))
+    return json_response(data[page])
 
 
 @pytest.fixture
@@ -48,6 +73,7 @@ def other_server(loop, test_server):
     app.router.add_get('/_testing/image', test_image_view)
     app.router.add_get('/api/contractors/', contractor_list_view)
     server = loop.run_until_complete(test_server(app))
+    app['server_name'] = f'http://localhost:{server.port}'
     return server
 
 
@@ -134,9 +160,9 @@ def cli(loop, test_client, db_conn, settings):
 
     async def modify_startup(app):
         app['pg_engine'] = TestEngine(db_conn)
-        app['request_worker']._concurrency_enabled = False
-        await app['request_worker'].startup()
-        app['request_worker'].pg_engine = app['pg_engine']
+        app['worker']._concurrency_enabled = False
+        await app['worker'].startup()
+        app['worker'].pg_engine = app['pg_engine']
 
     app = create_app(loop, settings=settings)
     app.on_startup.append(modify_startup)

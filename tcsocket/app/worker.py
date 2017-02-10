@@ -23,6 +23,7 @@ class RequestActor(Actor):
         super().__init__(**kwargs)
         self.api_root = self.settings['tc_api_root']
         self.api_contractors = self.api_root + '/contractors/'
+        self.session = self.media = self.pg_engine = None
 
     async def startup(self):
         self.session = ClientSession(loop=self.loop)
@@ -55,11 +56,19 @@ class RequestActor(Actor):
         return 200
 
     async def _get_cons(self, url, **headers):
-        async with self.session.get(url, headers=headers) as r:
-            print(f'status: {r.status}')
-            obj = await r.json()
-            print(f'response: {obj}')
-        yield 1
+        while True:
+            async with self.session.get(url, headers=headers) as r:
+                try:
+                    assert r.status == 200
+                    obj = await r.json()
+                except (ValueError, AssertionError) as e:
+                    body = await r.read()
+                    raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
+                for con in obj['results']:
+                    yield con
+                url = obj['next']
+            if not url:
+                break
 
     @concurrent(Actor.LOW_QUEUE)
     async def update_contractors(self, public_key, private_key):
@@ -67,9 +76,11 @@ class RequestActor(Actor):
             print(con)
 
     async def shutdown(self):
-        self.pg_engine.close()
-        await self.pg_engine.wait_closed()
-        await self.session.close()
+        if self.pg_engine:
+            self.pg_engine.close()
+            await self.pg_engine.wait_closed()
+        if self.session:
+            await self.session.close()
 
 
 class Worker(BaseWorker):

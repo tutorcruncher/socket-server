@@ -34,8 +34,9 @@ sa_companies = Company.__table__
 
 @unique
 class Action(str, Enum):
-    insert = 'insert'
-    update = 'update'
+    created = 'created'
+    updated = 'updated'
+    deleted = 'deleted'
 
 
 class Contractor(Base):
@@ -58,7 +59,7 @@ class Contractor(Base):
     extra_attributes = Column(JSONB)
 
     last_updated = Column(DateTime, nullable=False, index=True)
-    action = Column(sa_enum(Action), default=Action.insert, nullable=False)
+    action = Column(sa_enum(Action), default=Action.created, nullable=False)
 
 
 sa_contractors = Contractor.__table__
