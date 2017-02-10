@@ -13,9 +13,9 @@ from gunicorn.app.base import BaseApplication
 from sqlalchemy import create_engine
 
 from .logs import logger
-from .main import create_app, pg_dsn
+from .main import create_app
 from .models import Base
-from .settings import load_settings
+from .settings import load_settings, pg_dsn
 
 commands = []
 

@@ -3,27 +3,11 @@ import re
 
 from aiohttp import web
 from aiopg.sa import create_engine
-from sqlalchemy.engine.url import URL
 
 from .middleware import middleware
-from .settings import THIS_DIR, load_settings
+from .settings import THIS_DIR, load_settings, pg_dsn
 from .views import company_create, company_list, contractor_get, contractor_list, contractor_set, index
 from .worker import RequestActor
-
-
-def pg_dsn(db_settings: dict) -> str:
-    """
-    :param db_settings: dict of connection settings, see SETTINGS_STRUCTURE for definition
-    :return: DSN url suitable for sqlalchemy and aiopg.
-    """
-    return str(URL(
-        database=db_settings['name'],
-        password=db_settings['password'],
-        host=db_settings['host'],
-        port=db_settings['port'],
-        username=db_settings['user'],
-        drivername='postgres',
-    ))
 
 
 async def startup(app: web.Application):

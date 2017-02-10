@@ -26,8 +26,8 @@ VIEW_SCHEMAS = {
             t.Atom('first_name_initial') |
             t.Atom('full_name')
         ),
-        t.Key('public_key', default=None): t.Or(t.Null | t.String(max_length=20)),
-        t.Key('private_key', default=None): t.Or(t.Null | t.String(max_length=50)),
+        t.Key('public_key', default=None): t.Or(t.Null | t.String(min_length=18, max_length=20)),
+        t.Key('private_key', default=None): t.Or(t.Null | t.String(min_length=40, max_length=50)),
     }),
     'contractor-set': t.Dict({
         'id': t.Int(),
@@ -78,6 +78,7 @@ async def company_create(request):
     Authentication and json parsing are done by middleware.
     """
     data = request['json_obj']
+    existing_company = bool(data['private_key'])
     data.update(
         public_key=data['public_key'] or token_hex(10),
         private_key=data['private_key'] or token_hex(20),
@@ -86,18 +87,20 @@ async def company_create(request):
     v = await conn.execute((
         pg_insert(sa_companies)
         .values(**data)
-        .on_conflict_do_nothing(index_elements=[sa_companies.c.name])
+        .on_conflict_do_nothing()
         .returning(sa_companies.c.id, sa_companies.c.public_key, sa_companies.c.private_key, sa_companies.c.name)
     ))
     new_company = await v.first()
     if new_company is None:
         raise HTTPBadRequestJson(
             status='duplicate',
-            details=f'company with the name "{data["name"]}" already exists',
+            details='the supplied data conflicts with an existing company',
         )
     else:
         logger.info('created company "%s", id %d, public key %s, private key %s',
                     new_company.name, new_company.id, new_company.public_key, new_company.private_key)
+        if existing_company:
+            await request.app['request_worker'].update_contractors(new_company.public_key, new_company.private_key)
         return pretty_json_response(
             status_=201,
             status='success',

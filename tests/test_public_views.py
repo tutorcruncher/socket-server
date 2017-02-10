@@ -32,12 +32,12 @@ async def test_list_contractors(cli, db_conn):
             'id': 1,
             'link': '1-fred-b',
             'name': 'Fred B',
-            'photo': 'http://socket.tutorcruncher.com/media/thepublickey/1.thumb.jpg',
+            'photo': 'https://socket.tutorcruncher.com/media/thepublickey/1.thumb.jpg',
             'tag_line': None,
             'primary_description': None,
             'town': None,
             'country': None,
-            'url': 'http://socket.tutorcruncher.com/thepublickey/contractors/1',
+            'url': 'https://socket.tutorcruncher.com/thepublickey/contractors/1',
         }
     ] == obj
 
@@ -97,7 +97,7 @@ async def test_get_contractor(cli, db_conn):
         'country': None,
         'extra_attributes': [{'foo': 'bar'}],
         'tag_line': None,
-        'photo': 'http://socket.tutorcruncher.com/media/thepublickey/1.jpg',
+        'photo': 'https://socket.tutorcruncher.com/media/thepublickey/1.jpg',
         'primary_description': None,
         'skills': [
             {

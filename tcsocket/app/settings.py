@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import trafaret as t
+from sqlalchemy.engine.url import URL
 from trafaret_config import ConfigError, read_and_validate
 
 THIS_DIR = Path(__file__).parent
@@ -42,6 +43,7 @@ SETTINGS_STRUCTURE = t.Dict({
     'root_url': t.URL,
     'media_dir': t.String >> check_media_dir,
     'media_url': t.URL,
+    'tc_api_root': t.URL,
 })
 
 
@@ -76,6 +78,21 @@ def substitute_environ(s_dict: dict, prefix: str) -> dict:
                     # are there any other types we might need to cope with here?
                     s_dict[key] = env_var
     return s_dict
+
+
+def pg_dsn(db_settings: dict) -> str:
+    """
+    :param db_settings: dict of connection settings, see SETTINGS_STRUCTURE for definition
+    :return: DSN url suitable for sqlalchemy and aiopg.
+    """
+    return str(URL(
+        database=db_settings['name'],
+        password=db_settings['password'],
+        host=db_settings['host'],
+        port=db_settings['port'],
+        username=db_settings['user'],
+        drivername='postgres',
+    ))
 
 
 def load_settings(settings_file: Path=None, *, env_prefix: str=ENV_PREFIX) -> dict:

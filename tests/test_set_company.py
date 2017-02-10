@@ -34,6 +34,28 @@ async def test_create(cli, db_conn):
     }
 
 
+async def test_create_with_keys(cli, db_conn):
+    data = {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40}
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 201
+    response_data = await r.json()
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.name == 'foobar'
+    assert response_data == {
+        'details': data,
+        'status': 'success'
+    }
+
+
 async def test_create_not_auth(cli):
     headers = {'Content-Type': 'application/json'}
     r = await cli.post('/companies/create', data=json.dumps({'name': 'foobar'}), headers=headers)
@@ -53,11 +75,36 @@ async def test_create_bad_auth(cli):
     assert r.status == 401
 
 
-async def test_create_duplicate(cli, company):
+async def test_create_duplicate_name(cli, company):
     r = await signed_post(cli, '/companies/create', name='foobar')
     assert r.status == 400
     response_data = await r.json()
-    assert response_data == {'details': 'company with the name "foobar" already exists', 'status': 'duplicate'}
+    assert response_data == {'details': 'the supplied data conflicts with an existing company', 'status': 'duplicate'}
+
+
+async def test_create_duplicate_public_key(cli, db_conn):
+    payload = json.dumps({'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40})
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 201
+
+    payload = json.dumps({'name': 'foobar 2', 'public_key': 'x' * 20, 'private_key': 'z' * 40})
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 400
+    response_data = await r.json()
+    assert response_data == {'details': 'the supplied data conflicts with an existing company', 'status': 'duplicate'}
 
 
 async def test_list(cli, company):

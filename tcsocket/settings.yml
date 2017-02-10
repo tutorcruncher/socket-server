@@ -17,3 +17,4 @@ master_key: 'this is a secret'
 root_url: https://socket.tutorcruncher.com
 media_dir: ./media
 media_url: https://socket.tutorcruncher.com/media
+tc_api_root: https://secure.tutorcruncher.com/api
