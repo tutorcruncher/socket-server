@@ -139,6 +139,15 @@ class TestEngine:
     async def _acquire(self):
         return self._conn
 
+    def acquire(self):
+        return self
+
+    async def __aenter__(self):
+        return self._conn
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        pass
+
     async def release(self, conn):
         pass
 

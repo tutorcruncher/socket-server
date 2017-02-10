@@ -7,13 +7,13 @@ from aiopg.sa import create_engine
 from .middleware import middleware
 from .settings import THIS_DIR, load_settings, pg_dsn
 from .views import company_create, company_list, contractor_get, contractor_list, contractor_set, index
-from .worker import RequestActor
+from .worker import MainActor
 
 
 async def startup(app: web.Application):
     app.update(
         pg_engine=await create_engine(pg_dsn(app['database']), loop=app.loop),
-        worker=RequestActor(settings=app['settings']),
+        worker=MainActor(settings=app['settings']),
     )
 
 
@@ -44,7 +44,7 @@ def create_app(loop, *, settings=None):
     )
     index_html = (THIS_DIR / 'index.html').read_text()
     for key, value in ctx.items():
-        index_html = re.sub('\{\{ ?%s ?\}\}' % key, value, index_html)
+        index_html = re.sub(r'\{\{ ?%s ?\}\}' % key, value, index_html)
     app['index_html'] = index_html
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)

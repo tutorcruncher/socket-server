@@ -7,7 +7,9 @@ from arq import Actor, BaseWorker, RedisSettings, concurrent
 from PIL import Image, ImageOps
 
 from .logs import logger
+from .processing import contractor_set
 from .settings import load_settings, pg_dsn
+from .views import VIEW_SCHEMAS
 
 CHUNK_SIZE = int(1e4)
 SIZE_LARGE = 1000, 1000
@@ -16,7 +18,7 @@ SIZE_SMALL = 256, 256
 CT_JSON = 'application/json'
 
 
-class RequestActor(Actor):
+class MainActor(Actor):
     def __init__(self, *, settings=None, **kwargs):
         self.settings = settings or load_settings()
         kwargs['redis_settings'] = RedisSettings(**self.settings['redis'])
@@ -56,24 +58,36 @@ class RequestActor(Actor):
         return 200
 
     async def _get_cons(self, url, **headers):
+        schema = VIEW_SCHEMAS['contractor-set']
         while True:
             async with self.session.get(url, headers=headers) as r:
                 try:
                     assert r.status == 200
-                    obj = await r.json()
+                    data = await r.json()
                 except (ValueError, AssertionError) as e:
                     body = await r.read()
                     raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
-                for con in obj['results']:
-                    yield con
-                url = obj['next']
+
+                for con_data in data.get('results') or []:
+                    yield schema.check(con_data)
+
+                url = data.get('next')
+
             if not url:
                 break
 
     @concurrent(Actor.LOW_QUEUE)
-    async def update_contractors(self, public_key, private_key):
-        async for con in self._get_cons(self.api_contractors, accept=CT_JSON, authorization='Token ' + private_key):
-            print(con)
+    async def update_contractors(self, company):
+        # TODO: delete existing contractors
+        token = f'Token {company["private_key"]}'
+        async with self.pg_engine.acquire() as conn:
+            async for con_data in self._get_cons(self.api_contractors, accept=CT_JSON, authorization=token):
+                await contractor_set(
+                    conn=conn,
+                    worker=self,
+                    company=company,
+                    data=con_data,
+                )
 
     async def shutdown(self):
         if self.pg_engine:
@@ -84,7 +98,7 @@ class RequestActor(Actor):
 
 
 class Worker(BaseWorker):
-    shadows = [RequestActor]
+    shadows = [MainActor]
 
     def __init__(self, **kwargs):
         kwargs['redis_settings'] = RedisSettings(**load_settings()['redis'])

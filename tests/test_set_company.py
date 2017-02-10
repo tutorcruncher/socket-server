@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from tcsocket.app.models import sa_companies
+from tcsocket.app.models import sa_companies, sa_contractors
 from .conftest import signed_post
 
 
@@ -46,14 +46,12 @@ async def test_create_with_keys(cli, db_conn):
     }
     r = await cli.post('/companies/create', data=payload, headers=headers)
     assert r.status == 201
-    response_data = await r.json()
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.name == 'foobar'
-    assert response_data == {
-        'details': data,
-        'status': 'success'
-    }
+    assert [(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())] == [
+        (22, 'James', 'Higgins'), (23, None, 'Person 2')
+    ]
 
 
 async def test_create_not_auth(cli):

@@ -100,7 +100,7 @@ async def company_create(request):
         logger.info('created company "%s", id %d, public key %s, private key %s',
                     new_company.name, new_company.id, new_company.public_key, new_company.private_key)
         if existing_company:
-            await request.app['worker'].update_contractors(new_company.public_key, new_company.private_key)
+            await request.app['worker'].update_contractors(dict(new_company))
         return pretty_json_response(
             status_=201,
             status='success',
@@ -130,9 +130,9 @@ async def contractor_set(request):
     """
     action = await _contractor_set(
         conn=await request['conn_manager'].get_connection(),
-        company=request['company'],
         worker=request.app['worker'],
-        data=request['json_obj']
+        company=request['company'],
+        data=request['json_obj'],
     )
     if action == Action.deleted:
         return pretty_json_response(
