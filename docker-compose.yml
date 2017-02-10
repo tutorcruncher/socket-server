@@ -68,6 +68,7 @@ services:
     restart: always
     depends_on:
     # currently doesn't use postgres
+    - postgres
     - redis
 
   # TODO: https://github.com/schickling/dockerfiles/tree/master/postgres-backup-s3

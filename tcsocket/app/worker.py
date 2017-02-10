@@ -13,7 +13,7 @@ SIZE_LARGE = 1000, 1000
 SIZE_SMALL = 256, 256
 
 
-class ImageActor(Actor):
+class RequestActor(Actor):
     def __init__(self, *, settings=None, **kwargs):
         self.settings = settings or load_settings()
         kwargs['redis_settings'] = RedisSettings(**self.settings['redis'])
@@ -46,13 +46,17 @@ class ImageActor(Actor):
                 img_large.save(path_str + '.thumb.jpg', 'JPEG')
         return 200
 
+    @concurrent
+    async def get_contractors(self, public_key, private_key):
+        pass
+
     async def close(self):
         await super().close()
         await self.session.close()
 
 
 class Worker(BaseWorker):
-    shadows = [ImageActor]
+    shadows = [RequestActor]
 
     def __init__(self, **kwargs):
         kwargs['redis_settings'] = RedisSettings(**load_settings()['redis'])

@@ -8,7 +8,7 @@ from sqlalchemy.engine.url import URL
 from .middleware import middleware
 from .settings import THIS_DIR, load_settings
 from .views import company_create, company_list, contractor_get, contractor_list, contractor_set, index
-from .worker import ImageActor
+from .worker import RequestActor
 
 
 def pg_dsn(db_settings: dict) -> str:
@@ -29,14 +29,14 @@ def pg_dsn(db_settings: dict) -> str:
 async def startup(app: web.Application):
     app.update(
         pg_engine=await create_engine(pg_dsn(app['database']), loop=app.loop),
-        image_worker=ImageActor(settings=app['settings']),
+        request_worker=RequestActor(settings=app['settings']),
     )
 
 
 async def cleanup(app: web.Application):
     app['pg_engine'].close()
     await app['pg_engine'].wait_closed()
-    await app['image_worker'].close()
+    await app['request_worker'].close()
 
 
 def setup_routes(app):

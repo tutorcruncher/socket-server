@@ -83,14 +83,15 @@ async def test_list(cli, company):
     ] == response_data
 
 
-@pytest.mark.parametrize('payload', [
-    (datetime.now() - timedelta(seconds=12)).strftime('%s'),
-    (datetime.now() + timedelta(seconds=2)).strftime('%s'),
-    '10000',
-    '-1',
-    'null',
+@pytest.mark.parametrize('payload_func, name', [
+    (lambda: (datetime.now() - timedelta(seconds=12)).strftime('%s'), 'now - 12s'),
+    (lambda: (datetime.now() + timedelta(seconds=2)).strftime('%s'), 'now + 2s'),
+    (lambda: '10000', 'long long ago'),
+    (lambda: '-1', 'just before 1970'),
+    (lambda: 'null', 'no time'),
 ])
-async def test_list_invalid_time(cli, company, payload):
+async def test_list_invalid_time(cli, company, payload_func, name):
+    payload = payload_func()
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 

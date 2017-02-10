@@ -26,6 +26,8 @@ VIEW_SCHEMAS = {
             t.Atom('first_name_initial') |
             t.Atom('full_name')
         ),
+        t.Key('public_key', default=None): t.Or(t.Null | t.String(max_length=20)),
+        t.Key('private_key', default=None): t.Or(t.Null | t.String(max_length=50)),
     }),
     'contractor-set': t.Dict({
         'id': t.Int(),
@@ -77,8 +79,8 @@ async def company_create(request):
     """
     data = request['json_obj']
     data.update(
-        public_key=token_hex(10),
-        private_key=token_hex(10),
+        public_key=data['public_key'] or token_hex(10),
+        private_key=data['private_key'] or token_hex(20),
     )
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute((
@@ -265,7 +267,7 @@ async def contractor_set(request):
         )
     status, status_text = (201, 'created') if r.action == Action.insert else (200, 'updated')
     await _set_skills(conn, con_id, skills)
-    photo and await request.app['image_worker'].get_image(request['company'].public_key, con_id, photo)
+    photo and await request.app['request_worker'].get_image(request['company'].public_key, con_id, photo)
     logger.info('%s contractor on %s', status_text, request['company'].public_key)
     return pretty_json_response(
         status_=status,

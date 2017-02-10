@@ -105,7 +105,7 @@ def cli(loop, test_client, db_conn, settings):
 
     async def modify_startup(app):
         app['pg_engine'] = TestEngine(db_conn)
-        app['image_worker']._concurrency_enabled = False
+        app['request_worker']._concurrency_enabled = False
 
     app = create_app(loop, settings=settings)
     app.on_startup.append(modify_startup)

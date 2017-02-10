@@ -35,14 +35,13 @@ async def _check_port_open(conf, loop):
     raise RuntimeError(f'Unable to connect to {host}:{port} after {steps * delay}s')
 
 
-def check_services_ready(*, postgres=True, redis=True):
+def check_services_ready():
     settings = load_settings()
     loop = asyncio.get_event_loop()
-    coros = []
-    if postgres:
-        coros.append(_check_port_open(settings['database'], loop))
-    if redis:
-        coros.append(_check_port_open(settings['redis'], loop))
+    coros = [
+        _check_port_open(settings['database'], loop),
+        _check_port_open(settings['redis'], loop),
+    ]
     loop.run_until_complete(asyncio.gather(*coros, loop=loop))
 
 
@@ -136,7 +135,7 @@ def worker(**kwargs):
     Run the worker
     """
     logger.info('waiting for redis to come up...')
-    check_services_ready(postgres=False)
+    check_services_ready()
     RunWorkerProcess('app/worker.py', 'Worker')
 
 

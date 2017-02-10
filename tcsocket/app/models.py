@@ -23,7 +23,7 @@ class Company(Base):
     __tablename__ = 'companies'
     id = Column(Integer, primary_key=True, nullable=False)
     public_key = Column(String(20), index=True, nullable=False, unique=True)
-    private_key = Column(String(20), index=True, nullable=False, unique=True)
+    private_key = Column(String(50), index=True, nullable=False, unique=True)
 
     name = Column(String(63), unique=True)
     name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name_initial, nullable=False)
