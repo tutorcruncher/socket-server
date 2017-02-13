@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from tempfile import TemporaryFile
 
@@ -5,6 +6,7 @@ from aiohttp import ClientSession
 from aiopg.sa import create_engine
 from arq import Actor, BaseWorker, RedisSettings, concurrent
 from PIL import Image, ImageOps
+from psycopg2 import OperationalError
 
 from .logs import logger
 from .processing import contractor_set
@@ -27,10 +29,19 @@ class MainActor(Actor):
         self.api_contractors = self.api_root + '/contractors/'
         self.session = self.media = self.pg_engine = None
 
-    async def startup(self):
-        self.session = ClientSession(loop=self.loop)
-        self.media = Path(self.settings['media_dir'])
-        self.pg_engine = await create_engine(pg_dsn(self.settings['database']), loop=self.loop)
+    async def startup(self, retries=5):
+        try:
+            self.pg_engine = await create_engine(pg_dsn(self.settings['database']), loop=self.loop)
+        except OperationalError:
+            if retries > 0:
+                logger.info('create_engine failed, %d retries remaining, retrying...', retries)
+                await asyncio.sleep(1, loop=self.loop)
+                return await self.startup(retries=retries - 1)
+            else:
+                raise
+        else:
+            self.session = ClientSession(loop=self.loop)
+            self.media = Path(self.settings['media_dir'])
 
     @concurrent
     async def get_image(self, company, contractor_id, url):
