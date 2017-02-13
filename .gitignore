@@ -6,4 +6,4 @@ env
 htmlcov
 media
 nginx/prod/keys
-activate.prod.sh
+activate.prod.*

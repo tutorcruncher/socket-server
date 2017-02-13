@@ -63,15 +63,15 @@ class MainActor(Actor):
             async with self.session.get(url, headers=headers) as r:
                 try:
                     assert r.status == 200
-                    data = await r.json()
+                    response_data = await r.json()
                 except (ValueError, AssertionError) as e:
                     body = await r.read()
                     raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
 
-                for con_data in data.get('results') or []:
+                for con_data in response_data.get('results') or []:
                     yield schema.check(con_data)
 
-                url = data.get('next')
+                url = response_data.get('next')
 
             if not url:
                 break
@@ -87,6 +87,7 @@ class MainActor(Actor):
                     worker=self,
                     company=company,
                     data=con_data,
+                    skip_deleted=True,
                 )
 
     async def shutdown(self):

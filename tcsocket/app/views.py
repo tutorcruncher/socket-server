@@ -27,7 +27,7 @@ VIEW_SCHEMAS = {
             t.Atom('full_name')
         ),
         t.Key('public_key', default=None): t.Or(t.Null | t.String(min_length=18, max_length=20)),
-        t.Key('private_key', default=None): t.Or(t.Null | t.String(min_length=40, max_length=50)),
+        t.Key('private_key', default=None): t.Or(t.Null | t.String(min_length=20, max_length=50)),
     }),
     'contractor-set': t.Dict({
         'id': t.Int(),

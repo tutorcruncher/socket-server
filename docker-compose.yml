@@ -59,6 +59,8 @@ services:
     - ./run.py
     - worker
     environment:
+      APP_DATABASE_HOST: postgres
+      APP_DATABASE_PASSWORD: docker
       APP_REDIS_HOST: redis
       APP_MEDIA_DIR: /media
       CHECK: worker

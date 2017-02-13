@@ -95,7 +95,7 @@ def get_special_extra_attr(extra_attributes, machine_name, attr_type):
         return None, extra_attributes
 
 
-async def contractor_set(*, conn, company, worker, data) -> Action:
+async def contractor_set(*, conn, company, worker, data, skip_deleted=False) -> Action:
     """
     Create or update a contractor.
 
@@ -103,22 +103,24 @@ async def contractor_set(*, conn, company, worker, data) -> Action:
     :param company: dict with company info, including id and public_key
     :param worker: instance of RequestWorker
     :param data: data about contractor
+    :param skip_deleted: whether or not to skip deleted contractors (or delete them in the db.)
     :return: Action: created, updated or deleted
     """
     con_id = data.pop('id')
     deleted = data.pop('deleted')
     if deleted:
-        curr = await conn.execute(
-            sa_contractors
-            .delete()
-            .where(and_(sa_contractors.c.company == company['id'], sa_contractors.c.id == con_id))
-            .returning(sa_contractors.c.id)
-        )
-        if not await curr.first():
-            raise HTTPNotFoundJson(
-                status='not found',
-                details=f'contractor with id {con_id} not found',
+        if not skip_deleted:
+            curr = await conn.execute(
+                sa_contractors
+                .delete()
+                .where(and_(sa_contractors.c.company == company['id'], sa_contractors.c.id == con_id))
+                .returning(sa_contractors.c.id)
             )
+            if not await curr.first():
+                raise HTTPNotFoundJson(
+                    status='not found',
+                    details=f'contractor with id {con_id} not found',
+                )
         return Action.deleted
 
     skills = data.pop('skills')
