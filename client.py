@@ -52,7 +52,7 @@ async def list_companies(**kwargs):
 @command
 async def create_company(*, company_name=None, public_key=None, private_key=None, **kwargs):
     data = {
-        'name': company_name or f'test company {datetime.now():%y-%m-%d %H:%M:%S}',
+        'name': company_name or f'company {datetime.now():%y-%m-%d %H:%M:%S}',
         'public_key': public_key,
         'private_key': private_key,
     }

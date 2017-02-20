@@ -20,6 +20,7 @@ PUBLIC_VIEWS = {
     'fail',
     'contractor-list',
     'contractor-get',
+    'enquiry',
 }
 
 

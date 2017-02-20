@@ -1,10 +1,12 @@
 import asyncio
+import json
 from pathlib import Path
 from tempfile import TemporaryFile
 
 from aiohttp import ClientSession
 from aiopg.sa import create_engine
 from arq import Actor, BaseWorker, RedisSettings, concurrent
+from arq.utils import timestamp
 from PIL import Image, ImageOps
 from psycopg2 import OperationalError
 
@@ -27,6 +29,7 @@ class MainActor(Actor):
         super().__init__(**kwargs)
         self.api_root = self.settings['tc_api_root']
         self.api_contractors = self.api_root + '/contractors/'
+        self.api_enquiries = self.api_root + '/enquiry/'
         self.session = self.media = self.pg_engine = None
 
     async def startup(self, retries=5):
@@ -68,8 +71,13 @@ class MainActor(Actor):
                 img_large.save(path_str + '.thumb.jpg', 'JPEG')
         return 200
 
-    async def _get_cons(self, url, **headers):
+    def request_headers(self, company):
+        return dict(accept=CT_JSON, authorization=f'Token {company["private_key"]}')
+
+    async def _get_cons(self, company):
         schema = VIEW_SCHEMAS['contractor-set']
+        url = self.api_contractors
+        headers = self.request_headers(company)
         while True:
             async with self.session.get(url, headers=headers) as r:
                 try:
@@ -90,9 +98,9 @@ class MainActor(Actor):
     @concurrent(Actor.LOW_QUEUE)
     async def update_contractors(self, company):
         # TODO: delete existing contractors
-        token = f'Token {company["private_key"]}'
+        cons_created = 0
         async with self.pg_engine.acquire() as conn:
-            async for con_data in self._get_cons(self.api_contractors, accept=CT_JSON, authorization=token):
+            async for con_data in self._get_cons(company):
                 await contractor_set(
                     conn=conn,
                     worker=self,
@@ -100,6 +108,51 @@ class MainActor(Actor):
                     data=con_data,
                     skip_deleted=True,
                 )
+                cons_created += 1
+        return cons_created
+
+    @concurrent
+    async def update_enquiry_options(self, company):
+        """
+        update the redis key containing enquiry option data, including setting the "last_updated" key.
+        """
+        data = await self.get_enquiry_options(company)
+        data['last_updated'] = timestamp()
+        redis_pool = await self.get_redis_pool()
+        async with redis_pool.get() as redis:
+            await redis.setex(b'enquiry-data-%d' % company['id'], 3600, json.dumps(data).encode())
+
+    async def get_enquiry_options(self, company):
+        async with self.session.options(self.api_enquiries, headers=self.request_headers(company)) as r:
+            try:
+                assert r.status == 200
+                response_data = await r.json()
+            except (ValueError, AssertionError) as e:
+                body = await r.read()
+                raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
+        data = response_data['actions']['POST']
+        # these are set by socket-server itself
+        data.pop('user_agent')
+        data.pop('ip_address')
+        return data
+
+    @concurrent
+    async def submit_enquiry(self, company, data):
+        data_enc = json.dumps(data)
+        headers = self.request_headers(company)
+        headers['Content-Type'] = CT_JSON
+        async with self.session.post(self.api_enquiries, data=data_enc, headers=headers) as r:
+            try:
+                assert r.status in (200, 201, 400)
+                response_data = await r.json()
+            except (ValueError, AssertionError) as e:
+                body = await r.read()
+                raise RuntimeError(f'Bad response from {self.api_enquiries} {r.status}, response:\n{body}') from e
+        logger.info('Response: %d, %s', r.status, response_data)
+        if r.status == 400:
+            logger.warning('400 response submitting enquiry\nrequest: %s\nresponse: %s', data, response_data)
+            await self.update_enquiry_options(company)
+        return r.status
 
     async def shutdown(self):
         if self.pg_engine:

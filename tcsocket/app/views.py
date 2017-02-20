@@ -1,10 +1,13 @@
+import json
 import re
 from itertools import groupby
 from operator import attrgetter
 from secrets import token_hex
 
 import trafaret as t
-from aiohttp.web_reqrep import Response
+from aiohttp.hdrs import METH_POST
+from aiohttp.web import Response
+from arq.utils import timestamp
 from dateutil.parser import parse as dt_parse
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -17,6 +20,8 @@ from .utils import HTTPBadRequestJson, pretty_json_response, public_json_respons
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
+AnyDict = t.Dict()
+AnyDict.allow_extra('*')
 
 VIEW_SCHEMAS = {
     'company-create': t.Dict({
@@ -62,6 +67,19 @@ VIEW_SCHEMAS = {
 
         t.Key('last_updated', optional=True): t.Or(t.Null | t.String >> dt_parse),
         t.Key('photo', optional=True): t.Or(t.Null | t.URL),
+    }),
+    'enquiry': t.Dict({
+        'client_name': t.String(max_length=255),
+        t.Key('client_email', optional=True): t.Or(t.Null | t.Email()),
+        t.Key('client_phone', optional=True): t.Or(t.Null | t.String(max_length=255)),
+        t.Key('service_recipient_name', optional=True): t.Or(t.Null | t.String(max_length=255)),
+        t.Key('attributes', optional=True): t.Or(t.Null | AnyDict),
+
+        t.Key('contractor', optional=True): t.Or(t.Null | t.Int(gt=0)),
+        t.Key('subject', optional=True): t.Or(t.Null | t.Int(gt=0)),
+        t.Key('qual_level', optional=True): t.Or(t.Null | t.Int(gt=0)),
+
+        t.Key('http_referrer', optional=True): t.Or(t.Null | t.String(max_length=200)),
     })
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
@@ -267,3 +285,33 @@ async def contractor_get(request):
         extra_attributes=con.extra_attributes,
         skills=await _get_skills(conn, con_id)
     )
+
+
+async def enquiry(request):
+    company = dict(request['company'])
+    if request.method == METH_POST:
+        data = request['json_obj']
+        x_forward_for = request.headers.get('X-Forward-For')
+        data.update(
+            user_agent=request.headers.get('User-Agent'),
+            ip_address=x_forward_for and x_forward_for.split(',', 1)[0].strip(' '),
+            http_referrer=data.get('http_referrer') or request.headers.get('Referer'),
+        )
+        await request.app['worker'].submit_enquiry(company, data)
+        return public_json_response(status='enquiry submitted to TutorCruncher')
+    else:
+        redis_pool = await request.app['worker'].get_redis_pool()
+        async with redis_pool.get() as redis:
+            raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
+        if raw_enquiry_options:
+            enquiry_options = json.loads(raw_enquiry_options.decode())
+            last_updated = enquiry_options.pop('last_updated')
+            update_enquiry_options = (timestamp() - last_updated) > 3600
+        else:
+            # no enquiry options yet exist, we have to get them now even though it will make the request slow
+            update_enquiry_options = True
+            enquiry_options = await request.app['worker'].get_enquiry_options(company)
+        update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
+
+        return public_json_response(**enquiry_options)
+
