@@ -1,5 +1,6 @@
 import os
 import re
+from html import escape
 
 from aiohttp import web
 from aiopg.sa import create_engine
@@ -44,7 +45,7 @@ def create_app(loop, *, settings=None):
     )
     index_html = (THIS_DIR / 'index.html').read_text()
     for key, value in ctx.items():
-        index_html = re.sub(r'\{\{ ?%s ?\}\}' % key, value, index_html)
+        index_html = re.sub(r'\{\{ ?%s ?\}\}' % key, escape(value), index_html)
     app['index_html'] = index_html
     app.on_startup.append(startup)
     app.on_cleanup.append(cleanup)

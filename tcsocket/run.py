@@ -12,6 +12,7 @@ from app.logs import logger, setup_logging
 from app.main import create_app
 from app.management import prepare_database
 from app.settings import load_settings
+from app.worker import Worker
 
 commands = []
 
@@ -111,8 +112,7 @@ def _check_web():
 
 
 def _check_worker():
-    # TODO
-    logger.info('worker check not yet implemented')
+    exit(Worker.check_health())
 
 
 @command
