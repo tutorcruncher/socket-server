@@ -314,4 +314,3 @@ async def enquiry(request):
         update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
 
         return public_json_response(**enquiry_options)
-

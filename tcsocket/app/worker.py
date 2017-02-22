@@ -129,7 +129,7 @@ class MainActor(Actor):
                 response_data = await r.json()
             except (ValueError, AssertionError) as e:
                 body = await r.read()
-                raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
+                raise RuntimeError(f'Bad response from {self.api_enquiries} {r.status}, response:\n{body}') from e
         data = response_data['actions']['POST']
         # these are set by socket-server itself
         data.pop('user_agent')
