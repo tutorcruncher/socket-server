@@ -22,7 +22,7 @@ export SERVER_NAME="scaleway"
 export MODE="PRODUCTION"
 export RAVEN_DSN="-"
 
-deploy/up.sh
+deploy/compose-up
 
 sleep 10
 
