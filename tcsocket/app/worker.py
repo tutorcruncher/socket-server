@@ -33,6 +33,9 @@ class MainActor(Actor):
         self.session = self.media = self.pg_engine = None
 
     async def startup(self, retries=5):
+        if self.session and self.media and self.pg_engine:
+            # happens if startup is called twice eg. in test setup
+            return
         try:
             self.pg_engine = await create_engine(pg_dsn(self.settings['database']), loop=self.loop)
         except OperationalError:
@@ -132,8 +135,8 @@ class MainActor(Actor):
                 raise RuntimeError(f'Bad response from {self.api_enquiries} {r.status}, response:\n{body}') from e
         data = response_data['actions']['POST']
         # these are set by socket-server itself
-        data.pop('user_agent')
-        data.pop('ip_address')
+        for f in ('user_agent', 'ip_address', 'http_referrer'):
+            data.pop(f)
         return data
 
     @concurrent

@@ -79,7 +79,7 @@ VIEW_SCHEMAS = {
         t.Key('subject', optional=True): t.Or(t.Null | t.Int(gt=0)),
         t.Key('qual_level', optional=True): t.Or(t.Null | t.Int(gt=0)),
 
-        t.Key('http_referrer', optional=True): t.Or(t.Null | t.String(max_length=200)),
+        # TODO t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=200)),
     })
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
@@ -295,22 +295,23 @@ async def enquiry(request):
         data.update(
             user_agent=request.headers.get('User-Agent'),
             ip_address=x_forward_for and x_forward_for.split(',', 1)[0].strip(' '),
-            http_referrer=data.get('http_referrer') or request.headers.get('Referer'),
+            http_referrer=request.headers.get('Referer'),
         )
         await request.app['worker'].submit_enquiry(company, data)
-        return public_json_response(status='enquiry submitted to TutorCruncher')
+        return public_json_response(status='enquiry submitted to TutorCruncher', status_=201)
     else:
         redis_pool = await request.app['worker'].get_redis_pool()
         async with redis_pool.get() as redis:
             raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
         if raw_enquiry_options:
             enquiry_options = json.loads(raw_enquiry_options.decode())
-            last_updated = enquiry_options.pop('last_updated')
+            last_updated = enquiry_options['last_updated']
             update_enquiry_options = (timestamp() - last_updated) > 3600
         else:
             # no enquiry options yet exist, we have to get them now even though it will make the request slow
-            update_enquiry_options = True
             enquiry_options = await request.app['worker'].get_enquiry_options(company)
+            enquiry_options['last_updated'] = 0
+            update_enquiry_options = True
         update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
 
         return public_json_response(**enquiry_options)

@@ -32,6 +32,7 @@ async def test_image_view(request):
     image = Image.new('RGB', (2000, 1200), (50, 100, 150))
     stream = BytesIO()
     image.save(stream, format='JPEG', optimize=True)
+    request.app['request_log'].append('test_image')
     return Response(body=stream.getvalue(), content_type='image/jpeg')
 
 
@@ -64,7 +65,105 @@ async def contractor_list_view(request):
         },
     }
     page = int(request.GET.get('page', 1))
+    request.app['request_log'].append('contractor_list')
     return json_response(data[page])
+
+
+async def enquiry_options_view(request):
+    request.app['request_log'].append('enquiry_options')
+    return json_response({
+        'name': 'Enquiries',
+        'description': 'API endpoint for creating Enquiries.',
+        'renders': [
+            'application/json',
+            'text/html'
+        ],
+        'parses': [
+            'application/json'
+        ],
+        'actions': {
+            'POST': {
+                'client_name': {
+                    'type': 'string',
+                    'required': True,
+                    'read_only': False,
+                    'label': 'Name',
+                    'max_length': 255
+                },
+                'client_email': {
+                    'type': 'email',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Email',
+                    'max_length': 255
+                },
+                'client_phone': {
+                    'type': 'string',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Phone number',
+                    'max_length': 255
+                },
+                'service_recipient_name': {
+                    'type': 'string',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Student name',
+                    'max_length': 255
+                },
+                'attributes': {
+                    'type': 'nested object',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Attributes'
+                },
+                'contractor': {
+                    'type': 'field',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Tutor'
+                },
+                'subject': {
+                    'type': 'field',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Subject'
+                },
+                'qual_level': {
+                    'type': 'field',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Qualification Level'
+                },
+                'user_agent': {
+                    'type': 'string',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Browser User-Agent',
+                    'max_length': 255
+                },
+                'ip_address': {
+                    'type': 'string',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'IP Address'
+                },
+                'http_referrer': {
+                    'type': 'url',
+                    'required': False,
+                    'read_only': False,
+                    'label': 'Referrer',
+                    'max_length': 200
+                }
+            }
+        }
+    })
+
+
+async def enquiry_post_view(request):
+    json_obj = await request.json()
+    request.app['request_log'].append(('enquiry_post', json_obj))
+    return json_response({'status': 'enquiry submitted, no-op'})
 
 
 @pytest.fixture
@@ -72,6 +171,9 @@ def other_server(loop, test_server):
     app = Application(loop=loop)
     app.router.add_get('/_testing/image', test_image_view)
     app.router.add_get('/api/contractors/', contractor_list_view)
+    app.router.add_route('OPTIONS', '/api/enquiry/', enquiry_options_view)
+    app.router.add_post('/api/enquiry/', enquiry_post_view)
+    app['request_log'] = []
     server = loop.run_until_complete(test_server(app))
     app['server_name'] = f'http://localhost:{server.port}'
     return server
@@ -90,7 +192,7 @@ def settings(tmpdir, other_server):
           'host': 'localhost',
           'port': 6379,
           'password': None,
-          'database': 0,
+          'database': 7,
         },
         'master_key': MASTER_KEY,
         'root_url': 'https://socket.tutorcruncher.com',
@@ -172,6 +274,9 @@ def cli(loop, test_client, db_conn, settings):
         app['worker']._concurrency_enabled = False
         await app['worker'].startup()
         app['worker'].pg_engine = app['pg_engine']
+        redis_pool = await app['worker'].get_redis_pool()
+        async with redis_pool.get() as redis:
+            await redis.flushdb()
 
     app = create_app(loop, settings=settings)
     app.on_startup.append(modify_startup)
