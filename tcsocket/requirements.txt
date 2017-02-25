@@ -2,7 +2,7 @@ SQLAlchemy==1.1.5
 aiodns==1.1.1
 aiohttp==1.3.3
 aiopg==0.13.0
-arq==0.5
+arq==0.5.1
 cchardet==1.1.2
 gunicorn==19.6.0
 python-dateutil==2.6.0
