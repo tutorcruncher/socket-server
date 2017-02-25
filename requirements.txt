@@ -2,4 +2,4 @@
 -r tcsocket/requirements.txt
 -r tests/requirements.txt
 aiohttp-devtools==0.2
-docker-compose==1.11.1
+docker-compose==1.11.2
