@@ -1,4 +1,4 @@
-version: '3'
+version: '2.1'
 
 volumes:
  pg_data_v2: {}
