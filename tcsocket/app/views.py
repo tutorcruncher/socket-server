@@ -289,13 +289,19 @@ async def contractor_get(request):
     )
 
 
+FIELD_TYPE_LOOKUP = {
+    'field': 'id',
+    'string': 'text',
+    'email': 'email',
+}
+
+
 def _convert_field(name, value):
     value_ = dict(value)
     value_.pop('read_only')
-    f_type = value_.pop('type')
     return dict(
         field=name,
-        type='id' if f_type == 'field' else f_type,
+        type=FIELD_TYPE_LOOKUP[value_.pop('type')],
         **value_
     )
 
