@@ -22,6 +22,9 @@ export SERVER_NAME="scaleway"
 export MODE="PRODUCTION"
 export RAVEN_DSN="-"
 
+docker version
+docker info
+
 deploy/compose-up
 
 sleep 10
