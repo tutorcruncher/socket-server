@@ -76,13 +76,15 @@ VIEW_SCHEMAS = {
         t.Key('attributes', optional=True): t.Or(t.Null | AnyDict),
 
         t.Key('contractor', optional=True): t.Or(t.Null | t.Int(gt=0)),
-        t.Key('subject', optional=True): t.Or(t.Null | t.Int(gt=0)),
-        t.Key('qual_level', optional=True): t.Or(t.Null | t.Int(gt=0)),
+        # TODO:
+        # t.Key('subject', optional=True): t.Or(t.Null | t.Int(gt=0)),
+        # t.Key('qual_level', optional=True): t.Or(t.Null | t.Int(gt=0)),
 
         # TODO t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=200)),
     })
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
+VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'
 
 
 async def index(request):
@@ -287,6 +289,17 @@ async def contractor_get(request):
     )
 
 
+def _convert_field(name, value):
+    value_ = dict(value)
+    value_.pop('read_only')
+    f_type = value_.pop('type')
+    return dict(
+        field=name,
+        type='id' if f_type == 'field' else f_type,
+        **value_
+    )
+
+
 async def enquiry(request):
     company = dict(request['company'])
     if request.method == METH_POST:
@@ -304,14 +317,25 @@ async def enquiry(request):
         async with redis_pool.get() as redis:
             raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
         if raw_enquiry_options:
-            enquiry_options = json.loads(raw_enquiry_options.decode())
-            last_updated = enquiry_options['last_updated']
+            enquiry_options_ = json.loads(raw_enquiry_options.decode())
+            last_updated = enquiry_options_['last_updated']
             update_enquiry_options = (timestamp() - last_updated) > 3600
         else:
             # no enquiry options yet exist, we have to get them now even though it will make the request slow
-            enquiry_options = await request.app['worker'].get_enquiry_options(company)
-            enquiry_options['last_updated'] = 0
+            enquiry_options_ = await request.app['worker'].get_enquiry_options(company)
+            last_updated = 0
             update_enquiry_options = True
         update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
 
+        # make the enquiry form data easier to render for js
+
+        enquiry_options = {
+            'visible': [_convert_field(f, enquiry_options_[f]) for f in VISIBLE_FIELDS],
+            'attributes': [_convert_field(k, v)
+                           for k, v in sorted(enquiry_options_['attributes'].get('children', {}).items())],
+            'hidden': {
+                'contractor': _convert_field('contractor', enquiry_options_['contractor']),
+            },
+            'last_updated': last_updated,
+        }
         return public_json_response(**enquiry_options)

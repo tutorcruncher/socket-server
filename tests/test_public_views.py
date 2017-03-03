@@ -124,9 +124,9 @@ async def test_get_enquiry(cli, company, other_server):
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     data = await r.json()
-    assert len(data) == 9
-    assert data['client_name']['max_length'] == 255
-    assert data['last_updated'] == 0
+    assert len(data) == 4
+    assert data['visible'][0]['field'] == 'client_name'
+    assert data['visible'][0]['max_length'] == 255
     assert data['last_updated'] == 0
     # once to get immediate response, once "on the worker"
     assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']
@@ -134,7 +134,7 @@ async def test_get_enquiry(cli, company, other_server):
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     data = await r.json()
-    assert len(data) == 9
+    assert len(data) == 4
     assert 1e9 < data['last_updated'] < 2e9
     # no more requests as data came from cache
     assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']
