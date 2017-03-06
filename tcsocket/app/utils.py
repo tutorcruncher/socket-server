@@ -48,7 +48,11 @@ PUBLIC_HEADERS = {
 
 class HTTPClientErrorJson(web.HTTPClientError):
     def __init__(self, **data):
-        super().__init__(body=to_pretty_json(data).encode(), content_type=JSON_CONTENT_TYPE)
+        super().__init__(
+            body=to_pretty_json(data).encode(),
+            content_type=JSON_CONTENT_TYPE,
+            headers=PUBLIC_HEADERS,
+        )
 
 
 class HTTPBadRequestJson(HTTPClientErrorJson):
