@@ -80,7 +80,8 @@ VIEW_SCHEMAS = {
         # t.Key('subject', optional=True): t.Or(t.Null | t.Int(gt=0)),
         # t.Key('qual_level', optional=True): t.Or(t.Null | t.Int(gt=0)),
 
-        # TODO t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=200)),
+        t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=200)),
+        t.Key('grecaptcha_response', optional=True): t.Or(t.Null | t.String(max_length=400)),
     })
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')

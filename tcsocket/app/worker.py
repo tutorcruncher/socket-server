@@ -141,6 +141,8 @@ class MainActor(Actor):
 
     @concurrent
     async def submit_enquiry(self, company, data):
+        grecaptcha_response = data.pop('grecaptcha_response', None)
+        logger.info('TODO: grecaptcha: %s', grecaptcha_response)
         data_enc = json.dumps(data)
         headers = self.request_headers(company)
         headers['Content-Type'] = CT_JSON
