@@ -144,6 +144,7 @@ async def test_post_enquiry(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
+        'grecaptcha_response': 'x' * 20,
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
