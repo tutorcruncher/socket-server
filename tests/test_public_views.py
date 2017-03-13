@@ -173,11 +173,12 @@ async def test_post_enquiry_bad_captcha(cli, company, other_server):
         'grecaptcha_response': 'bad_' * 5,
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
-    r = await cli.post(url, data=json.dumps(data))
+    r = await cli.post(url, data=json.dumps(data), headers={'X-Forward-For': '1.2.3.4'})
     assert r.status == 201, await r.text()
     assert other_server.app['request_log'] == [
         ('grecaptcha_post', {
             'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-            'response': 'bad_bad_bad_bad_bad_'
+            'response': 'bad_bad_bad_bad_bad_',
+            'remoteip': '1.2.3.4'
         }),
     ]
