@@ -1,7 +1,7 @@
 import json
 import re
 from itertools import groupby
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from secrets import token_hex
 from urllib.parse import urlparse
 
@@ -299,15 +299,24 @@ FIELD_TYPE_LOOKUP = {
     'field': 'id',
     'string': 'text',
     'email': 'email',
+    'choice': 'select',
+    'boolean': 'checkbox',
+    'integer': None,
+    'date': None,
+    'datetime': None,
 }
 
 
-def _convert_field(name, value):
+def _convert_field(name, value, prefix=None):
     value_ = dict(value)
+    ftype = FIELD_TYPE_LOOKUP[value_.pop('type')]
+    if ftype is None:
+        return None
     value_.pop('read_only')
     return dict(
         field=name,
-        type=FIELD_TYPE_LOOKUP[value_.pop('type')],
+        type=ftype,
+        prefix=prefix,
         **value_
     )
 
@@ -340,11 +349,14 @@ async def enquiry(request):
         update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
 
         # make the enquiry form data easier to render for js
+        visible = filter(bool, [
+            _convert_field(f, enquiry_options_[f]) for f in VISIBLE_FIELDS
+        ] + [
+            _convert_field(k, v, 'attributes') for k, v in enquiry_options_['attributes'].get('children', {}).items()
+        ])
 
         enquiry_options = {
-            'visible': [_convert_field(f, enquiry_options_[f]) for f in VISIBLE_FIELDS],
-            'attributes': [_convert_field(k, v)
-                           for k, v in sorted(enquiry_options_['attributes'].get('children', {}).items())],
+            'visible': sorted(visible, key=itemgetter('sort_index', )),
             'hidden': {
                 'contractor': _convert_field('contractor', enquiry_options_['contractor']),
             },

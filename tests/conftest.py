@@ -89,28 +89,32 @@ async def enquiry_options_view(request):
                     'required': True,
                     'read_only': False,
                     'label': 'Name',
-                    'max_length': 255
+                    'max_length': 255,
+                    'sort_index': 10,
                 },
                 'client_email': {
                     'type': 'email',
                     'required': False,
                     'read_only': False,
                     'label': 'Email',
-                    'max_length': 255
+                    'max_length': 255,
+                    'sort_index': 20,
                 },
                 'client_phone': {
                     'type': 'string',
                     'required': False,
                     'read_only': False,
                     'label': 'Phone number',
-                    'max_length': 255
+                    'max_length': 255,
+                    'sort_index': 30,
                 },
                 'service_recipient_name': {
                     'type': 'string',
                     'required': False,
                     'read_only': False,
                     'label': 'Student name',
-                    'max_length': 255
+                    'max_length': 255,
+                    'sort_index': 40,
                 },
                 'attributes': {
                     'type': 'nested object',
@@ -122,39 +126,45 @@ async def enquiry_options_view(request):
                     'type': 'field',
                     'required': False,
                     'read_only': False,
-                    'label': 'Tutor'
+                    'label': 'Tutor',
+                    'sort_index': 50,
                 },
                 'subject': {
                     'type': 'field',
                     'required': False,
                     'read_only': False,
-                    'label': 'Subject'
+                    'label': 'Subject',
+                    'sort_index': 60,
                 },
                 'qual_level': {
                     'type': 'field',
                     'required': False,
                     'read_only': False,
-                    'label': 'Qualification Level'
+                    'label': 'Qualification Level',
+                    'sort_index': 70,
                 },
                 'user_agent': {
                     'type': 'string',
                     'required': False,
                     'read_only': False,
                     'label': 'Browser User-Agent',
-                    'max_length': 255
+                    'max_length': 255,
+                    'sort_index': 80,
                 },
                 'ip_address': {
                     'type': 'string',
                     'required': False,
                     'read_only': False,
-                    'label': 'IP Address'
+                    'label': 'IP Address',
+                    'sort_index': 90,
                 },
                 'http_referrer': {
                     'type': 'url',
                     'required': False,
                     'read_only': False,
                     'label': 'Referrer',
-                    'max_length': 200
+                    'max_length': 200,
+                    'sort_index': 100,
                 }
             }
         }
