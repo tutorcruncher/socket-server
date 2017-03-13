@@ -3,6 +3,7 @@ import re
 from itertools import groupby
 from operator import attrgetter
 from secrets import token_hex
+from urllib.parse import urlparse
 
 import trafaret as t
 from aiohttp.hdrs import METH_POST
@@ -31,6 +32,7 @@ VIEW_SCHEMAS = {
             t.Atom('first_name_initial') |
             t.Atom('full_name')
         ),
+        t.Key('url', default=None): t.Or(t.Null | t.URL),
         t.Key('public_key', default=None): t.Or(t.Null | t.String(min_length=18, max_length=20)),
         t.Key('private_key', default=None): t.Or(t.Null | t.String(min_length=20, max_length=50)),
     }),
@@ -104,7 +106,9 @@ async def company_create(request):
     data.update(
         public_key=data['public_key'] or token_hex(10),
         private_key=data['private_key'] or token_hex(20),
+        url=data['url'] and urlparse(data['url']).netloc,
     )
+    data.pop('url')  # TODO
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute((
         pg_insert(sa_companies)
@@ -174,7 +178,7 @@ SORT_OPTIONS = {
     'name': sa_contractors.c.first_name.asc(),
     # TODO some configurable sort index
 }
-PAGINATION = 20
+PAGINATION = 50
 
 
 def _slugify(name):

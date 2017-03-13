@@ -2,6 +2,7 @@ import asyncio
 import json
 from pathlib import Path
 from tempfile import TemporaryFile
+from urllib.parse import urlencode
 
 from aiohttp import ClientSession
 from aiopg.sa import create_engine
@@ -139,10 +140,29 @@ class MainActor(Actor):
             data.pop(f)
         return data
 
+    async def _check_grecaptcha(self, grecaptcha_response, client_ip):
+        data = dict(
+            secret=self.settings['grecaptcha_secret'],
+            response=grecaptcha_response,
+        )
+        if client_ip:
+            data['remoteip'] = client_ip
+        data = urlencode(data).encode()
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        async with self.session.post(self.settings['grecaptcha_url'], data=data, headers=headers) as r:
+            assert r.status == 200
+            obj = await r.json()
+            if obj['success'] is True:
+                # TODO check obj['hostname']
+                return True
+            else:
+                logger.warning('google recaptcha failure, response: %s', obj)
+
     @concurrent
     async def submit_enquiry(self, company, data):
-        grecaptcha_response = data.pop('grecaptcha_response', None)
-        logger.info('TODO: grecaptcha: %s', grecaptcha_response)
+        grecaptcha_response = data.pop('grecaptcha_response')
+        if not await self._check_grecaptcha(grecaptcha_response, data['ip_address']):
+            return
         data_enc = json.dumps(data)
         headers = self.request_headers(company)
         headers['Content-Type'] = CT_JSON

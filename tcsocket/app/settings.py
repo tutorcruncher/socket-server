@@ -44,6 +44,8 @@ SETTINGS_STRUCTURE = t.Dict({
     'media_dir': t.String >> check_media_dir,
     'media_url': t.URL,
     'tc_api_root': t.URL,
+    'grecaptcha_secret': t.String(min_length=30, max_length=50),
+    'grecaptcha_url': t.URL,
 })
 
 

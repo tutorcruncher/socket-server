@@ -144,7 +144,7 @@ async def test_post_enquiry(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
-        'grecaptcha_response': 'x' * 20,
+        'grecaptcha_response': 'good' * 5,
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
@@ -152,6 +152,10 @@ async def test_post_enquiry(cli, company, other_server):
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert other_server.app['request_log'] == [
+        ('grecaptcha_post', {
+            'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+            'response': 'goodgoodgoodgoodgood'
+        }),
         ('enquiry_post', {
             'client_name': 'Cat Flap',
             'client_phone': '123',
@@ -159,4 +163,21 @@ async def test_post_enquiry(cli, company, other_server):
             'ip_address': None,
             'http_referrer': None}
          )
+    ]
+
+
+async def test_post_enquiry_bad_captcha(cli, company, other_server):
+    data = {
+        'client_name': 'Cat Flap',
+        'client_phone': '123',
+        'grecaptcha_response': 'bad_' * 5,
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data))
+    assert r.status == 201, await r.text()
+    assert other_server.app['request_log'] == [
+        ('grecaptcha_post', {
+            'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+            'response': 'bad_bad_bad_bad_bad_'
+        }),
     ]

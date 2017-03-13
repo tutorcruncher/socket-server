@@ -63,6 +63,7 @@ services:
       APP_DATABASE_PASSWORD: docker
       APP_REDIS_HOST: redis
       APP_MEDIA_DIR: /media
+      APP_GRECAPTCHA_SECRET: ${GRECAPTCHA_SECRET}
       CHECK: worker
       COMMIT: ${COMMIT}
       RAVEN_DSN: ${RAVEN_DSN}

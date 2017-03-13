@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 from collections import namedtuple
+from datetime import datetime
 from io import BytesIO
 
 import pytest
@@ -166,6 +167,20 @@ async def enquiry_post_view(request):
     return json_response({'status': 'enquiry submitted, no-op'})
 
 
+async def grecaptcha_post_view(request):
+    data = await request.post()
+    request.app['request_log'].append(('grecaptcha_post', dict(data)))
+    if 'good' in data['response']:
+        d = {
+            'success': True,
+            'challenge_ts': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
+            'hostname': 'thehost.com'
+        }
+    else:
+        d = {'success': False, 'error-codes': ['invalid-input-response']}
+    return json_response(d)
+
+
 @pytest.fixture
 def other_server(loop, test_server):
     app = Application(loop=loop)
@@ -173,6 +188,7 @@ def other_server(loop, test_server):
     app.router.add_get('/api/contractors/', contractor_list_view)
     app.router.add_route('OPTIONS', '/api/enquiry/', enquiry_options_view)
     app.router.add_post('/api/enquiry/', enquiry_post_view)
+    app.router.add_post('/grecaptcha', grecaptcha_post_view)
     app['request_log'] = []
     server = loop.run_until_complete(test_server(app))
     app['server_name'] = f'http://localhost:{server.port}'
@@ -195,6 +211,8 @@ def settings(tmpdir, other_server):
           'database': 7,
         },
         'master_key': MASTER_KEY,
+        'grecaptcha_secret': 'X' * 30,
+        'grecaptcha_url': f'http://localhost:{other_server.port}/grecaptcha',
         'root_url': 'https://socket.tutorcruncher.com',
         'media_dir': str(tmpdir / 'media'),
         'media_url': 'https://socket.tutorcruncher.com/media',
