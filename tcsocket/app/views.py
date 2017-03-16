@@ -26,7 +26,7 @@ AnyDict.allow_extra('*')
 
 VIEW_SCHEMAS = {
     'company-create': t.Dict({
-        'name': t.String(min_length=4, max_length=63),
+        'name': t.String(min_length=3, max_length=63),
         t.Key('name_display', optional=True): t.Or(
             t.Null |
             t.Atom('first_name') |
@@ -38,7 +38,7 @@ VIEW_SCHEMAS = {
         t.Key('private_key', default=None): t.Or(t.Null | t.String(min_length=20, max_length=50)),
     }),
     'company-update': t.Dict({
-        t.Key('name', optional=True): t.Or(t.Null | t.String(min_length=4, max_length=63)),
+        t.Key('name', optional=True): t.Or(t.Null | t.String(min_length=3, max_length=63)),
         t.Key('name_display', optional=True): t.Or(
             t.Null |
             t.Atom('first_name') |

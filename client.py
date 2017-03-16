@@ -55,8 +55,8 @@ async def company_create(*, public_key=None, data=None, **kwargs):
         'name': f'company {datetime.now():%y-%m-%d %H:%M:%S}',
         'public_key': public_key,
     }
-    data and post_data.update(post_data)
-    payload = json.dumps(data)
+    data and post_data.update(data)
+    payload = json.dumps(post_data)
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
     headers = {
