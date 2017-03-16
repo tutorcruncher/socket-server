@@ -26,6 +26,7 @@ class Company(Base):
     private_key = Column(String(50), index=True, nullable=False)
 
     name = Column(String(63), unique=True)
+    domain = Column(String(255))
     name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name_initial, nullable=False)
 
 

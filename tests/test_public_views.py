@@ -24,7 +24,10 @@ async def test_list_contractors(cli, db_conn):
         .insert()
         .values(id=1, company=company_id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
     )
-    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
+    headers = {
+        'HOST': 'www.example.com',
+    }
+    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'), headers=headers)
     assert r.status == 200
     assert r.headers.get('Access-Control-Allow-Origin') == '*'
     obj = await r.json()
@@ -182,3 +185,35 @@ async def test_post_enquiry_bad_captcha(cli, company, other_server):
             'remoteip': '1.2.3.4'
         }),
     ]
+
+
+async def test_list_contractors_origin(cli, db_conn):
+    await db_conn.execute(
+        sa_companies
+        .insert()
+        .values(
+            name='testing',
+            public_key='thepublickey',
+            private_key='theprivatekey',
+            domain='example.com',
+        )
+        .returning(sa_companies.c.id)
+    )
+
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url, headers={'Origin': 'http://www.example.com'})
+    assert r.status == 200
+    assert r.headers.get('Access-Control-Allow-Origin') == 'http://www.example.com'
+    assert [] == await r.json()
+
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url, headers={'Origin': 'http://example.com'})
+    assert r.status == 200
+    assert r.headers.get('Access-Control-Allow-Origin') == 'http://example.com'
+    assert [] == await r.json()
+
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url, headers={'Origin': 'http://different.com'})
+    assert r.status == 200
+    assert r.headers.get('Access-Control-Allow-Origin') == 'http://example.com'
+    assert [] == await r.json()

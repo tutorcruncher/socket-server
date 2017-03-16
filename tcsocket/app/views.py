@@ -13,6 +13,7 @@ from dateutil.parser import parse as dt_parse
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
+from yarl import URL
 
 from .logs import logger
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
@@ -103,12 +104,12 @@ async def company_create(request):
     """
     data = request['json_obj']
     existing_company = bool(data['private_key'])
+    url = data.pop('url', None)
     data.update(
         public_key=data['public_key'] or token_hex(10),
         private_key=data['private_key'] or token_hex(20),
-        url=data['url'] and urlparse(data['url']).netloc,
+        domain=url and re.sub('^w+\.', '', URL(url).host),
     )
-    data.pop('url')  # TODO
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute((
         pg_insert(sa_companies)
@@ -242,7 +243,7 @@ async def contractor_list(request):
             country=con.country,
             photo=_photo_url(request, con, True),
         ))
-    return public_json_response(list_=results)
+    return public_json_response(request, list_=results)
 
 
 def _group_skills(skills):
@@ -283,6 +284,7 @@ async def contractor_get(request):
     con = await curr.first()
 
     return public_json_response(
+        request,
         id=con.id,
         name=_get_name(request['company'].name_display, con),
         tag_line=con.tag_line,
@@ -332,7 +334,7 @@ async def enquiry(request):
             http_referrer=request.headers.get('Referer'),
         )
         await request.app['worker'].submit_enquiry(company, data)
-        return public_json_response(status='enquiry submitted to TutorCruncher', status_=201)
+        return public_json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
     else:
         redis_pool = await request.app['worker'].get_redis_pool()
         async with redis_pool.get() as redis:
@@ -362,4 +364,4 @@ async def enquiry(request):
             },
             'last_updated': last_updated,
         }
-        return public_json_response(**enquiry_options)
+        return public_json_response(request, **enquiry_options)

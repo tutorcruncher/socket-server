@@ -40,10 +40,7 @@ def to_pretty_json(data):
 
 
 JSON_CONTENT_TYPE = 'application/json'
-# we could change this to enforce the right site, but it wouldn't add much security and would confuse people
-PUBLIC_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-}
+ACCESS_CONTROL_HEADER = 'Access-Control-Allow-Origin'
 
 
 class HTTPClientErrorJson(web.HTTPClientError):
@@ -51,7 +48,7 @@ class HTTPClientErrorJson(web.HTTPClientError):
         super().__init__(
             body=to_pretty_json(data).encode(),
             content_type=JSON_CONTENT_TYPE,
-            headers=PUBLIC_HEADERS,
+            headers={ACCESS_CONTROL_HEADER: '*'},
         )
 
 
@@ -75,10 +72,21 @@ def pretty_json_response(*, status_=200, list_=None, **data):
     return Response(text=to_pretty_json(list_ or data), status=status_, content_type=JSON_CONTENT_TYPE)
 
 
-def public_json_response(*, status_=200, list_=None, **data):
+def public_json_response(request, *, status_=200, list_=None, **data):
+    company = request.get('company')
+    if company and company.domain:
+        origin = request.headers.get('Origin')
+        if origin and origin.endswith(company.domain):
+            uri = origin
+        else:
+            uri = f'{request.url.scheme}://{company.domain}'
+
+        headers = {ACCESS_CONTROL_HEADER: uri}
+    else:
+        headers = {ACCESS_CONTROL_HEADER: '*'}
     return Response(
-        text=json.dumps(list_ or data),
+        text=json.dumps(data if list_ is None else list_),
         status=status_,
         content_type=JSON_CONTENT_TYPE,
-        headers=PUBLIC_HEADERS,
+        headers=headers,
     )

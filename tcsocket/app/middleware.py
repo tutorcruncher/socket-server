@@ -112,7 +112,7 @@ async def company_middleware(app, handler):
             public_key = request.match_info.get('company')
             if public_key:
                 c = sa_companies.c
-                select_fields = c.id, c.public_key, c.private_key, c.name_display
+                select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domain
                 q = select(select_fields).where(c.public_key == public_key)
                 conn = await request['conn_manager'].get_connection()
                 result = await conn.execute(q)

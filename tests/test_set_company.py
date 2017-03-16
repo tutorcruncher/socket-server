@@ -34,6 +34,37 @@ async def test_create(cli, db_conn):
     }
 
 
+async def test_create_with_url_public_key(cli, db_conn):
+    payload = json.dumps({
+        'name': 'foobar',
+        'url': 'https://www.example.com',
+        'public_key': 'X' * 20,
+    })
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 201
+    response_data = await r.json()
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.name == 'foobar'
+    assert result.public_key == 'X' * 20
+    assert result.domain == 'example.com'
+    assert response_data == {
+        'details': {
+            'name': 'foobar',
+            'public_key': 'X' * 20,
+            'private_key': result.private_key,
+        },
+        'status': 'success'
+    }
+
+
 async def test_create_with_keys(cli, db_conn):
     data = {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40}
     payload = json.dumps(data)
