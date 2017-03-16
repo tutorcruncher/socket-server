@@ -84,6 +84,7 @@ def public_json_response(request, *, status_=200, list_=None, **data):
         headers = {ACCESS_CONTROL_HEADER: uri}
     else:
         headers = {ACCESS_CONTROL_HEADER: '*'}
+
     return Response(
         text=json.dumps(data if list_ is None else list_),
         status=status_,

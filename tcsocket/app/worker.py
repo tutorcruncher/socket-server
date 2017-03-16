@@ -140,7 +140,7 @@ class MainActor(Actor):
             data.pop(f)
         return data
 
-    async def _check_grecaptcha(self, grecaptcha_response, client_ip):
+    async def _check_grecaptcha(self, company, grecaptcha_response, client_ip):
         data = dict(
             secret=self.settings['grecaptcha_secret'],
             response=grecaptcha_response,
@@ -152,8 +152,8 @@ class MainActor(Actor):
         async with self.session.post(self.settings['grecaptcha_url'], data=data, headers=headers) as r:
             assert r.status == 200
             obj = await r.json()
-            if obj['success'] is True:
-                # TODO check obj['hostname']
+            domain = company['domain']
+            if obj['success'] is True and (domain is None or obj['hostname'].endswith(domain)):
                 return True
             else:
                 logger.warning('google recaptcha failure, response: %s', obj)
@@ -161,7 +161,7 @@ class MainActor(Actor):
     @concurrent
     async def submit_enquiry(self, company, data):
         grecaptcha_response = data.pop('grecaptcha_response')
-        if not await self._check_grecaptcha(grecaptcha_response, data['ip_address']):
+        if not await self._check_grecaptcha(company, grecaptcha_response, data['ip_address']):
             return
         data_enc = json.dumps(data)
         headers = self.request_headers(company)

@@ -3,7 +3,6 @@ import re
 from itertools import groupby
 from operator import attrgetter, itemgetter
 from secrets import token_hex
-from urllib.parse import urlparse
 
 import trafaret as t
 from aiohttp.hdrs import METH_POST

@@ -187,19 +187,25 @@ async def test_post_enquiry_bad_captcha(cli, company, other_server):
     ]
 
 
-async def test_list_contractors_origin(cli, db_conn):
-    await db_conn.execute(
-        sa_companies
-        .insert()
-        .values(
-            name='testing',
-            public_key='thepublickey',
-            private_key='theprivatekey',
-            domain='example.com',
-        )
-        .returning(sa_companies.c.id)
-    )
+async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
+    data = {
+        'client_name': 'Cat Flap',
+        'client_phone': '123',
+        'grecaptcha_response': 'good' * 5,
+    }
+    other_server.app['grecaptcha_host'] = 'other.com'
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    assert other_server.app['request_log'] == [
+        ('grecaptcha_post', {
+            'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+            'response': 'goodgoodgoodgoodgood'
+        })
+    ]
 
+
+async def test_list_contractors_origin(cli, company):
     url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
     r = await cli.get(url, headers={'Origin': 'http://www.example.com'})
     assert r.status == 200

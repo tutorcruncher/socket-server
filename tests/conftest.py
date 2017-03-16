@@ -184,7 +184,7 @@ async def grecaptcha_post_view(request):
         d = {
             'success': True,
             'challenge_ts': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'hostname': 'thehost.com'
+            'hostname': request.app['grecaptcha_host']
         }
     else:
         d = {'success': False, 'error-codes': ['invalid-input-response']}
@@ -199,7 +199,10 @@ def other_server(loop, test_server):
     app.router.add_route('OPTIONS', '/api/enquiry/', enquiry_options_view)
     app.router.add_post('/api/enquiry/', enquiry_post_view)
     app.router.add_post('/grecaptcha', grecaptcha_post_view)
-    app['request_log'] = []
+    app.update(
+        request_log=[],
+        grecaptcha_host='www.example.com',
+    )
     server = loop.run_until_complete(test_server(app))
     app['server_name'] = f'http://localhost:{server.port}'
     return server
@@ -318,7 +321,7 @@ def company(loop, db_conn):
     coro = db_conn.execute(
         sa_companies
         .insert()
-        .values(name='foobar', public_key=public_key, private_key=private_key)
+        .values(name='foobar', public_key=public_key, private_key=private_key, domain='example.com')
     )
     loop.run_until_complete(coro)
     Company = namedtuple('Company', ['public_key', 'private_key'])
