@@ -50,11 +50,10 @@ async def company_list(**kwargs):
 
 
 @command
-async def company_create(*, public_key=None, private_key=None, data=None, **kwargs):
+async def company_create(*, public_key=None, data=None, **kwargs):
     post_data = {
         'name': f'company {datetime.now():%y-%m-%d %H:%M:%S}',
         'public_key': public_key,
-        'private_key': private_key,
     }
     data and post_data.update(post_data)
     payload = json.dumps(data)
@@ -193,7 +192,6 @@ missing = object()
 @click.command()
 @click.argument('command', type=click.Choice([c.__name__ for c in commands]))
 @click.option('-p', '--public-key', default=missing)
-@click.option('-i', '--private-key', default=missing)
 @click.option('-d', '--data', default=missing)
 def cli(command, **kwargs):
     command_lookup = {c.__name__: c for c in commands}

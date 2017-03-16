@@ -161,13 +161,20 @@ async def company_update(request):
     data = {k: v for k, v in data.items() if v is not None}
     conn = await request['conn_manager'].get_connection()
     public_key = request['company'].public_key
+    c = sa_companies.c
     await conn.execute((
         update(sa_companies)
         .values(**data)
-        .where(sa_companies.c.public_key == public_key)
+        .where(c.public_key == public_key)
     ))
     logger.info('company "%s" updated, %s', public_key, data)
-    await request.app['worker'].update_contractors(dict(request['company']))
+
+    select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domain
+    q = select(select_fields).where(c.public_key == public_key)
+    result = await conn.execute(q)
+    company = await result.first()
+
+    await request.app['worker'].update_contractors(dict(company))
     return pretty_json_response(
         status_=200,
         status='success',
@@ -180,7 +187,7 @@ async def company_list(request):
     List companies.
     """
     c = sa_companies.c
-    q = select([c.id, c.name, c.name_display, c.public_key, c.private_key]).limit(1000)
+    q = select([c.id, c.name, c.name_display, c.domain, c.public_key, c.private_key]).limit(1000)
 
     conn = await request['conn_manager'].get_connection()
     results = [dict(r) async for r in conn.execute(q)]

@@ -38,6 +38,7 @@ async def test_image_view(request):
 
 
 async def contractor_list_view(request):
+    request.app['request_log'].append(('contractor_list', request.GET.get('page')))
     data = {
         1: {
             'count': 2,
@@ -66,7 +67,6 @@ async def contractor_list_view(request):
         },
     }
     page = int(request.GET.get('page', 1))
-    request.app['request_log'].append('contractor_list')
     return json_response(data[page])
 
 

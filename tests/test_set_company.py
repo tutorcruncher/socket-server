@@ -151,6 +151,7 @@ async def test_list(cli, company):
     assert isinstance(response_data[0].pop('id'), int)
     assert [
         {
+            'domain': 'example.com',
             'name': 'foobar',
             'name_display': 'first_name_initial',
             'private_key': 'theprivatekey',
@@ -179,10 +180,12 @@ async def test_list_invalid_time(cli, company, payload_func, name):
     assert r.status == 403, await r.text()
 
 
-async def test_update_company(cli, db_conn, company):
+async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domain == 'example.com'
+    assert other_server.app['request_log'] == []
+
     r = await signed_post(
         cli,
         f'/{company.public_key}/update',
@@ -192,6 +195,8 @@ async def test_update_company(cli, db_conn, company):
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {'details': {'domain': 'changed.com'}, 'status': 'success'}
+    assert other_server.app['request_log'] == [('contractor_list', None), ('contractor_list', '2')]
+
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domain == 'changed.com'
