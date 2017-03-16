@@ -9,7 +9,7 @@ from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
 from arq.utils import timestamp
 from dateutil.parser import parse as dt_parse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
 from yarl import URL
@@ -28,6 +28,7 @@ VIEW_SCHEMAS = {
     'company-create': t.Dict({
         'name': t.String(min_length=4, max_length=63),
         t.Key('name_display', optional=True): t.Or(
+            t.Null |
             t.Atom('first_name') |
             t.Atom('first_name_initial') |
             t.Atom('full_name')
@@ -35,6 +36,17 @@ VIEW_SCHEMAS = {
         t.Key('url', default=None): t.Or(t.Null | t.URL),
         t.Key('public_key', default=None): t.Or(t.Null | t.String(min_length=18, max_length=20)),
         t.Key('private_key', default=None): t.Or(t.Null | t.String(min_length=20, max_length=50)),
+    }),
+    'company-update': t.Dict({
+        t.Key('name', optional=True): t.Or(t.Null | t.String(min_length=4, max_length=63)),
+        t.Key('name_display', optional=True): t.Or(
+            t.Null |
+            t.Atom('first_name') |
+            t.Atom('first_name_initial') |
+            t.Atom('full_name')
+        ),
+        t.Key('url', optional=True): t.Or(t.Null | t.URL),
+        t.Key('private_key', optional=True): t.Or(t.Null | t.String(min_length=20, max_length=50)),
     }),
     'contractor-set': t.Dict({
         'id': t.Int(),
@@ -136,6 +148,31 @@ async def company_create(request):
                 'private_key': new_company.private_key,
             }
         )
+
+
+async def company_update(request):
+    """
+    Modify a new company.
+    """
+    data = request['json_obj']
+    url = data.pop('url', None)
+    if url:
+        data['domain'] = re.sub('^w+\.', '', URL(url).host)
+    data = {k: v for k, v in data.items() if v is not None}
+    conn = await request['conn_manager'].get_connection()
+    public_key = request['company'].public_key
+    await conn.execute((
+        update(sa_companies)
+        .values(**data)
+        .where(sa_companies.c.public_key == public_key)
+    ))
+    logger.info('company "%s" updated, %s', public_key, data)
+    await request.app['worker'].update_contractors(dict(request['company']))
+    return pretty_json_response(
+        status_=200,
+        status='success',
+        details=data,
+    )
 
 
 async def company_list(request):

@@ -177,3 +177,21 @@ async def test_list_invalid_time(cli, company, payload_func, name):
     }
     r = await cli.get('/companies', headers=headers)
     assert r.status == 403, await r.text()
+
+
+async def test_update_company(cli, db_conn, company):
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domain == 'example.com'
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/update',
+        signing_key_='this is the master key',
+        url='http://changed.com',
+    )
+    assert r.status == 200, await r.text()
+    response_data = await r.json()
+    assert response_data == {'details': {'domain': 'changed.com'}, 'status': 'success'}
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domain == 'changed.com'

@@ -33,7 +33,7 @@ async def index(**kwargs):
 
 
 @command
-async def list_companies(**kwargs):
+async def company_list(**kwargs):
     payload = (datetime.now() - timedelta(seconds=1)).strftime('%s')
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
@@ -50,12 +50,13 @@ async def list_companies(**kwargs):
 
 
 @command
-async def create_company(*, company_name=None, public_key=None, private_key=None, **kwargs):
-    data = {
-        'name': company_name or f'company {datetime.now():%y-%m-%d %H:%M:%S}',
+async def company_create(*, public_key=None, private_key=None, data=None, **kwargs):
+    post_data = {
+        'name': f'company {datetime.now():%y-%m-%d %H:%M:%S}',
         'public_key': public_key,
         'private_key': private_key,
     }
+    data and post_data.update(post_data)
     payload = json.dumps(data)
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
@@ -67,6 +68,23 @@ async def create_company(*, company_name=None, public_key=None, private_key=None
 
     async with aiohttp.ClientSession(connector=CONN) as session:
         async with session.post(BASE_URL + 'companies/create', data=payload, headers=headers) as r:
+            print(f'status: {r.status}')
+            text = await r.text()
+            print(f'response: {text}')
+
+
+@command
+async def company_update(*, public_key, data, **kwargs):
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'User-Agent': 'TutorCruncher',
+        'Content-Type': 'application/json',
+    }
+    async with aiohttp.ClientSession(connector=CONN) as session:
+        async with session.post(BASE_URL + f'{public_key}/update', data=payload, headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')
@@ -144,7 +162,7 @@ CON_DATA = {
 
 
 @command
-async def create_contractor(*, public_key, **kwargs):
+async def contractor_create(*, public_key, **kwargs):
     payload = json.dumps(CON_DATA)
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
@@ -161,7 +179,7 @@ async def create_contractor(*, public_key, **kwargs):
 
 
 @command
-async def list_contractors(*, public_key, **kwargs):
+async def contractor_list(*, public_key, **kwargs):
     async with aiohttp.ClientSession(connector=CONN) as session:
         async with session.get(BASE_URL + f'{public_key}/contractors?sort=thing') as r:
             print(f'status: {r.status}')
@@ -174,13 +192,15 @@ missing = object()
 
 @click.command()
 @click.argument('command', type=click.Choice([c.__name__ for c in commands]))
-@click.option('--company-name', default=missing)
-@click.option('--public-key', default=missing)
-@click.option('--private-key', default=missing)
+@click.option('-p', '--public-key', default=missing)
+@click.option('-i', '--private-key', default=missing)
+@click.option('-d', '--data', default=missing)
 def cli(command, **kwargs):
     command_lookup = {c.__name__: c for c in commands}
 
     kwargs = {k: v for k, v in kwargs.items() if v != missing}
+    kwargs['data'] = kwargs.get('data') and json.loads(kwargs.get('data'))
+
     func = command_lookup[command]
     print(f'running {func.__name__}, kwargs = {kwargs}...')
     loop = asyncio.get_event_loop()
