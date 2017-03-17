@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 
+import pytest
+
 from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 
 
@@ -46,6 +48,34 @@ async def test_list_contractors(cli, db_conn):
     ] == obj
 
 
+async def create_skills(db_conn, con_id):
+    await db_conn.execute(
+        sa_subjects
+        .insert()
+        .values([
+            {'id': 1, 'name': 'Mathematics', 'category': 'Maths'},
+            {'id': 2, 'name': 'Language', 'category': 'English'},
+            {'id': 3, 'name': 'Literature', 'category': 'English'},
+        ])
+    )
+    await db_conn.execute(
+        sa_qual_levels
+        .insert()
+        .values([
+            {'id': 11, 'name': 'GCSE', 'ranking': 16},
+            {'id': 12, 'name': 'A Level', 'ranking': 18},
+            {'id': 13, 'name': 'Degree', 'ranking': 21},
+        ])
+    )
+    ids = [(1, 11), (2, 12)]
+
+    await db_conn.execute(
+        sa_con_skills
+        .insert()
+        .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
+    )
+
+
 async def test_get_contractor(cli, db_conn):
     v = await db_conn.execute(
         sa_companies
@@ -69,29 +99,7 @@ async def test_get_contractor(cli, db_conn):
         .returning(sa_contractors.c.id)
     )
     con_id = (await v.first()).id
-    await db_conn.execute(
-        sa_subjects
-        .insert()
-        .values([
-            {'id': 1, 'name': 'Mathematics', 'category': 'Maths'},
-            {'id': 2, 'name': 'Language', 'category': 'English'}
-        ])
-    )
-    await db_conn.execute(
-        sa_qual_levels
-        .insert()
-        .values([
-            {'id': 3, 'name': 'GCSE', 'ranking': 16},
-            {'id': 4, 'name': 'A Level', 'ranking': 18}
-        ])
-    )
-    ids = [(1, 3), (2, 4)]
-
-    await db_conn.execute(
-        sa_con_skills
-        .insert()
-        .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
-    )
+    await create_skills(db_conn, con_id)
 
     r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=con_id, slug='x'))
     assert r.status == 200
@@ -225,3 +233,48 @@ async def test_list_contractors_origin(cli, company):
     assert r.status == 200
     assert r.headers.get('Access-Control-Allow-Origin') == 'http://example.com'
     assert [] == await r.json()
+
+
+@pytest.mark.parametrize('filter_args, con_count', [
+    ('', 2),
+    ('subject=1', 1),
+    ('subject=2', 1),
+    ('subject=3', 0),
+    ('qual_level=11', 1),
+    ('qual_level=12', 1),
+    ('qual_level=13', 0),
+    ('subject=1&qual_level=11', 1),
+    ('subject=3&qual_level=11', 0),
+])
+async def test_filter_contractors_skills(cli, db_conn, company, filter_args, con_count):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values([
+            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
+            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+        ])
+    )
+    await create_skills(db_conn, 1)
+
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url + '?' + filter_args)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert len(obj) == con_count
+    if con_count == 1:
+        assert obj[0]['link'] == '1-fred-b'
+
+
+async def test_filter_contractors_skills_invalid(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+    )
+
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key)) + '?subject=foobar'
+    r = await cli.get(url)
+    assert r.status == 400, await r.text()
+    obj = await r.json()
+    assert obj == {'details': '"subject" had an invalid value "foobar"', 'status': 'invalid_filter'}

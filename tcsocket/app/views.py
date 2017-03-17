@@ -250,6 +250,17 @@ def _route_url(request, view_name, **kwargs):
     return '{}{}'.format(request.app['root_url'], uri)
 
 
+def _get_int(request, field):
+    v = request.GET.get(field)
+    try:
+        return None if v is None else int(v)
+    except ValueError:
+        raise HTTPBadRequestJson(
+            status='invalid_filter',
+            details=f'"{field}" had an invalid value "{v}"',
+        )
+
+
 async def contractor_list(request):
     sort_on = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
     page = request.GET.get('page', 1)
@@ -264,11 +275,28 @@ async def contractor_list(request):
     c = sa_contractors.c
     q = (
         select([c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country])
-        .where(c.company == request['company'].id)
         .order_by(sort_on)
         .offset(offset)
         .limit(PAGINATION)
     )
+    where = c.company == request['company'].id,
+
+    subject_filter = _get_int(request, 'subject')
+    qual_level_filter = _get_int(request, 'qual_level')
+
+    if subject_filter or qual_level_filter:
+        join = sa_con_skills.join(sa_contractors)
+        if subject_filter:
+            join = join.join(sa_subjects)
+            where += sa_subjects.c.id == subject_filter,
+        if qual_level_filter:
+            join = join.join(sa_qual_levels)
+            where += sa_qual_levels.c.id == qual_level_filter,
+
+        q = q.select_from(join)
+
+    q = q.where(and_(*where))
+
     results = []
     name_display = request['company'].name_display
 
