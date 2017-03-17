@@ -97,7 +97,13 @@ VIEW_SCHEMAS = {
         t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=255)),
 
         t.Key('grecaptcha_response'): t.String(min_length=20, max_length=1000),
-    })
+    }),
+    'subjects': t.Dict({  # used when getting data from tc's api
+        'id': t.Int(),
+        'name': t.String(max_length=255),
+        'category_id': t.Int(),
+        'category_name': t.String(max_length=255),
+    }),
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
 VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'

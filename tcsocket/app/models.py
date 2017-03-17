@@ -69,27 +69,45 @@ sa_contractors = Contractor.__table__
 class Subject(Base):
     __tablename__ = 'subjects'
 
-    id = Column(Integer, primary_key=True, nullable=False)
-    name = Column(String(63), nullable=False, index=True)
-    category = Column(String(63), nullable=False, index=True)
-
-    __table_args__ = (
-        UniqueConstraint('name', 'category', name='_subject_name_cat'),
-    )
+    id = Column(Integer, primary_key=True, autoincrement=False, nullable=False)
+    name = Column(String(63), nullable=False)
+    category = Column(String(63), nullable=False)
 
 
 sa_subjects = Subject.__table__
 
 
+class CompanySubject(Base):
+    __tablename__ = 'company_subjects'
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    company = Column(Integer, ForeignKey('companies.id', ondelete='CASCADE'), nullable=False)
+    parent = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
+
+
+sa_co_subjects = CompanySubject.__table__
+
+
 class QualLevel(Base):
     __tablename__ = 'qual_levels'
 
-    id = Column(Integer, primary_key=True, nullable=False)
-    name = Column(String(63), nullable=False, unique=True, index=True)
+    id = Column(Integer, primary_key=True, autoincrement=False, nullable=False)
+    name = Column(String(63), nullable=False)
     ranking = Column(Float())
 
 
 sa_qual_levels = QualLevel.__table__
+
+
+class CompanyQualLevel(Base):
+    __tablename__ = 'company_qual_levels'
+
+    id = Column(Integer, primary_key=True, nullable=False)
+    company = Column(Integer, ForeignKey('companies.id', ondelete='CASCADE'), nullable=False)
+    parent = Column(Integer, ForeignKey('qual_levels.id', ondelete='CASCADE'), nullable=False)
+
+
+sa_co_qual_levels = CompanyQualLevel.__table__
 
 
 class ConSkill(Base):

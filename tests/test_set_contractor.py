@@ -7,7 +7,10 @@ from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.sql.functions import count as count_func
 
-from tcsocket.app.models import sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from tcsocket.app.models import (sa_co_qual_levels, sa_co_subjects, sa_con_skills, sa_contractors, sa_qual_levels,
+                                 sa_subjects)
+from tcsocket.app.processing import create_company_skills
+
 from .conftest import signed_post
 
 
@@ -397,3 +400,55 @@ async def test_missing_company(cli, company):
         'details': 'No company found for key not-thepublickey',
         'status': 'company not found',
     }
+
+
+async def test_create_company_subjects(db_conn, company):
+    subjects = [
+        {
+            'id': 1,
+            'name': 'Art',
+            'category': 'Art',
+        },
+        {
+            'id': 2,
+            'name': 'Art and Design',
+            'category': 'Art',
+        }
+    ]
+    await create_company_skills(db_conn, sa_subjects, {'id': company.id}, subjects)
+
+    assert 2 == await count(db_conn, sa_subjects)
+    co_subjects = [cs async for cs in await db_conn.execute(sa_co_subjects.select())]
+    assert {(cs.company, cs.parent) for cs in co_subjects} == {(company.id, 1), (company.id, 2)}
+
+    await create_company_skills(db_conn, sa_subjects, {'id': company.id}, subjects[:1])
+
+    assert 2 == await count(db_conn, sa_subjects)
+    co_subjects = [cs async for cs in await db_conn.execute(sa_co_subjects.select())]
+    assert {(cs.company, cs.parent) for cs in co_subjects} == {(company.id, 1)}
+
+
+async def test_create_company_qual_levels(db_conn, company):
+    qual_levels = [
+        {
+            'id': 1,
+            'name': '11+',
+            'ranking': 11.0,
+        },
+        {
+            'id': 2,
+            'name': 'GCSE',
+            'ranking': 16.0,
+        }
+    ]
+    await create_company_skills(db_conn, sa_qual_levels, {'id': company.id}, qual_levels)
+
+    assert 2 == await count(db_conn, sa_qual_levels)
+    co_qual_levels = [cs async for cs in await db_conn.execute(sa_co_qual_levels.select())]
+    assert {(cs.company, cs.parent) for cs in co_qual_levels} == {(company.id, 1), (company.id, 2)}
+
+    await create_company_skills(db_conn, sa_qual_levels, {'id': company.id}, qual_levels[:1])
+
+    assert 2 == await count(db_conn, sa_qual_levels)
+    co_qual_levels = [cs async for cs in await db_conn.execute(sa_co_qual_levels.select())]
+    assert {(cs.company, cs.parent) for cs in co_qual_levels} == {(company.id, 1)}

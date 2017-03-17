@@ -69,26 +69,28 @@ async def test_get_contractor(cli, db_conn):
         .returning(sa_contractors.c.id)
     )
     con_id = (await v.first()).id
-    v = await db_conn.execute(
+    await db_conn.execute(
         sa_subjects
         .insert()
-        .values([{'name': 'Mathematics', 'category': 'Maths'}, {'name': 'Language', 'category': 'English'}])
-        .returning(sa_subjects.c.id)
+        .values([
+            {'id': 1, 'name': 'Mathematics', 'category': 'Maths'},
+            {'id': 2, 'name': 'Language', 'category': 'English'}
+        ])
     )
-    subjects = [r.id for r in (await v.fetchall())]
-
-    v = await db_conn.execute(
+    await db_conn.execute(
         sa_qual_levels
         .insert()
-        .values([{'name': 'GCSE', 'ranking': 16}, {'name': 'A Level', 'ranking': 18}])
-        .returning(sa_qual_levels.c.id)
+        .values([
+            {'id': 3, 'name': 'GCSE', 'ranking': 16},
+            {'id': 4, 'name': 'A Level', 'ranking': 18}
+        ])
     )
-    qual_levels = [r.id for r in (await v.fetchall())]
+    ids = [(1, 3), (2, 4)]
 
     await db_conn.execute(
         sa_con_skills
         .insert()
-        .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in zip(subjects, qual_levels)])
+        .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
     )
 
     r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=con_id, slug='x'))

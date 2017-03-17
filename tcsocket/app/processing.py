@@ -5,7 +5,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, or_
 
 from .logs import logger
-from .models import Action, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from .models import Action, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects, sa_co_subjects, \
+    sa_co_qual_levels
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
 
 
@@ -85,7 +86,10 @@ async def _set_skills(conn, contractor_id, skills):
             await conn.execute(q)
 
 
-def get_special_extra_attr(extra_attributes, machine_name, attr_type):
+def _get_special_extra_attr(extra_attributes, machine_name, attr_type):
+    """
+    Find special extra attributes suitable for tag_line and primary_description.
+    """
     eas = [ea for ea in extra_attributes if ea['type'] == attr_type]
     if eas:
         eas.sort(key=lambda ea: (ea['machine_name'] != machine_name, ea['sort_index']))
@@ -130,8 +134,8 @@ async def contractor_set(*, conn, company, worker, data, skip_deleted=False) -> 
         data.update(location)
 
     ex_attrs = data.pop('extra_attributes')
-    tag_line, ex_attrs = get_special_extra_attr(ex_attrs, 'tag_line', 'text_short')
-    primary_description, ex_attrs = get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
+    tag_line, ex_attrs = _get_special_extra_attr(ex_attrs, 'tag_line', 'text_short')
+    primary_description, ex_attrs = _get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
     data.update(
         last_updated=data.get('last_updated') or datetime.now(),
         extra_attributes=ex_attrs,
@@ -159,3 +163,33 @@ async def contractor_set(*, conn, company, worker, data, skip_deleted=False) -> 
     photo and await worker.get_image(company['public_key'], con_id, photo)
     logger.info('%s contractor on %s', r.action, company['public_key'])
     return r.action
+
+
+M2M_TABLE_LOOKUP = {
+    sa_subjects: sa_co_subjects,
+    sa_qual_levels: sa_co_qual_levels,
+}
+
+
+async def create_company_skills(conn, sa_table, company, items):
+    sa_m2m_table = M2M_TABLE_LOOKUP[sa_table]
+    item_ids = {s['id'] for s in items}
+
+    cur = await conn.execute(
+        select([sa_table.c.id])
+        .where(sa_table.c.id.in_(item_ids))
+    )
+    existing_ids = {r.id for r in (await cur.fetchall())}
+    new_item_ids = item_ids.difference(existing_ids)
+
+    items_to_create = [s for s in items if s['id'] in new_item_ids]
+    items_to_create and await conn.execute(sa_table.insert().values(items_to_create))
+
+    company_id = company['id']
+    await conn.execute(
+        sa_m2m_table
+        .delete()
+        .where(and_(sa_m2m_table.c.company == company_id, ~sa_m2m_table.c.parent.in_(item_ids)))
+    )
+    co_items_to_create = [{'company': company_id, 'parent': s} for s in new_item_ids]
+    co_items_to_create and await conn.execute(sa_m2m_table.insert().values(co_items_to_create))
