@@ -322,10 +322,12 @@ def company(loop, db_conn):
         sa_companies
         .insert()
         .values(name='foobar', public_key=public_key, private_key=private_key, domain='example.com')
+        .returning(sa_companies.c.id)
     )
-    loop.run_until_complete(coro)
-    Company = namedtuple('Company', ['public_key', 'private_key'])
-    return Company(public_key, private_key)
+    v = loop.run_until_complete(coro)
+    company_id = loop.run_until_complete(v.first()).id
+    Company = namedtuple('Company', ['public_key', 'private_key', 'id'])
+    return Company(public_key, private_key, company_id)
 
 
 async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, **data):

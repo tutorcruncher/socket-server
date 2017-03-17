@@ -78,9 +78,7 @@ class MainActor(Actor):
     def request_headers(self, company):
         return dict(accept=CT_JSON, authorization=f'Token {company["private_key"]}')
 
-    async def _get_cons(self, company):
-        schema = VIEW_SCHEMAS['contractor-set']
-        url = self.api_contractors
+    async def _get_from_api(self, url, schema, company):
         headers = self.request_headers(company)
         while True:
             async with self.session.get(url, headers=headers) as r:
@@ -98,6 +96,10 @@ class MainActor(Actor):
 
             if not url:
                 break
+
+    async def _get_cons(self, company):
+        async for r in self._get_from_api(self.api_contractors, VIEW_SCHEMAS['contractor-set'], company):
+            yield r
 
     @concurrent(Actor.LOW_QUEUE)
     async def update_contractors(self, company):
