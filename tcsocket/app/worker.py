@@ -31,7 +31,6 @@ class MainActor(Actor):
         self.api_root = self.settings['tc_api_root']
         self.api_contractors = self.api_root + '/contractors/'
         self.api_enquiries = self.api_root + '/enquiry/'
-        self.api_subjects = self.api_root + '/subjects/'
         self.session = self.media = self.pg_engine = None
 
     async def startup(self, retries=5):
@@ -101,11 +100,6 @@ class MainActor(Actor):
     async def _get_cons(self, company):
         async for r in self._get_from_api(self.api_contractors, VIEW_SCHEMAS['contractor-set'], company):
             yield r
-
-    async def get_company_subjects(self, company):
-        subjects = [s async for s in self._get_from_api(self.api_subjects, VIEW_SCHEMAS['subjects'], company)]
-        # create missing subjects
-
 
     @concurrent(Actor.LOW_QUEUE)
     async def update_contractors(self, company):

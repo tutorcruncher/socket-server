@@ -77,17 +77,6 @@ class Subject(Base):
 sa_subjects = Subject.__table__
 
 
-class CompanySubject(Base):
-    __tablename__ = 'company_subjects'
-
-    id = Column(Integer, primary_key=True, nullable=False)
-    company = Column(Integer, ForeignKey('companies.id', ondelete='CASCADE'), nullable=False)
-    parent = Column(Integer, ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
-
-
-sa_co_subjects = CompanySubject.__table__
-
-
 class QualLevel(Base):
     __tablename__ = 'qual_levels'
 
@@ -97,17 +86,6 @@ class QualLevel(Base):
 
 
 sa_qual_levels = QualLevel.__table__
-
-
-class CompanyQualLevel(Base):
-    __tablename__ = 'company_qual_levels'
-
-    id = Column(Integer, primary_key=True, nullable=False)
-    company = Column(Integer, ForeignKey('companies.id', ondelete='CASCADE'), nullable=False)
-    parent = Column(Integer, ForeignKey('qual_levels.id', ondelete='CASCADE'), nullable=False)
-
-
-sa_co_qual_levels = CompanyQualLevel.__table__
 
 
 class ConSkill(Base):

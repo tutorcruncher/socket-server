@@ -2,12 +2,33 @@ from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.sql import and_, or_
+from sqlalchemy.sql import and_
 
 from .logs import logger
-from .models import Action, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects, sa_co_subjects, \
-    sa_co_qual_levels
+from .models import Action, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
+
+
+async def _create_subjects_qual_levels(conn, sa_table, items):
+    item_ids = {s['id'] for s in items}
+
+    cur = await conn.execute(
+        select([sa_table.c.id])
+        .where(sa_table.c.id.in_(item_ids))
+    )
+    item_ids.difference_update({r.id for r in (await cur.fetchall())})
+
+    items_to_create = [s for s in items if s['id'] in item_ids]
+    items_to_create and await conn.execute(sa_table.insert().values(items_to_create))
+
+
+def _unique_on(iter, key):
+    sofar = set()
+    for item in iter:
+        v = item[key]
+        if v not in sofar:
+            sofar.add(v)
+            yield item
 
 
 async def _set_skills(conn, contractor_id, skills):
@@ -19,49 +40,17 @@ async def _set_skills(conn, contractor_id, skills):
         await conn.execute(sa_con_skills.delete().where(sa_con_skills.c.contractor == contractor_id))
         return
     async with conn.begin():
-        # get ids of subjects, creating them if necessary
-        subject_cols = sa_subjects.c.id, sa_subjects.c.name, sa_subjects.c.category
-        cur = await conn.execute(
-            select(subject_cols)
-            .where(or_(*[
-                and_(sa_subjects.c.name == s['subject'], sa_subjects.c.category == s['category'])
-                for s in skills
-            ]))
-        )
-        subjects = {(r.name, r.category): r.id for r in (await cur.fetchall())}
+        await _create_subjects_qual_levels(conn, sa_subjects, [
+            {'id': s['subject_id'], 'name': s['subject'], 'category': s['category']}
+            for s in _unique_on(skills, 'subject_id')
+        ])
 
-        subjects_to_create = []
-        for skill in skills:
-            key = skill['subject'], skill['category']
-            if key not in subjects:
-                subjects[key] = None  # to make sure it's not created twice
-                subjects_to_create.append(dict(name=skill['subject'], category=skill['category']))
+        await _create_subjects_qual_levels(conn, sa_qual_levels, [
+            {'id': s['qual_level_id'], 'name': s['qual_level'], 'ranking': s['qual_level_ranking']}
+            for s in _unique_on(skills, 'qual_level_id')
+        ])
 
-        if subjects_to_create:
-            cur = await conn.execute(sa_subjects.insert().values(subjects_to_create).returning(*subject_cols))
-            subjects.update({(r[1], r[2]): r[0] async for r in cur})
-
-        # get ids of qualification levels, creating them if necessary
-        qual_level_cols = sa_qual_levels.c.id, sa_qual_levels.c.name
-        cur = await conn.execute(
-            select(qual_level_cols)
-            .where(sa_qual_levels.c.name.in_({s['qual_level'] for s in skills}))
-        )
-        qual_levels = {r.name: r.id for r in (await cur.fetchall())}
-
-        qual_levels_to_create = []
-        for skill in skills:
-            ql_name = skill['qual_level']
-            if ql_name not in qual_levels:
-                qual_levels[ql_name] = None  # to make sure it's not created twice
-                qual_levels_to_create.append(dict(name=ql_name, ranking=skill['qual_level_ranking']))
-
-        if qual_levels_to_create:
-            cur = await conn.execute(sa_qual_levels.insert().values(qual_levels_to_create).returning(*qual_level_cols))
-            qual_levels.update({r[1]: r[0] async for r in cur})
-
-        # skills the contractor should have
-        con_skills = {(subjects[(s['subject'], s['category'])], qual_levels[s['qual_level']]) for s in skills}
+        con_skills_to_create = {(s['subject_id'], s['qual_level_id']) for s in skills}
 
         q = (
             select([sa_con_skills.c.id, sa_con_skills.c.subject, sa_con_skills.c.qual_level])
@@ -71,19 +60,20 @@ async def _set_skills(conn, contractor_id, skills):
         async for r in conn.execute(q):
             key = r.subject, r.qual_level
             try:
-                con_skills.remove(key)
+                con_skills_to_create.remove(key)
             except KeyError:
                 # skill doesn't exist in con_skills, it should be deleted
                 to_delete.add(r.id)
 
         to_delete and await conn.execute(sa_con_skills.delete().where(sa_con_skills.c.id.in_(to_delete)))
 
-        if con_skills:
-            q = sa_con_skills.insert().values([
+        con_skills_to_create and await conn.execute(
+            sa_con_skills.insert()
+            .values([
                 dict(contractor=contractor_id, subject=subject, qual_level=qual_level)
-                for subject, qual_level in con_skills
+                for subject, qual_level in con_skills_to_create
             ])
-            await conn.execute(q)
+        )
 
 
 def _get_special_extra_attr(extra_attributes, machine_name, attr_type):
@@ -163,33 +153,3 @@ async def contractor_set(*, conn, company, worker, data, skip_deleted=False) -> 
     photo and await worker.get_image(company['public_key'], con_id, photo)
     logger.info('%s contractor on %s', r.action, company['public_key'])
     return r.action
-
-
-M2M_TABLE_LOOKUP = {
-    sa_subjects: sa_co_subjects,
-    sa_qual_levels: sa_co_qual_levels,
-}
-
-
-async def create_company_skills(conn, sa_table, company, items):
-    sa_m2m_table = M2M_TABLE_LOOKUP[sa_table]
-    item_ids = {s['id'] for s in items}
-
-    cur = await conn.execute(
-        select([sa_table.c.id])
-        .where(sa_table.c.id.in_(item_ids))
-    )
-    existing_ids = {r.id for r in (await cur.fetchall())}
-    new_item_ids = item_ids.difference(existing_ids)
-
-    items_to_create = [s for s in items if s['id'] in new_item_ids]
-    items_to_create and await conn.execute(sa_table.insert().values(items_to_create))
-
-    company_id = company['id']
-    await conn.execute(
-        sa_m2m_table
-        .delete()
-        .where(and_(sa_m2m_table.c.company == company_id, ~sa_m2m_table.c.parent.in_(item_ids)))
-    )
-    co_items_to_create = [{'company': company_id, 'parent': s} for s in new_item_ids]
-    co_items_to_create and await conn.execute(sa_m2m_table.insert().values(co_items_to_create))

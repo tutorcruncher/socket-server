@@ -72,10 +72,10 @@ VIEW_SCHEMAS = {
 
         t.Key('skills', default=[]): t.List(t.Dict({
             'subject': t.String,
-            t.Key('subject_id', optional=True): t.Int,  # not currently used
+            'subject_id': t.Int,
             'category': t.String,
             'qual_level': t.String,
-            t.Key('qual_level_id', optional=True): t.Int,  # not currently used
+            'qual_level_id': t.Int,
             t.Key('qual_level_ranking', default=0): t.Float,
         })),
 
@@ -97,12 +97,6 @@ VIEW_SCHEMAS = {
         t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=255)),
 
         t.Key('grecaptcha_response'): t.String(min_length=20, max_length=1000),
-    }),
-    'subjects': t.Dict({  # used when getting data from tc's api
-        'id': t.Int(),
-        'name': t.String(max_length=255),
-        'category_id': t.Int(),
-        'category_name': t.String(max_length=255),
     }),
 }
 VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
