@@ -3,8 +3,9 @@ from datetime import datetime
 from operator import itemgetter
 
 import pytest
+from sqlalchemy import update
 
-from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from tcsocket.app.models import NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 
 
 async def test_index(cli):
@@ -48,6 +49,38 @@ async def test_list_contractors(cli, db_conn):
             'url': 'https://socket.tutorcruncher.com/thepublickey/contractors/1',
         }
     ] == obj
+
+
+async def test_list_contractors_name(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+    )
+    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
+    assert r.status == 200
+    assert (await r.json())[0]['link'] == '1-fred-b'
+    assert (await r.json())[0]['name'] == 'Fred B'
+
+    await db_conn.execute((
+        update(sa_companies)
+        .values({'name_display': NameOptions.first_name})
+        .where(sa_companies.c.public_key == company.public_key)
+    ))
+    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
+    assert r.status == 200
+    assert (await r.json())[0]['link'] == '1-fred'
+    assert (await r.json())[0]['name'] == 'Fred'
+
+    await db_conn.execute((
+        update(sa_companies)
+        .values({'name_display': NameOptions.full_name})
+        .where(sa_companies.c.public_key == company.public_key)
+    ))
+    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
+    assert r.status == 200
+    assert (await r.json())[0]['link'] == '1-fred-bloggs'
+    assert (await r.json())[0]['name'] == 'Fred Bloggs'
 
 
 @pytest.mark.parametrize('headers, newline_count', [

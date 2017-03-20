@@ -244,7 +244,7 @@ def _get_name(name_display, row):
     if name_display != NameOptions.first_name and row.last_name:
         if name_display == NameOptions.first_name_initial:
             name += ' ' + row.last_name[0]
-        elif name_display == NameOptions.full_name:
+        else:
             name += ' ' + row.last_name
     return name
 
