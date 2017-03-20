@@ -5,7 +5,7 @@ from types import GeneratorType
 from uuid import UUID
 
 from aiohttp import web
-from aiohttp.web_reqrep import Response
+from aiohttp.web_response import Response
 from aiopg.sa.result import RowProxy
 
 
