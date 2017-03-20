@@ -85,8 +85,13 @@ def public_json_response(request, *, status_=200, list_=None, **data):
     else:
         headers = {ACCESS_CONTROL_HEADER: '*'}
 
+    if JSON_CONTENT_TYPE in request.headers.get('Accept', ''):
+        to_json = json.dumps
+    else:
+        to_json = to_pretty_json
+
     return Response(
-        text=json.dumps(data if list_ is None else list_),
+        body=to_json(data if list_ is None else list_).encode(),
         status=status_,
         content_type=JSON_CONTENT_TYPE,
         headers=headers,

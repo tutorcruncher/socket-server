@@ -8,7 +8,7 @@ from aiopg.sa import create_engine
 from .middleware import middleware
 from .settings import THIS_DIR, load_settings, pg_dsn
 from .views import (company_create, company_list, company_update, contractor_get, contractor_list, contractor_set,
-                    enquiry, index)
+                    enquiry, index, qual_level_list, subject_list)
 from .worker import MainActor
 
 
@@ -36,6 +36,8 @@ def setup_routes(app):
     app.router.add_get('/{company}/contractors', contractor_list, name='contractor-list')
     app.router.add_get('/{company}/contractors/{id:\d+}', contractor_get, name='contractor-get')
     app.router.add_route('*', '/{company}/enquiry', enquiry, name='enquiry')
+    app.router.add_get('/{company}/subjects', subject_list, name='subject-list')
+    app.router.add_get('/{company}/qual-levels', qual_level_list, name='qual-level-list')
 
 
 def create_app(loop, *, settings=None):

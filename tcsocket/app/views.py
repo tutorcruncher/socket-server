@@ -23,6 +23,7 @@ EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars'
 
 AnyDict = t.Dict()
 AnyDict.allow_extra('*')
+MISSING = object()
 
 VIEW_SCHEMAS = {
     'company-create': t.Dict({
@@ -155,10 +156,15 @@ async def company_update(request):
     Modify a new company.
     """
     data = request['json_obj']
-    url = data.pop('url', None)
-    if url:
-        data['domain'] = re.sub('^w+\.', '', URL(url).host)
+    url = data.pop('url', MISSING)
     data = {k: v for k, v in data.items() if v is not None}
+    if url is not MISSING:
+        data['domain'] = url and re.sub('^w+\.', '', URL(url).host)
+    if not data:
+        raise HTTPBadRequestJson(
+            status='no_data',
+            details=f'no data to update company with',
+        )
     conn = await request['conn_manager'].get_connection()
     public_key = request['company'].public_key
     c = sa_companies.c
@@ -331,9 +337,7 @@ async def _get_skills(conn, con_id):
     skills_curr = await conn.execute(
         select(cols, use_labels=True)
         .select_from(
-            sa_con_skills
-            .join(sa_subjects, sa_con_skills.c.subject == sa_subjects.c.id)
-            .join(sa_qual_levels, sa_con_skills.c.qual_level == sa_qual_levels.c.id)
+            sa_con_skills.join(sa_subjects).join(sa_qual_levels)
         )
         .where(sa_con_skills.c.contractor == con_id)
         .order_by(sa_subjects.c.name, sa_qual_levels.c.ranking)
@@ -366,6 +370,33 @@ async def contractor_get(request):
         extra_attributes=con.extra_attributes,
         skills=await _get_skills(conn, con_id)
     )
+
+
+async def _sub_qual_list(request, q):
+    q = q.where(sa_contractors.c.company == request['company'].id)
+    conn = await request['conn_manager'].get_connection()
+    return public_json_response(
+        request,
+        list_=[dict(s) async for s in conn.execute(q)]
+    )
+
+
+async def subject_list(request):
+    q = (
+        select([sa_subjects.c.id, sa_subjects.c.name, sa_subjects.c.category])
+        .select_from(sa_con_skills.join(sa_contractors).join(sa_subjects))
+        .order_by(sa_subjects.c.category)
+    )
+    return await _sub_qual_list(request, q)
+
+
+async def qual_level_list(request):
+    q = (
+        select([sa_qual_levels.c.id, sa_qual_levels.c.name])
+        .select_from(sa_con_skills.join(sa_contractors).join(sa_qual_levels))
+        .order_by(sa_qual_levels.c.ranking)
+    )
+    return await _sub_qual_list(request, q)
 
 
 FIELD_TYPE_LOOKUP = {

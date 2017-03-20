@@ -21,6 +21,8 @@ PUBLIC_VIEWS = {
     'contractor-list',
     'contractor-get',
     'enquiry',
+    'subject-list',
+    'qual-level-list',
 }
 
 

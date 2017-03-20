@@ -200,3 +200,40 @@ async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domain == 'changed.com'
+
+
+async def test_update_company_clear_domain(cli, db_conn, company, other_server):
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domain == 'example.com'
+    assert other_server.app['request_log'] == []
+
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/update',
+        signing_key_='this is the master key',
+        url=None,
+    )
+    assert r.status == 200, await r.text()
+    response_data = await r.json()
+    assert response_data == {'details': {'domain': None}, 'status': 'success'}
+
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domain is None
+
+
+async def test_update_company_no_data(cli, db_conn, company, other_server):
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domain == 'example.com'
+    assert other_server.app['request_log'] == []
+
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/update',
+        signing_key_='this is the master key'
+    )
+    assert r.status == 400, await r.text()
+    response_data = await r.json()
+    assert response_data == {'details': 'no data to update company with', 'status': 'no_data'}

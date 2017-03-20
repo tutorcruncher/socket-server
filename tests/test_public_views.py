@@ -48,6 +48,22 @@ async def test_list_contractors(cli, db_conn):
     ] == obj
 
 
+@pytest.mark.parametrize('headers, newline_count', [
+    ({'Accept': 'application/json'}, 0),
+    ({'Accept': '*/*'}, 13),
+    (None, 13),
+])
+async def test_json_encoding(cli, db_conn, company, headers, newline_count):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+    )
+    r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'), headers=headers)
+    assert r.status == 200
+    assert (await r.text()).count('\n') == newline_count
+
+
 async def create_skills(db_conn, con_id):
     await db_conn.execute(
         sa_subjects
@@ -278,3 +294,36 @@ async def test_filter_contractors_skills_invalid(cli, db_conn, company):
     assert r.status == 400, await r.text()
     obj = await r.json()
     assert obj == {'details': '"subject" had an invalid value "foobar"', 'status': 'invalid_filter'}
+
+
+async def test_subject_list(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+    )
+    await create_skills(db_conn, 1)
+    await db_conn.execute(sa_subjects.insert().values({'id': 4, 'name': 's4', 'category': 'sc4'}))
+
+    r = await cli.get(cli.server.app.router['subject-list'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj == [
+        {'category': 'English', 'id': 2, 'name': 'Language'},
+        {'category': 'Maths', 'id': 1, 'name': 'Mathematics'}
+    ]
+
+
+async def test_qual_level_list(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+    )
+    await create_skills(db_conn, 1)
+    await db_conn.execute(sa_qual_levels.insert().values({'id': 4, 'name': 'ql4', 'ranking': 0}))
+
+    r = await cli.get(cli.server.app.router['qual-level-list'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj == [{'id': 11, 'name': 'GCSE'}, {'id': 12, 'name': 'A Level'}]
