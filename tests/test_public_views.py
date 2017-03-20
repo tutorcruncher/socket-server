@@ -32,7 +32,7 @@ async def test_list_contractors(cli, db_conn):
         'HOST': 'www.example.com',
     }
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'), headers=headers)
-    assert r.status == 200
+    assert r.status == 200, await r.text()
     assert r.headers.get('Access-Control-Allow-Origin') == '*'
     obj = await r.json()
     assert [
@@ -58,7 +58,7 @@ async def test_list_contractors_name(cli, db_conn, company):
         .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
     )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
-    assert r.status == 200
+    assert r.status == 200, await r.text()
     assert (await r.json())[0]['link'] == '1-fred-b'
     assert (await r.json())[0]['name'] == 'Fred B'
 
@@ -68,7 +68,7 @@ async def test_list_contractors_name(cli, db_conn, company):
         .where(sa_companies.c.public_key == company.public_key)
     ))
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
-    assert r.status == 200
+    assert r.status == 200, await r.text()
     assert (await r.json())[0]['link'] == '1-fred'
     assert (await r.json())[0]['name'] == 'Fred'
 
@@ -78,7 +78,7 @@ async def test_list_contractors_name(cli, db_conn, company):
         .where(sa_companies.c.public_key == company.public_key)
     ))
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
-    assert r.status == 200
+    assert r.status == 200, await r.text()
     assert (await r.json())[0]['link'] == '1-fred-bloggs'
     assert (await r.json())[0]['name'] == 'Fred Bloggs'
 
