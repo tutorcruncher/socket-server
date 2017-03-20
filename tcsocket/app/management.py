@@ -95,10 +95,15 @@ def prepare_database(delete_existing: Union[bool, callable], print_func=print) -
 
     engine = create_engine(pg_dsn(db))
     print_func('creating tables from model definition...')
-    Base.metadata.create_all(engine)
     engine.dispose()
     print_func('db and tables creation finished.')
     return True
+
+
+def populate_db(engine):
+    engine.execute('CREATE EXTENSION IF NOT EXISTS cube')
+    engine.execute('CREATE EXTENSION IF NOT EXISTS earthdistance')
+    Base.metadata.create_all(engine)
 
 
 @command

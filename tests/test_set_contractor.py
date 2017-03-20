@@ -5,11 +5,10 @@ from pathlib import Path
 
 from PIL import Image
 from sqlalchemy import select
-from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.models import sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 
-from .conftest import signed_post
+from .conftest import count, signed_post
 
 
 async def test_create_master_key(cli, db_conn, company):
@@ -100,11 +99,6 @@ async def test_create_skills(cli, db_conn, company):
     fields = sa_con_skills.c.contractor, sa_con_skills.c.subject, sa_con_skills.c.qual_level
     con_skills = {tuple(cs.values()) async for cs in await db_conn.execute(select(fields))}
     assert con_skills == {(123, 1, 1), (123, 2, 1)}
-
-
-async def count(db_conn, sa_table):
-    cur = await db_conn.execute(select([count_func()]).select_from(sa_table))
-    return (await cur.first())[0]
 
 
 async def test_modify_skills(cli, db_conn, company):

@@ -3,13 +3,14 @@ import re
 from itertools import groupby
 from operator import attrgetter, itemgetter
 from secrets import token_hex
+from typing import Any, Callable
 
 import trafaret as t
 from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
 from arq.utils import timestamp
 from dateutil.parser import parse as dt_parse
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
 from yarl import URL
@@ -223,9 +224,11 @@ async def contractor_set(request):
         )
 
 
+DISTANCE_SORT = '__distance__'
 SORT_OPTIONS = {
     'update': sa_contractors.c.last_updated.desc(),
     'name': sa_contractors.c.first_name.asc(),
+    'distance': DISTANCE_SORT,
     # TODO some configurable sort index
 }
 PAGINATION = 50
@@ -256,40 +259,30 @@ def _route_url(request, view_name, **kwargs):
     return '{}{}'.format(request.app['root_url'], uri)
 
 
-def _get_int(request, field):
-    v = request.GET.get(field)
+def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):
+    v = request.GET.get(field, default)
     try:
-        return None if v is None else int(v)
+        return None if v is None else decoder(v)
     except ValueError:
         raise HTTPBadRequestJson(
-            status='invalid_filter',
+            status='invalid_argument',
             details=f'"{field}" had an invalid value "{v}"',
         )
 
 
 async def contractor_list(request):
     sort_on = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
-    page = request.GET.get('page', 1)
-    try:
-        page = int(page)
-    except ValueError:
-        raise HTTPBadRequestJson(
-            status='invalid page',
-            details=f'{page} is not a valid integer',
-        )
+    page = _get_arg(request, 'page', default=1)
     offset = (page - 1) * PAGINATION
+
     c = sa_contractors.c
-    q = (
-        select([c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country])
-        .order_by(sort_on)
-        .offset(offset)
-        .limit(PAGINATION)
-    )
+    fields = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country
     where = c.company == request['company'].id,
 
-    subject_filter = _get_int(request, 'subject')
-    qual_level_filter = _get_int(request, 'qual_level')
+    subject_filter = _get_arg(request, 'subject')
+    qual_level_filter = _get_arg(request, 'qual_level')
 
+    join = None
     if subject_filter or qual_level_filter:
         join = sa_con_skills.join(sa_contractors)
         if subject_filter:
@@ -299,9 +292,35 @@ async def contractor_list(request):
             join = join.join(sa_qual_levels)
             where += sa_qual_levels.c.id == qual_level_filter,
 
-        q = q.select_from(join)
+    lat = _get_arg(request, 'latitude', decoder=float)
+    lng = _get_arg(request, 'longitude', decoder=float)
+    max_distance = _get_arg(request, 'max_distance', default=80_000)
 
-    q = q.where(and_(*where))
+    inc_distance = None
+    if lat is not None and lng is not None:
+        inc_distance = True
+        request_loc = func.ll_to_earth(lat, lng)
+        con_loc = func.ll_to_earth(c.latitude, c.longitude)
+        distance_func = func.earth_distance(request_loc, con_loc)
+        where += distance_func < max_distance,
+        fields += distance_func.label('distance'),
+        if sort_on == DISTANCE_SORT:
+            sort_on = distance_func.asc()
+    elif sort_on == DISTANCE_SORT:
+        raise HTTPBadRequestJson(
+            status='invalid_argument',
+            details=f'distance sorting not available if latitude and longitude are not provided',
+        )
+
+    q = (
+        select(fields)
+        .where(and_(*where)).order_by(sort_on)
+        .order_by(sort_on)
+        .offset(offset)
+        .limit(PAGINATION)
+    )
+    if join is not None:
+        q = q.select_from(join)
 
     results = []
     name_display = request['company'].name_display
@@ -319,6 +338,7 @@ async def contractor_list(request):
             town=con.town,
             country=con.country,
             photo=_photo_url(request, con, True),
+            distance=inc_distance and int(con.distance),
         ))
     return public_json_response(request, list_=results)
 

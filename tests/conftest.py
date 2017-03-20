@@ -12,10 +12,12 @@ from aiohttp.web import Application, Response, json_response
 from aiopg.sa import create_engine as aio_create_engine
 from PIL import Image
 from sqlalchemy import create_engine as sa_create_engine
+from sqlalchemy import select
+from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.main import create_app
-from tcsocket.app.management import psycopg2_cursor
-from tcsocket.app.models import Base, sa_companies
+from tcsocket.app.management import populate_db, psycopg2_cursor
+from tcsocket.app.models import sa_companies
 from tcsocket.app.settings import load_settings, pg_dsn
 
 DB = {
@@ -243,7 +245,7 @@ def db():
         cur.execute('CREATE DATABASE {name}'.format(**DB))
 
     engine = sa_create_engine(pg_dsn(DB))
-    Base.metadata.create_all(engine)
+    populate_db(engine)
     yield engine
     engine.dispose()
 
@@ -339,3 +341,8 @@ async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, **data):
         'Content-Type': 'application/json',
     }
     return await cli.post(url_, data=payload, headers=headers)
+
+
+async def count(db_conn, sa_table):
+    cur = await db_conn.execute(select([count_func()]).select_from(sa_table))
+    return (await cur.first())[0]
