@@ -15,3 +15,17 @@ services:
     - 443:443
     depends_on:
     - web
+
+  datadog:
+    build: datadog
+    depends_on:
+    - postgres
+    - redis
+    environment:
+     - API_KEY=${DATADOG_API_KEY}
+     - TAGS=socket
+     - DD_HOSTNAME=tcsocket
+    volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+     - /proc/mounts:/host/proc/mounts:ro
+     - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
