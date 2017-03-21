@@ -1,4 +1,4 @@
 # this should install everything you need for development or testing, you might also want to install "ipython"
 -r tcsocket/requirements.txt
 -r tests/requirements.txt
-aiohttp-devtools==0.2.1
+aiohttp-devtools==0.3
