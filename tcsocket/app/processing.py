@@ -9,19 +9,6 @@ from .models import Action, sa_con_skills, sa_contractors, sa_qual_levels, sa_su
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
 
 
-async def _create_subjects_qual_levels(conn, sa_table, items):
-    item_ids = {s['id'] for s in items}
-
-    cur = await conn.execute(
-        select([sa_table.c.id])
-        .where(sa_table.c.id.in_(item_ids))
-    )
-    item_ids.difference_update({r.id for r in (await cur.fetchall())})
-
-    items_to_create = [s for s in items if s['id'] in item_ids]
-    items_to_create and await conn.execute(sa_table.insert().values(items_to_create))
-
-
 def _unique_on(iter, key):
     sofar = set()
     for item in iter:
@@ -40,15 +27,22 @@ async def _set_skills(conn, contractor_id, skills):
         await conn.execute(sa_con_skills.delete().where(sa_con_skills.c.contractor == contractor_id))
         return
     async with conn.begin():
-        await _create_subjects_qual_levels(conn, sa_subjects, [
-            {'id': s['subject_id'], 'name': s['subject'], 'category': s['category']}
-            for s in _unique_on(skills, 'subject_id')
-        ])
-
-        await _create_subjects_qual_levels(conn, sa_qual_levels, [
-            {'id': s['qual_level_id'], 'name': s['qual_level'], 'ranking': s['qual_level_ranking']}
-            for s in _unique_on(skills, 'qual_level_id')
-        ])
+        await conn.execute(
+            pg_insert(sa_subjects)
+            .values([
+                {'id': s['subject_id'], 'name': s['subject'], 'category': s['category']}
+                for s in _unique_on(skills, 'subject_id')
+            ])
+            .on_conflict_do_nothing()
+        )
+        await conn.execute(
+            pg_insert(sa_qual_levels)
+            .values([
+                {'id': s['qual_level_id'], 'name': s['qual_level'], 'ranking': s['qual_level_ranking']}
+                for s in _unique_on(skills, 'qual_level_id')
+            ])
+            .on_conflict_do_nothing()
+        )
 
         con_skills_to_create = {(s['subject_id'], s['qual_level_id']) for s in skills}
 

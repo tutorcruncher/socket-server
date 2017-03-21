@@ -1,7 +1,7 @@
 version: '2.1'
 
 volumes:
- pg_data_v3: {}
+ pg_data_v4: {}
  media: {}
  redis_data: {}
 
@@ -20,7 +20,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: docker
     volumes:
-    - pg_data_v3:/var/lib/postgresql/data
+    - pg_data_v4:/var/lib/postgresql/data
     restart: always
     depends_on:
     - logs
