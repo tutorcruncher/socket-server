@@ -47,6 +47,7 @@ class MainActor(Actor):
             else:
                 raise
         else:
+            logger.info('db engine created successfully')
             self.session = ClientSession(loop=self.loop)
             self.media = Path(self.settings['media_dir'])
 
