@@ -14,6 +14,12 @@ async def test_index(cli):
     assert "You're looking at TutorCruncher socket's API" in await r.text()
 
 
+async def test_index_head(cli):
+    r = await cli.head('/')
+    assert r.status == 200
+    assert '' == await r.text()
+
+
 async def test_list_contractors(cli, db_conn):
     v = await db_conn.execute(
         sa_companies

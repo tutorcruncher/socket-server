@@ -17,7 +17,6 @@ request_logger = logging.getLogger('socket.request')
 
 PUBLIC_VIEWS = {
     'index',
-    'fail',
     'contractor-list',
     'contractor-get',
     'enquiry',
@@ -183,7 +182,8 @@ async def authenticate(request, api_key=None):
 async def auth_middleware(app, handler):
     async def _handler(request):
         # status check avoids messing with requests which have already been processed, eg. 404
-        if request.match_info.route.name not in PUBLIC_VIEWS:
+        # https://github.com/aio-libs/aiohttp/pull/1737
+        if request.url.path != '/' and request.match_info.route.name not in PUBLIC_VIEWS:
             company = request.get('company')
             if company:
                 await authenticate(request, company.private_key.encode())
