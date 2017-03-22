@@ -17,7 +17,7 @@ from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.main import create_app
 from tcsocket.app.management import populate_db, psycopg2_cursor
-from tcsocket.app.models import sa_companies
+from tcsocket.app.models import sa_companies, sa_con_skills, sa_qual_levels, sa_subjects
 from tcsocket.app.settings import load_settings, pg_dsn
 
 DB = {
@@ -346,3 +346,32 @@ async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, **data):
 async def count(db_conn, sa_table):
     cur = await db_conn.execute(select([count_func()]).select_from(sa_table))
     return (await cur.first())[0]
+
+
+async def create_con_skills(db_conn, *con_ids):
+    await db_conn.execute(
+        sa_subjects
+        .insert()
+        .values([
+            {'id': 1, 'name': 'Mathematics', 'category': 'Maths'},
+            {'id': 2, 'name': 'Language', 'category': 'English'},
+            {'id': 3, 'name': 'Literature', 'category': 'English'},
+        ])
+    )
+    await db_conn.execute(
+        sa_qual_levels
+        .insert()
+        .values([
+            {'id': 11, 'name': 'GCSE', 'ranking': 16},
+            {'id': 12, 'name': 'A Level', 'ranking': 18},
+            {'id': 13, 'name': 'Degree', 'ranking': 21},
+        ])
+    )
+    ids = [(1, 11), (2, 12)]
+
+    for con_id in con_ids:
+        await db_conn.execute(
+            sa_con_skills
+            .insert()
+            .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
+        )

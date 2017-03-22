@@ -226,10 +226,13 @@ async def contractor_set(request):
 
 DISTANCE_SORT = '__distance__'
 SORT_OPTIONS = {
-    'update': sa_contractors.c.last_updated.desc(),
-    'name': sa_contractors.c.first_name.asc(),
+    'update': sa_contractors.c.last_updated,
+    'name': sa_contractors.c.first_name,
     'distance': DISTANCE_SORT,
     # TODO some configurable sort index
+}
+SORT_REVERSE = {
+    'update': True
 }
 PAGINATION = 50
 
@@ -271,7 +274,8 @@ def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=
 
 
 async def contractor_list(request):
-    sort_on = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
+    sort_col = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
+    sort_reverse = SORT_REVERSE.get(request.GET.get('sort'), False)
     page = _get_arg(request, 'page', default=1)
     offset = (page - 1) * PAGINATION
 
@@ -304,18 +308,20 @@ async def contractor_list(request):
         distance_func = func.earth_distance(request_loc, con_loc)
         where += distance_func < max_distance,
         fields += distance_func.label('distance'),
-        if sort_on == DISTANCE_SORT:
-            sort_on = distance_func.asc()
-    elif sort_on == DISTANCE_SORT:
+        if sort_col == DISTANCE_SORT:
+            sort_col = distance_func
+    elif sort_col == DISTANCE_SORT:
         raise HTTPBadRequestJson(
             status='invalid_argument',
             details=f'distance sorting not available if latitude and longitude are not provided',
         )
 
+    sort_on = sort_col.desc() if sort_reverse else sort_col.asc()
     q = (
         select(fields)
-        .where(and_(*where)).order_by(sort_on)
-        .order_by(sort_on)
+        .where(and_(*where)).order_by(sort_col)
+        .order_by(sort_on, c.id)
+        .distinct(sort_col, c.id)
         .offset(offset)
         .limit(PAGINATION)
     )
