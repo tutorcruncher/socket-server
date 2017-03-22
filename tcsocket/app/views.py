@@ -403,7 +403,7 @@ async def _sub_qual_list(request, q):
     conn = await request['conn_manager'].get_connection()
     return public_json_response(
         request,
-        list_=[dict(s) async for s in conn.execute(q)]
+        list_=[dict(s, link=f'{s.id}-{_slugify(s.name)}') async for s in conn.execute(q)]
     )
 
 

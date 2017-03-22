@@ -109,8 +109,8 @@ async def test_subject_list(cli, db_conn, company):
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert obj == [
-        {'category': 'English', 'id': 2, 'name': 'Language'},
-        {'category': 'Maths', 'id': 1, 'name': 'Mathematics'}
+        {'category': 'English', 'id': 2, 'name': 'Language', 'link': '2-language'},
+        {'category': 'Maths', 'id': 1, 'name': 'Mathematics', 'link': '1-mathematics'}
     ]
 
 
@@ -131,7 +131,10 @@ async def test_qual_level_list(cli, db_conn, company):
     r = await cli.get(cli.server.app.router['qual-level-list'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert obj == [{'id': 11, 'name': 'GCSE'}, {'id': 12, 'name': 'A Level'}]
+    assert obj == [
+        {'id': 11, 'name': 'GCSE', 'link': '11-gcse'},
+        {'id': 12, 'name': 'A Level', 'link': '12-a-level'}
+    ]
 
 
 async def test_distance_filter(cli, db_conn, company):
