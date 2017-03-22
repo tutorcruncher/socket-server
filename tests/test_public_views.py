@@ -105,7 +105,7 @@ async def test_json_encoding(cli, db_conn, company, headers, newline_count):
     assert (await r.text()).count('\n') == newline_count
 
 
-async def create_skills(db_conn, con_id):
+async def create_skills(db_conn, *con_ids):
     await db_conn.execute(
         sa_subjects
         .insert()
@@ -126,11 +126,12 @@ async def create_skills(db_conn, con_id):
     )
     ids = [(1, 11), (2, 12)]
 
-    await db_conn.execute(
-        sa_con_skills
-        .insert()
-        .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
-    )
+    for con_id in con_ids:
+        await db_conn.execute(
+            sa_con_skills
+            .insert()
+            .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
+        )
 
 
 async def test_get_contractor(cli, db_conn):
@@ -341,9 +342,14 @@ async def test_subject_list(cli, db_conn, company):
     await db_conn.execute(
         sa_contractors
         .insert()
-        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+        .values([
+            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
+            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+        ])
     )
-    await create_skills(db_conn, 1)
+    # adding subjects to both cons checks distinct in query
+    await create_skills(db_conn, 1, 2)
+
     await db_conn.execute(sa_subjects.insert().values({'id': 4, 'name': 's4', 'category': 'sc4'}))
 
     r = await cli.get(cli.server.app.router['subject-list'].url_for(company=company.public_key))
@@ -359,9 +365,14 @@ async def test_qual_level_list(cli, db_conn, company):
     await db_conn.execute(
         sa_contractors
         .insert()
-        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+        .values([
+            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
+            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+        ])
     )
-    await create_skills(db_conn, 1)
+    # adding qual levels to both cons checks distinct in query
+    await create_skills(db_conn, 1, 2)
+
     await db_conn.execute(sa_qual_levels.insert().values({'id': 4, 'name': 'ql4', 'ranking': 0}))
 
     r = await cli.get(cli.server.app.router['qual-level-list'].url_for(company=company.public_key))

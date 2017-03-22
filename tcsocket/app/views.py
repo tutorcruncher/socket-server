@@ -405,7 +405,8 @@ async def subject_list(request):
     q = (
         select([sa_subjects.c.id, sa_subjects.c.name, sa_subjects.c.category])
         .select_from(sa_con_skills.join(sa_contractors).join(sa_subjects))
-        .order_by(sa_subjects.c.category)
+        .order_by(sa_subjects.c.category, sa_subjects.c.id)
+        .distinct(sa_subjects.c.category, sa_subjects.c.id)
     )
     return await _sub_qual_list(request, q)
 
@@ -414,7 +415,8 @@ async def qual_level_list(request):
     q = (
         select([sa_qual_levels.c.id, sa_qual_levels.c.name])
         .select_from(sa_con_skills.join(sa_contractors).join(sa_qual_levels))
-        .order_by(sa_qual_levels.c.ranking)
+        .order_by(sa_qual_levels.c.ranking, sa_qual_levels.c.id)
+        .distinct(sa_qual_levels.c.ranking, sa_qual_levels.c.id)
     )
     return await _sub_qual_list(request, q)
 

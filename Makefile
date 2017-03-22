@@ -18,7 +18,7 @@ test:
 
 .PHONY: testcov
 testcov: test
-	echo "building coverage html"; coverage html
+	coverage html
 
 .PHONY: all
 all: testcov lint

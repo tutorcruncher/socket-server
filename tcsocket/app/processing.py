@@ -9,7 +9,7 @@ from .models import Action, sa_con_skills, sa_contractors, sa_qual_levels, sa_su
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
 
 
-def _unique_on(iter, key):
+def _distinct(iter, key):
     sofar = set()
     for item in iter:
         v = item[key]
@@ -31,7 +31,7 @@ async def _set_skills(conn, contractor_id, skills):
             pg_insert(sa_subjects)
             .values([
                 {'id': s['subject_id'], 'name': s['subject'], 'category': s['category']}
-                for s in _unique_on(skills, 'subject_id')
+                for s in _distinct(skills, 'subject_id')
             ])
             .on_conflict_do_nothing()
         )
@@ -39,7 +39,7 @@ async def _set_skills(conn, contractor_id, skills):
             pg_insert(sa_qual_levels)
             .values([
                 {'id': s['qual_level_id'], 'name': s['qual_level'], 'ranking': s['qual_level_ranking']}
-                for s in _unique_on(skills, 'qual_level_id')
+                for s in _distinct(skills, 'qual_level_id')
             ])
             .on_conflict_do_nothing()
         )
