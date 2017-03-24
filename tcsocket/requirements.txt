@@ -1,6 +1,6 @@
 SQLAlchemy==1.1.6
 aiodns==1.1.1
-aiohttp==2.0.1
+aiohttp==2.0.2
 aiopg==0.13.0
 arq==0.5.2
 cchardet==1.1.3
