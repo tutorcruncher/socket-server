@@ -43,7 +43,7 @@ def setup_routes(app):
 
 
 def create_app(loop, *, settings=None):
-    app = web.Application(loop=loop, middlewares=middleware)
+    app = web.Application(middlewares=middleware)
     settings = settings or load_settings()
     app.update(settings, settings=settings)
 

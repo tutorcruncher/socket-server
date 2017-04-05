@@ -56,7 +56,8 @@ async def error_middleware(app, handler):
             else:
                 r = await handler(request)
         except HTTPException as e:
-            await log_warning(request, e)
+            if e.status > 310:
+                await log_warning(request, e)
             raise
         except BaseException as e:
             request_logger.exception('%s: %s', e.__class__.__name__, e, extra={

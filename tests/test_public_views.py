@@ -2,8 +2,10 @@ import json
 from datetime import datetime
 
 import pytest
+from aiohttp.web import Application
 from sqlalchemy import update
 
+from tcsocket.app import middleware
 from tcsocket.app.models import NameOptions, sa_companies, sa_contractors
 
 from .conftest import create_con_skills
@@ -15,22 +17,24 @@ async def test_index(cli):
     assert "You're looking at TutorCruncher socket's API" in await r.text()
 
 
+async def test_index_head(cli):
+    r = await cli.head('/')
+    assert r.status == 200
+    assert '' == await r.text()
+
+
 async def test_robots(cli):
     r = await cli.get('/robots.txt')
     assert r.status == 200
     assert 'User-agent: *' in await r.text()
 
 
-async def test_favicon(cli):
+async def test_favicon(cli, mocker):
+    mocker.spy(middleware, 'log_warning')
     r = await cli.get('/favicon.ico', allow_redirects=False)
     assert r.status == 301
     assert r.headers['Location'] == 'https://secure.tutorcruncher.com/favicon.ico'
-
-
-async def test_index_head(cli):
-    r = await cli.head('/')
-    assert r.status == 200
-    assert '' == await r.text()
+    assert middleware.log_warning.call_count == 0
 
 
 async def test_list_contractors(cli, db_conn):
@@ -255,3 +259,17 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
             'response': 'goodgoodgoodgoodgood'
         })
     ]
+
+
+async def snap(request):
+    raise RuntimeError('snap')
+
+
+async def test_500_error(test_client, caplog):
+    app = Application(middlewares=[middleware.error_middleware])
+    app.router.add_get('/', snap)
+    client = await test_client(app)
+    r = await client.get('/')
+    assert r.status == 500
+    assert '500: Internal Server Error' == await r.text()
+    assert 'socket.request ERROR: RuntimeError: snap' in caplog
