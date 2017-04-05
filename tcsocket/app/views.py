@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 import trafaret as t
 from aiohttp.hdrs import METH_POST
-from aiohttp.web import Response, HTTPMovedPermanently
+from aiohttp.web import HTTPMovedPermanently, Response
 from arq.utils import timestamp
 from dateutil.parser import parse as dt_parse
 from sqlalchemy import func, select, update
