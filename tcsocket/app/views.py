@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 import trafaret as t
 from aiohttp.hdrs import METH_POST
-from aiohttp.web import Response
+from aiohttp.web import Response, HTTPMovedPermanently
 from arq.utils import timestamp
 from dateutil.parser import parse as dt_parse
 from sqlalchemy import func, select, update
@@ -107,6 +107,21 @@ VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipie
 
 async def index(request):
     return Response(text=request.app['index_html'], content_type='text/html')
+
+
+ROBOTS = """\
+User-agent: *
+Allow: /$
+Disallow: /
+"""
+
+
+async def robots_txt(request):
+    return Response(text=ROBOTS, content_type='text/plain')
+
+
+async def favicon(request):
+    raise HTTPMovedPermanently('https://secure.tutorcruncher.com/favicon.ico')
 
 
 async def company_create(request):

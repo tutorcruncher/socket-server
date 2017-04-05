@@ -17,6 +17,8 @@ request_logger = logging.getLogger('socket.request')
 
 PUBLIC_VIEWS = {
     'index',
+    'robots-txt',
+    'favicon',
     'contractor-list',
     'contractor-get',
     'enquiry',

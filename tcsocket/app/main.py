@@ -8,7 +8,7 @@ from aiopg.sa import create_engine
 from .middleware import middleware
 from .settings import THIS_DIR, load_settings, pg_dsn
 from .views import (company_create, company_list, company_update, contractor_get, contractor_list, contractor_set,
-                    enquiry, index, qual_level_list, subject_list)
+                    enquiry, favicon, index, qual_level_list, robots_txt, subject_list)
 from .worker import MainActor
 
 
@@ -28,6 +28,8 @@ async def cleanup(app: web.Application):
 
 def setup_routes(app):
     app.router.add_get('/', index, name='index')
+    app.router.add_get('/robots.txt', robots_txt, name='robots-txt')
+    app.router.add_get('/favicon.ico', favicon, name='favicon')
     app.router.add_post('/companies/create', company_create, name='company-create')
     app.router.add_get('/companies', company_list, name='company-list')
 
