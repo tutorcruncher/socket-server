@@ -472,7 +472,7 @@ async def enquiry(request):
     company = dict(request['company'])
     if request.method == METH_POST:
         data = request['json_obj']
-        x_forward_for = request.headers.get('X-Forward-For')
+        x_forward_for = request.headers.get('X-Forwarded-For')
         data.update(
             user_agent=request.headers.get('User-Agent'),
             ip_address=x_forward_for and x_forward_for.split(',', 1)[0].strip(' '),

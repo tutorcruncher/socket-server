@@ -166,7 +166,9 @@ class MainActor(Actor):
         grecaptcha_response = data.pop('grecaptcha_response')
         if not await self._check_grecaptcha(company, grecaptcha_response, data['ip_address']):
             return
+        logger.info('ip: %s', data['ip_address'])
         data_enc = json.dumps(data)
+        logger.info('data_enc: %s', data_enc)
         headers = self.request_headers(company)
         headers['Content-Type'] = CT_JSON
         async with self.session.post(self.api_enquiries, data=data_enc, headers=headers) as r:
