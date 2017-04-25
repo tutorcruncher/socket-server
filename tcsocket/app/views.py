@@ -67,7 +67,7 @@ VIEW_SCHEMAS = {
             'machine_name': t.Or(t.Null | t.String),
             'type': t.Or(*[t.Atom(eat) for eat in EXTRA_ATTR_TYPES]),
             'name': t.String,
-            'value': t.Or(t.Bool | t.String | t.Float),
+            'value': t.Or(t.Null | t.Bool | t.String | t.Float),
             'id': t.Int,
             'sort_index': t.Float,
         })),

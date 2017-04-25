@@ -118,6 +118,7 @@ async def contractor_set(*, conn, company, worker, data, skip_deleted=False) -> 
         data.update(location)
 
     ex_attrs = data.pop('extra_attributes')
+    ex_attrs = [ea for ea in ex_attrs if ea['value'] is not None]
     tag_line, ex_attrs = _get_special_extra_attr(ex_attrs, 'tag_line', 'text_short')
     primary_description, ex_attrs = _get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
     data.update(

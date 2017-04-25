@@ -248,6 +248,35 @@ async def test_extra_attributes_special(cli, db_conn, company):
     assert [ea['id'] for ea in result.extra_attributes] == [1, 2, 5]
 
 
+async def test_extra_attributes_null(cli, db_conn, company):
+    eas = [
+        {
+            'machine_name': None,
+            'type': 'checkbox',
+            'name': 'Terms and Conditions agreement',
+            'value': None,
+            'id': 381,
+            'sort_index': 0
+        }
+    ]
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/contractors/set',
+        id=123,
+        deleted=False,
+        first_name='Fred',
+        extra_attributes=eas
+    )
+    assert r.status == 201, await r.text()
+    curr = await db_conn.execute(sa_contractors.select())
+    result = await curr.first()
+    assert result.id == 123
+    assert result.first_name == 'Fred'
+    assert result.extra_attributes == []
+    assert result.tag_line is None
+    assert result.primary_description is None
+
+
 async def test_photo(cli, db_conn, company, image_download_url, tmpdir):
     r = await signed_post(
         cli,

@@ -98,16 +98,13 @@ class MainActor(Actor):
             if not url:
                 break
 
-    async def _get_cons(self, company):
-        async for r in self._get_from_api(self.api_contractors, VIEW_SCHEMAS['contractor-set'], company):
-            yield r
-
     @concurrent(Actor.LOW_QUEUE)
     async def update_contractors(self, company):
         # TODO: delete existing contractors
         cons_created = 0
         async with self.pg_engine.acquire() as conn:
-            async for con_data in self._get_cons(company):
+            async for con_data in self._get_from_api(self.api_contractors, VIEW_SCHEMAS['contractor-set'], company):
+
                 await contractor_set(
                     conn=conn,
                     worker=self,
