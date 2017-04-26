@@ -179,6 +179,15 @@ async def test_missing_url(cli):
     assert r.status == 404, await r.text()
 
 
+async def test_url_trailing_slash(cli, company):
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    r = await cli.get(f'{url}/', allow_redirects=False)
+    assert r.status == 301, await r.text()
+    assert r.headers['location'] == str(url)
+
+
 async def test_get_enquiry(cli, company, other_server):
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()

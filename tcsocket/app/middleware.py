@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import trafaret as t
 from aiohttp.hdrs import METH_GET, METH_POST
-from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError
+from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
 from sqlalchemy import select
 
 from .models import sa_companies
@@ -56,6 +56,12 @@ async def error_middleware(app, handler):
             else:
                 r = await handler(request)
         except HTTPException as e:
+            if request.method == METH_GET and e.status == 404 and request.rel_url.raw_path.endswith('/'):
+                possible_path = request.rel_url.raw_path[:-1]
+                for resource in request.app.router._resources:
+                    match_dict = resource._match(possible_path)
+                    if match_dict:
+                        raise HTTPMovedPermanently(possible_path)
             if e.status > 310:
                 await log_warning(request, e)
             raise
