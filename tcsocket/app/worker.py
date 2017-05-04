@@ -141,6 +141,9 @@ class MainActor(Actor):
         return data
 
     async def _check_grecaptcha(self, company, grecaptcha_response, client_ip):
+        if grecaptcha_response == 'mock-grecaptcha:{[private_key]}'.format(company):
+            logger.info('skipping recaptcha using company private key')
+            return True
         data = dict(
             secret=self.settings['grecaptcha_secret'],
             response=grecaptcha_response,
@@ -177,7 +180,7 @@ class MainActor(Actor):
                 raise RuntimeError(f'Bad response from {self.api_enquiries} {r.status}, response:\n{body}') from e
         logger.info('Response: %d, %s', r.status, response_data)
         if r.status not in (200, 201):
-            logger.warning('%d response submitting enquiry', r.status, extra={
+            logger.error('%d response forwarding enquiry to %s', r.status, self.api_enquiries, extra={
                 'data': {
                     'status': r.headers,
                     'company': company,

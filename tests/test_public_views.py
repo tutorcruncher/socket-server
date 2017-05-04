@@ -300,7 +300,39 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
         }),
         'enquiry_options'
     ]
-    assert '400 response submitting enquiry' in caplog
+    assert '400 response forwarding enquiry to http://localhost:' in caplog
+
+
+async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
+    data = {
+        'client_name': 'Cat Flap',
+        'upstream_http_referrer': 'foobar',
+        'grecaptcha_response': 'mock-grecaptcha:{.private_key}'.format(company),
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    data = await r.json()
+    assert data == {'status': 'enquiry submitted to TutorCruncher'}
+    assert other_server.app['request_log'] == [
+        ('enquiry_post', {
+            'client_name': 'Cat Flap',
+            'user_agent': 'Testing Browser',
+            'ip_address': None,
+            'upstream_http_referrer': 'foobar',
+            'http_referrer': None}
+         )
+    ]
+
+
+async def test_post_enquiry_500(cli, company, other_server, caplog):
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5}
+    headers = {'Referer': 'http://snap.com'}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers=headers)
+    # because jobs are being executed directly
+    assert r.status == 500, await r.text()
+    assert 'Bad response from http://localhost:' in caplog
 
 
 async def snap(request):

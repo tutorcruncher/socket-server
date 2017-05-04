@@ -180,7 +180,25 @@ async def contractor_create(*, public_key, **kwargs):
 @command
 async def contractor_list(*, public_key, **kwargs):
     async with aiohttp.ClientSession(connector=CONN) as session:
-        async with session.get(BASE_URL + f'{public_key}/contractors?sort=thing') as r:
+        async with session.get(BASE_URL + f'{public_key}/contractors') as r:
+            print(f'status: {r.status}')
+            text = await r.text()
+            print(f'response: {text}')
+
+
+@command
+async def submit_enquiry(*, public_key, **kwargs):
+    async with aiohttp.ClientSession(connector=CONN) as session:
+        data = {
+            'client_name': 'Cat Flap',
+            'client_phone': '123',
+            'grecaptcha_response': ,
+        }
+        headers = {
+            'User-Agent': 'Testing Browser',
+            'Referer': 'X' * 2000,
+        }
+        async with session.post(BASE_URL + f'{public_key}/enquiry', data=json.dumps(data), headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')
