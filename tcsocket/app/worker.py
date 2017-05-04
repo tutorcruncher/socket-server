@@ -176,8 +176,15 @@ class MainActor(Actor):
                 body = await r.read()
                 raise RuntimeError(f'Bad response from {self.api_enquiries} {r.status}, response:\n{body}') from e
         logger.info('Response: %d, %s', r.status, response_data)
-        if r.status == 400:
-            logger.warning('400 response submitting enquiry\nrequest: %s\nresponse: %s', data, response_data)
+        if r.status not in (200, 201):
+            logger.warning('%d response submitting enquiry', r.status, extra={
+                'data': {
+                    'status': r.headers,
+                    'company': company,
+                    'request': data,
+                    'response': response_data,
+                }
+            })
             await self.update_enquiry_options(company)
         return r.status
 

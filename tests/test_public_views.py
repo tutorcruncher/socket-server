@@ -270,6 +270,39 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
     ]
 
 
+async def test_post_enquiry_400(cli, company, other_server, caplog):
+    data = {
+        'client_name': 'Cat Flap',
+        'client_phone': '123',
+        'grecaptcha_response': 'good' * 5,
+    }
+    headers = {
+        'User-Agent': 'Testing Browser',
+        'Referer': 'http://cause400.com',
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers=headers)
+    assert r.status == 201, await r.text()
+    data = await r.json()
+    assert data == {'status': 'enquiry submitted to TutorCruncher'}
+
+    assert other_server.app['request_log'] == [
+        ('grecaptcha_post', {
+            'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+            'response': 'goodgoodgoodgoodgood'
+        }),
+        ('enquiry_post', {
+            'client_name': 'Cat Flap',
+            'client_phone': '123',
+            'user_agent': 'Testing Browser',
+            'ip_address': None,
+            'http_referrer': 'http://cause400.com'
+        }),
+        'enquiry_options'
+    ]
+    assert '400 response submitting enquiry' in caplog
+
+
 async def snap(request):
     raise RuntimeError('snap')
 

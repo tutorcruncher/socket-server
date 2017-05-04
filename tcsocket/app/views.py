@@ -96,7 +96,7 @@ VIEW_SCHEMAS = {
         # t.Key('subject', optional=True): t.Or(t.Null | t.Int(gt=0)),
         # t.Key('qual_level', optional=True): t.Or(t.Null | t.Int(gt=0)),
 
-        t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=255)),
+        t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=1023)),
 
         t.Key('grecaptcha_response'): t.String(min_length=20, max_length=1000),
     }),

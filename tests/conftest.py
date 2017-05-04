@@ -175,8 +175,9 @@ async def enquiry_options_view(request):
 
 async def enquiry_post_view(request):
     json_obj = await request.json()
+    referrer = json_obj.get('http_referrer') or ''
     request.app['request_log'].append(('enquiry_post', json_obj))
-    return json_response({'status': 'enquiry submitted, no-op'})
+    return json_response({'status': 'enquiry submitted, no-op'}, status=400 if '400' in referrer else 200)
 
 
 async def grecaptcha_post_view(request):
