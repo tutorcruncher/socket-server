@@ -6,7 +6,7 @@ arq==0.6
 cchardet==2.0.1
 gunicorn==19.7.1
 python-dateutil==2.6.0
-trafaret==0.9.0
+trafaret==0.10.0
 trafaret-config==1.0.1
 pillow==4.1.0
 raven==6.0.0
