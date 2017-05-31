@@ -14,7 +14,7 @@ lint:
 
 .PHONY: test
 test:
-	py.test --cov=tcsocket
+	pytest --cov=tcsocket
 
 .PHONY: testcov
 testcov: test

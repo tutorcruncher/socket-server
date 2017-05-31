@@ -187,13 +187,8 @@ async def contractor_list(*, public_key, **kwargs):
 
 
 @command
-async def submit_enquiry(*, public_key, **kwargs):
+async def submit_enquiry(*, public_key, data, **kwargs):
     async with aiohttp.ClientSession(connector=CONN) as session:
-        data = {
-            'client_name': 'Cat Flap',
-            'client_phone': '123',
-            'grecaptcha_response': ,
-        }
         headers = {
             'User-Agent': 'Testing Browser',
             'Referer': 'X' * 2000,
