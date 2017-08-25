@@ -5,7 +5,7 @@ aiopg==0.13.0
 arq==0.6.1
 cchardet==2.1.1
 gunicorn==19.7.1
-python-dateutil==2.6.0
+python-dateutil==2.6.1
 trafaret==0.10.0
 trafaret-config==1.0.1
 pillow==4.2.1
