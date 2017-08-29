@@ -23,8 +23,8 @@ services:
     - redis
     environment:
      - API_KEY=${DATADOG_API_KEY}
-     - TAGS=socket
-     - DD_HOSTNAME=tcsocket
+     - TAGS=${SERVER_NAME:-tcsocket}
+     - DD_HOSTNAME=${SERVER_NAME:-tcsocket}
     volumes:
      - /var/run/docker.sock:/var/run/docker.sock
      - /proc/mounts:/host/proc/mounts:ro

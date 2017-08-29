@@ -9,7 +9,7 @@ services:
   logs:
     image: gliderlabs/logspout
     environment:
-      SYSLOG_HOSTNAME: 'tcsocket'
+      SYSLOG_HOSTNAME: ${SERVER_NAME:-tcsocket}
     volumes:
     - /var/run/docker.sock:/var/run/docker.sock
     restart: always
@@ -45,7 +45,7 @@ services:
       COMMIT: ${COMMIT}
       RELEASE_DATE: ${RELEASE_DATE}
       RAVEN_DSN: ${RAVEN_DSN}
-      SERVER_NAME: ${SERVER_NAME}
+      SERVER_NAME: ${SERVER_NAME:-tcsocket}
     restart: always
     depends_on:
     - postgres
@@ -67,7 +67,7 @@ services:
       CHECK: worker
       COMMIT: ${COMMIT}
       RAVEN_DSN: ${RAVEN_DSN}
-      SERVER_NAME: ${SERVER_NAME}
+      SERVER_NAME: ${SERVER_NAME:-tcsocket}
     restart: always
     depends_on:
     - postgres
