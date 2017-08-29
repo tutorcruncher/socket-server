@@ -111,8 +111,7 @@ async def index(request):
 
 ROBOTS = """\
 User-agent: *
-Allow: /$
-Disallow: /
+Allow: /
 """
 
 
