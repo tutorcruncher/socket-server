@@ -25,7 +25,7 @@ export RAVEN_DSN="-"
 docker version
 docker info
 
-deploy/compose-up
+deploy/deploy
 
 sleep 10
 
