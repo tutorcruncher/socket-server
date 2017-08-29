@@ -1,9 +1,11 @@
 *.py[cod]
-.idea
-env
+.idea/
+env/
 .coverage
-.cache
-htmlcov
-media
-nginx/prod/keys
+.cache/
+htmlcov/
+media/
+sandbox/
+nginx/prod/keys/
 activate.prod.*
+activate.beta.*
