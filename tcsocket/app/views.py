@@ -86,7 +86,7 @@ VIEW_SCHEMAS = {
     }),
     'enquiry': t.Dict({
         'client_name': t.String(max_length=255),
-        t.Key('client_email', optional=True): t.Or(t.Null | t.Email()),
+        t.Key('client_email', optional=True): t.Or(t.Null | t.Email),
         t.Key('client_phone', optional=True): t.Or(t.Null | t.String(max_length=255)),
         t.Key('service_recipient_name', optional=True): t.Or(t.Null | t.String(max_length=255)),
         t.Key('attributes', optional=True): t.Or(t.Null | AnyDict),
