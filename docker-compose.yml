@@ -40,6 +40,9 @@ services:
       APP_DATABASE_PASSWORD: docker
       APP_REDIS_HOST: redis
       APP_MASTER_KEY: ${APP_MASTER_KEY}
+      APP_TC_API_ROOT: ${TC_API_ROOT}
+      APP_MEDIA_URL: ${TC_MEDIA_URL}
+      APP_ROOT_URL: ${ROOT_URL}
       BIND: 0.0.0.0:8000
       CHECK: web
       COMMIT: ${COMMIT}
@@ -63,6 +66,9 @@ services:
       APP_DATABASE_PASSWORD: docker
       APP_REDIS_HOST: redis
       APP_MEDIA_DIR: /media
+      APP_TC_API_ROOT: ${TC_API_ROOT}
+      APP_MEDIA_URL: ${TC_MEDIA_URL}
+      APP_ROOT_URL: ${ROOT_URL}
       APP_GRECAPTCHA_SECRET: ${GRECAPTCHA_SECRET}
       CHECK: worker
       COMMIT: ${COMMIT}
