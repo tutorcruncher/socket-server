@@ -69,6 +69,8 @@ class MainActor(Actor):
                     f.write(chunk)
             f.seek(0)
             with Image.open(f) as img:
+                if img.mode == 'RGBA':
+                    img = img.convert('RGB')
                 img_thumb = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
                 img_thumb.save(path_str + '.jpg', 'JPEG')
 
