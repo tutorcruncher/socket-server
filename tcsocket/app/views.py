@@ -168,38 +168,35 @@ async def company_create(request):
 
 async def company_update(request):
     """
-    Modify a new company.
+    Modify a company.
     """
     data = request['json_obj']
     url = data.pop('url', MISSING)
     data = {k: v for k, v in data.items() if v is not None}
     if url is not MISSING:
         data['domain'] = url and re.sub('^w+\.', '', URL(url).host)
-    if not data:
-        raise HTTPBadRequestJson(
-            status='no_data',
-            details=f'no data to update company with',
-        )
     conn = await request['conn_manager'].get_connection()
     public_key = request['company'].public_key
     c = sa_companies.c
-    await conn.execute((
-        update(sa_companies)
-        .values(**data)
-        .where(c.public_key == public_key)
-    ))
-    logger.info('company "%s" updated, %s', public_key, data)
+    if data:
+        await conn.execute((
+            update(sa_companies)
+            .values(**data)
+            .where(c.public_key == public_key)
+        ))
+        logger.info('company "%s" updated, %s', public_key, data)
 
     select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domain
     q = select(select_fields).where(c.public_key == public_key)
     result = await conn.execute(q)
-    company = await result.first()
+    company = dict(await result.first())
 
-    await request.app['worker'].update_contractors(dict(company))
+    await request.app['worker'].update_contractors(company)
     return pretty_json_response(
         status_=200,
         status='success',
         details=data,
+        company_domain=company['domain'],
     )
 
 

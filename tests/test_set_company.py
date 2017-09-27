@@ -195,7 +195,11 @@ async def test_update_company(cli, db_conn, company, other_server):
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
-    assert response_data == {'details': {'domain': 'changed.com'}, 'status': 'success'}
+    assert response_data == {
+        'details': {'domain': 'changed.com'},
+        'company_domain': 'changed.com',
+        'status': 'success',
+    }
     assert other_server.app['request_log'] == [('contractor_list', None), ('contractor_list', '2')]
 
     curr = await db_conn.execute(sa_companies.select())
@@ -217,7 +221,7 @@ async def test_update_company_clear_domain(cli, db_conn, company, other_server):
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
-    assert response_data == {'details': {'domain': None}, 'status': 'success'}
+    assert response_data == {'details': {'domain': None}, 'status': 'success', 'company_domain': None}
 
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
@@ -235,6 +239,6 @@ async def test_update_company_no_data(cli, db_conn, company, other_server):
         f'/{company.public_key}/update',
         signing_key_='this is the master key'
     )
-    assert r.status == 400, await r.text()
+    assert r.status == 200, await r.text()
     response_data = await r.json()
-    assert response_data == {'details': 'no data to update company with', 'status': 'no_data'}
+    assert response_data == {'company_domain': 'example.com', 'details': {}, 'status': 'success'}

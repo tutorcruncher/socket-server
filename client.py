@@ -73,8 +73,8 @@ async def company_create(*, public_key=None, data=None, **kwargs):
 
 
 @command
-async def company_update(*, public_key, data, **kwargs):
-    payload = json.dumps(data)
+async def company_update(*, public_key, data=None, **kwargs):
+    payload = json.dumps(data or {})
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
     headers = {
