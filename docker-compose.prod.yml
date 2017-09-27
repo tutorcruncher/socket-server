@@ -14,18 +14,16 @@ services:
     ports:
     - 443:443
     depends_on:
-    - web
+    - logs
 
-  datadog:
-    build: datadog
-    depends_on:
-    - postgres
-    - redis
-    environment:
-     - API_KEY=${DATADOG_API_KEY}
-     - TAGS=${SERVER_NAME:-tcsocket}
-     - DD_HOSTNAME=${SERVER_NAME:-tcsocket}
+  telegraf:
+    build: telegraf
+    hostname: socket-telegraf
     volumes:
-     - /var/run/docker.sock:/var/run/docker.sock
-     - /proc/mounts:/host/proc/mounts:ro
-     - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+    - /var/run/utmp:/var/run/utmp:ro
+    environment:
+      INFLUXDB_URL: ${INFLUXDB_URL}
+      INFLUXDB_PASSWORD: ${INFLUXDB_PASSWORD}
+    pid: host
+    restart: always

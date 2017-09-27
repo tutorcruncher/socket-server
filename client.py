@@ -10,7 +10,7 @@ import aiohttp
 import click
 
 SIGNING_KEY = os.getenv('CLIENT_SIGNING_KEY', 'testing').encode()
-BASE_URL = os.getenv('CLIENT_BASE_URL', 'http://localhost:8000/')
+BASE_URL = os.getenv('CLIENT_BASE_URL', 'http://localhost:5000/')
 print(f'using shared secret {SIGNING_KEY} and url {BASE_URL}')
 # BASE_URL = 'https://socket.tutorcruncher.com/'
 CONN = aiohttp.TCPConnector(verify_ssl=False)

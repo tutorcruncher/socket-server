@@ -1,9 +1,16 @@
 version: '2.1'
 
 volumes:
- pg_data_v4: {}
+ pg_data: {}
  media: {}
  redis_data: {}
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+      - subnet: 172.20.0.0/16
 
 services:
   logs:
@@ -15,21 +22,27 @@ services:
     restart: always
 
   postgres:
-    image: postgres:9.6
+    image: postgres:9.6-alpine
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: docker
     volumes:
-    - pg_data_v4:/var/lib/postgresql/data
+    - pg_data:/var/lib/postgresql/data
+    networks:
+      default:
+        ipv4_address: 172.20.0.101
     restart: always
     depends_on:
     - logs
 
   redis:
-    image: redis:3.0-alpine
+    image: redis:4-alpine
     volumes:
     - redis_data:/data
     restart: always
+    networks:
+      default:
+        ipv4_address: 172.20.0.102
     depends_on:
     - logs
 
@@ -38,7 +51,7 @@ services:
     environment:
       APP_DATABASE_HOST: postgres
       APP_DATABASE_PASSWORD: docker
-      APP_REDIS_HOST: redis
+      APP_REDIS_HOST: '172.20.0.102'
       APP_MASTER_KEY: ${APP_MASTER_KEY}
       APP_TC_API_ROOT: ${TC_API_ROOT}
       APP_MEDIA_URL: ${TC_MEDIA_URL}
@@ -49,6 +62,9 @@ services:
       RELEASE_DATE: ${RELEASE_DATE}
       RAVEN_DSN: ${RAVEN_DSN}
       SERVER_NAME: ${SERVER_NAME:-tcsocket}
+    networks:
+      default:
+        ipv4_address: 172.20.0.103
     restart: always
     depends_on:
     - postgres
@@ -64,7 +80,7 @@ services:
     environment:
       APP_DATABASE_HOST: postgres
       APP_DATABASE_PASSWORD: docker
-      APP_REDIS_HOST: redis
+      APP_REDIS_HOST: '172.20.0.102'
       APP_MEDIA_DIR: /media
       APP_TC_API_ROOT: ${TC_API_ROOT}
       APP_MEDIA_URL: ${TC_MEDIA_URL}
@@ -78,5 +94,3 @@ services:
     depends_on:
     - postgres
     - redis
-
-  # TODO: https://github.com/schickling/dockerfiles/tree/master/postgres-backup-s3
