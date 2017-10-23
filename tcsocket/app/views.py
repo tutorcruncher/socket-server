@@ -245,7 +245,7 @@ SORT_OPTIONS = {
 SORT_REVERSE = {
     'update': True
 }
-PAGINATION = 50
+PAGINATION = 100
 
 
 def _slugify(name):
