@@ -8,6 +8,6 @@ gunicorn==19.7.1
 python-dateutil==2.6.1
 trafaret==0.12.0
 trafaret-config==1.0.1
-pillow==4.2.1
+pillow==4.3.0
 raven==6.2.1
 uvloop==0.8.1
