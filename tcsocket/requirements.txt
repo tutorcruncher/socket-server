@@ -10,4 +10,4 @@ trafaret==1.0.1
 trafaret-config==1.0.1
 pillow==4.3.0
 raven==6.3.0
-uvloop==0.8.1
+uvloop==0.9.1
