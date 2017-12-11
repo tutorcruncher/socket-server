@@ -477,9 +477,8 @@ async def enquiry(request):
         await request.app['worker'].submit_enquiry(company, data)
         return public_json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
     else:
-        redis_pool = await request.app['worker'].get_redis_pool()
-        async with redis_pool.get() as redis:
-            raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
+        redis = await request.app['worker'].get_redis()
+        raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
         if raw_enquiry_options:
             enquiry_options_ = json.loads(raw_enquiry_options.decode())
             last_updated = enquiry_options_['last_updated']

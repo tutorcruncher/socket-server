@@ -124,9 +124,8 @@ class MainActor(Actor):
         """
         data = await self.get_enquiry_options(company)
         data['last_updated'] = timestamp()
-        redis_pool = await self.get_redis_pool()
-        async with redis_pool.get() as redis:
-            await redis.setex(b'enquiry-data-%d' % company['id'], 3600, json.dumps(data).encode())
+        redis = await self.get_redis()
+        await redis.setex(b'enquiry-data-%d' % company['id'], 3600, json.dumps(data).encode())
 
     async def get_enquiry_options(self, company):
         async with self.session.options(self.api_enquiries, headers=self.request_headers(company)) as r:
