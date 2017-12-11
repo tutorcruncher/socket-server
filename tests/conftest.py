@@ -310,9 +310,8 @@ def cli(loop, test_client, db_conn, settings):
         app['worker']._concurrency_enabled = False
         await app['worker'].startup()
         app['worker'].pg_engine = app['pg_engine']
-        redis_pool = await app['worker'].get_redis_pool()
-        async with redis_pool.get() as redis:
-            await redis.flushdb()
+        redis = await app['worker'].get_redis()
+        await redis.flushdb()
 
     app = create_app(loop, settings=settings)
     app.on_startup.append(modify_startup)
