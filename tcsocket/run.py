@@ -11,7 +11,7 @@ from gunicorn.app.base import BaseApplication
 from app.logs import logger, setup_logging
 from app.main import create_app
 from app.management import prepare_database
-from app.settings import load_settings
+from app.settings import Settings
 from app.worker import Worker
 
 commands = []
@@ -22,8 +22,7 @@ def command(func):
     return func
 
 
-async def _check_port_open(conf, loop):
-    host, port = conf['host'], conf['port']
+async def _check_port_open(host, port, loop):
     steps, delay = 100, 0.1
     for i in range(steps):
         try:
@@ -37,11 +36,11 @@ async def _check_port_open(conf, loop):
 
 
 def check_services_ready():
-    settings = load_settings()
+    settings = Settings()
     loop = asyncio.get_event_loop()
     coros = [
-        _check_port_open(settings['database'], loop),
-        _check_port_open(settings['redis'], loop),
+        _check_port_open(settings.pg_host, settings.pg_port, loop),
+        _check_port_open(settings.redis_host, settings.redis_port, loop),
     ]
     loop.run_until_complete(asyncio.gather(*coros, loop=loop))
 
@@ -154,13 +153,13 @@ EXEC_LINES = [
     'from pprint import pprint as pp',
     '',
     'from aiopg.sa import create_engine',
-    'from app.settings import load_settings, pg_dsn',
+    'from app.settings import Settings',
     'from app.models import sa_companies, sa_contractors, sa_subjects, sa_qual_levels, sa_con_skills',
     '',
     'loop = asyncio.get_event_loop()',
     'await_ = loop.run_until_complete',
-    'settings = load_settings()',
-    'pg = await_(create_engine(pg_dsn(settings[\'database\'])))',
+    'settings = Settings()',
+    'pg = await_(create_engine(pg_dsn(Settings.pg_dsn)))',
     'conn = await_(pg._acquire())',
 ]
 EXEC_LINES += (

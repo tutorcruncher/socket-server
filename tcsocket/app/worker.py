@@ -6,14 +6,14 @@ from urllib.parse import urlencode
 
 from aiohttp import ClientSession
 from aiopg.sa import create_engine
-from arq import Actor, BaseWorker, RedisSettings, concurrent
+from arq import Actor, BaseWorker, concurrent
 from arq.utils import timestamp
 from PIL import Image, ImageOps
 from psycopg2 import OperationalError
 
 from .logs import logger
 from .processing import contractor_set
-from .settings import load_settings, pg_dsn
+from .settings import Settings
 from .validation import ContractorModel
 
 CHUNK_SIZE = int(1e4)
@@ -24,11 +24,11 @@ CT_JSON = 'application/json'
 
 
 class MainActor(Actor):
-    def __init__(self, *, settings=None, **kwargs):
-        self.settings = settings or load_settings()
-        kwargs['redis_settings'] = RedisSettings(**self.settings['redis'])
+    def __init__(self, *, settings: Settings=None, **kwargs):
+        self.settings = settings or Settings()
+        self.redis_settings = self.settings.redis_settings
         super().__init__(**kwargs)
-        self.api_root = self.settings['tc_api_root']
+        self.api_root = self.settings.tc_api_root
         self.api_contractors = self.api_root + '/contractors/'
         self.api_enquiries = self.api_root + '/enquiry/'
         self.session = self.media = self.pg_engine = None
@@ -38,7 +38,7 @@ class MainActor(Actor):
             # happens if startup is called twice eg. in test setup
             return
         try:
-            self.pg_engine = await create_engine(pg_dsn(self.settings['database']), loop=self.loop)
+            self.pg_engine = await create_engine(self.settings.pg_dsn, loop=self.loop)
         except OperationalError:
             if retries > 0:
                 logger.info('create_engine failed, %d retries remaining, retrying...', retries)
@@ -49,7 +49,7 @@ class MainActor(Actor):
         else:
             logger.info('db engine created successfully')
             self.session = ClientSession(loop=self.loop)
-            self.media = Path(self.settings['media_dir'])
+            self.media = Path(self.settings.media_dir)
 
     @concurrent
     async def get_image(self, company, contractor_id, url):
@@ -146,14 +146,14 @@ class MainActor(Actor):
             logger.info('skipping recaptcha using company private key')
             return True
         data = dict(
-            secret=self.settings['grecaptcha_secret'],
+            secret=self.settings.grecaptcha_secret,
             response=grecaptcha_response,
         )
         if client_ip:
             data['remoteip'] = client_ip
         data = urlencode(data).encode()
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        async with self.session.post(self.settings['grecaptcha_url'], data=data, headers=headers) as r:
+        async with self.session.post(self.settings.grecaptcha_url, data=data, headers=headers) as r:
             assert r.status == 200
             obj = await r.json()
             domain = company['domain']
@@ -204,5 +204,5 @@ class Worker(BaseWorker):
     shadows = [MainActor]
 
     def __init__(self, **kwargs):
-        kwargs['redis_settings'] = RedisSettings(**load_settings()['redis'])
+        kwargs['redis_settings'] = Settings().redis_settings
         super().__init__(**kwargs)

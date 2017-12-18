@@ -5,6 +5,7 @@ from sqlalchemy import Enum as _SAEnum
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
+
 from .validation import NameOptions
 
 Base = declarative_base()

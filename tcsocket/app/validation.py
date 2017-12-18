@@ -1,6 +1,6 @@
-from enum import Enum, unique
 from datetime import datetime
-from typing import Any, Optional, List
+from enum import Enum, unique
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, EmailStr, NoneStr, constr
 

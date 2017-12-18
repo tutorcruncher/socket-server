@@ -163,7 +163,7 @@ async def json_request_middleware(app, handler):
 
 
 async def authenticate(request, api_key=None):
-    api_key_choices = api_key, request.app['master_key']
+    api_key_choices = api_key, request.app['settings'].master_key
     if request.method == METH_GET:
         r_time = request.headers.get('Request-Time', '<missing>')
         now = datetime.now()

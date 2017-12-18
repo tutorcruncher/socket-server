@@ -7,7 +7,6 @@ from datetime import datetime
 from io import BytesIO
 
 import pytest
-import yaml
 from aiohttp.web import Application, Response, json_response
 from aiopg.sa import create_engine as aio_create_engine
 from PIL import Image
@@ -18,7 +17,7 @@ from sqlalchemy.sql.functions import count as count_func
 from tcsocket.app.main import create_app
 from tcsocket.app.management import populate_db, psycopg2_cursor
 from tcsocket.app.models import sa_companies, sa_con_skills, sa_qual_levels, sa_subjects
-from tcsocket.app.settings import load_settings, pg_dsn
+from tcsocket.app.settings import Settings
 
 DB = {
     'name': 'socket_test',
@@ -218,47 +217,46 @@ def image_download_url(other_server):
     return f'http://localhost:{other_server.port}/_testing/image'
 
 
+DB_NAME = 'socket_test'
+
+
 @pytest.fixture
 def settings(tmpdir, other_server):
-    settings = {
-        'database': DB,
-        'redis': {
-          'host': 'localhost',
-          'port': 6379,
-          'password': None,
-          'database': 7,
-        },
-        'master_key': MASTER_KEY,
-        'grecaptcha_secret': 'X' * 30,
-        'grecaptcha_url': f'http://localhost:{other_server.port}/grecaptcha',
-        'root_url': 'https://socket.tutorcruncher.com',
-        'media_dir': str(tmpdir / 'media'),
-        'media_url': 'https://socket.tutorcruncher.com/media',
-        'tc_api_root': f'http://localhost:{other_server.port}/api'
-    }
-    s_file = tmpdir / 'settings.yaml'
-    s_file.write(yaml.dump(settings, default_flow_style=False))
-    return load_settings(s_file, env_prefix='TESTING_APP_')
+    return Settings(
+        pg_name='socket_test',
+        redis_database=7,
+        master_key=MASTER_KEY,
+        grecaptcha_secret='X' * 30,
+        media_dir=str(tmpdir / 'media'),
+        root_url='https://socket.tutorcruncher.com',
+        media_url='https://socket.tutorcruncher.com/media',
+        grecaptcha_url=f'http://localhost:{other_server.port}/grecaptcha',
+        tc_api_root=f'http://localhost:{other_server.port}/api',
+    )
 
 
 @pytest.yield_fixture(scope='session')
 def db():
-    with psycopg2_cursor(**DB) as cur:
-        cur.execute('DROP DATABASE IF EXISTS {name}'.format(**DB))
-        cur.execute('CREATE DATABASE {name}'.format(**DB))
+    settings_: Settings = Settings(pg_name=DB_NAME)
+    cursor_kwargs = dict(
+        user=settings_.pg_user,
+        password=settings_.pg_password,
+        host=settings_.pg_host,
+        port=settings_.pg_port,
+    )
+    with psycopg2_cursor(**cursor_kwargs) as cur:
+        cur.execute(f'DROP DATABASE IF EXISTS {settings_.pg_name}')
+        cur.execute(f'CREATE DATABASE {settings_.pg_name}')
 
-    engine = sa_create_engine(pg_dsn(DB))
+    engine = sa_create_engine(settings_.pg_dsn)
     populate_db(engine)
     yield engine
     engine.dispose()
 
-    with psycopg2_cursor(**DB) as cur:
-        cur.execute('DROP DATABASE {name}'.format(**DB))
-
 
 @pytest.yield_fixture
-def db_conn(loop, db):
-    engine = loop.run_until_complete(aio_create_engine(pg_dsn(DB), loop=loop))
+def db_conn(loop, settings):
+    engine = loop.run_until_complete(aio_create_engine(settings.pg_dsn, loop=loop))
     conn = loop.run_until_complete(engine.acquire())
     transaction = loop.run_until_complete(conn.begin())
 

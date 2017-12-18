@@ -184,12 +184,12 @@ def _get_name(name_display, row):
 
 def _photo_url(request, con, thumb):
     ext = '.thumb.jpg' if thumb else '.jpg'
-    return request.app['media_url'] + '/' + request['company'].public_key + '/' + str(con.id) + ext
+    return request.app['settings'].media_url + '/' + request['company'].public_key + '/' + str(con.id) + ext
 
 
 def _route_url(request, view_name, **kwargs):
     uri = request.app.router[view_name].url_for(**kwargs)
-    return '{}{}'.format(request.app['root_url'], uri)
+    return '{}{}'.format(request.app['settings'].root_url, uri)
 
 
 def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):

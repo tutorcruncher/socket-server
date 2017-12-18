@@ -15,7 +15,7 @@ from sqlalchemy import create_engine
 from .logs import logger
 from .main import create_app
 from .models import Base
-from .settings import load_settings, pg_dsn
+from .settings import Settings
 
 commands = []
 
@@ -25,13 +25,13 @@ def command(func):
     return func
 
 
-def lenient_connection(retries=5, **db_settings):
+def lenient_connection(settings: Settings, retries=5):
     try:
         return psycopg2.connect(
-            password=db_settings['password'],
-            host=db_settings['host'],
-            port=db_settings['port'],
-            user=db_settings['user'],
+            password=settings.password,
+            host=settings.host,
+            port=settings.port,
+            user=settings.user,
         )
     except psycopg2.Error as e:
         if retries <= 0:
@@ -39,12 +39,12 @@ def lenient_connection(retries=5, **db_settings):
         else:
             logger.warning('%s: %s (%d retries remaining)', e.__class__.__name__, e, retries)
             sleep(1)
-            return lenient_connection(retries=retries - 1, **db_settings)
+            return lenient_connection(settings, retries=retries - 1)
 
 
 @contextmanager
-def psycopg2_cursor(**db_settings):
-    conn = lenient_connection(**db_settings)
+def psycopg2_cursor(settings):
+    conn = lenient_connection(settings)
     conn.autocommit = True
     cur = conn.cursor()
 
@@ -75,10 +75,10 @@ def prepare_database(delete_existing: Union[bool, callable], print_func=print) -
     :param print_func: function to use for printing, eg. could be set to `logger.info`
     :return: whether or not a database as (re)created
     """
-    db = load_settings()['database']
+    settings = Settings()
 
-    with psycopg2_cursor(**db) as cur:
-        cur.execute('SELECT EXISTS (SELECT datname FROM pg_catalog.pg_database WHERE datname=%s)', (db['name'],))
+    with psycopg2_cursor(settings) as cur:
+        cur.execute('SELECT EXISTS (SELECT datname FROM pg_catalog.pg_database WHERE datname=%s)', (settings.pg_name,))
         already_exists = bool(cur.fetchone()[0])
         if already_exists:
             if callable(delete_existing):
@@ -86,20 +86,20 @@ def prepare_database(delete_existing: Union[bool, callable], print_func=print) -
             else:
                 _delete_existing = bool(delete_existing)
             if not _delete_existing:
-                print_func('database "{name}" already exists, not recreating it'.format(**db))
+                print_func(f'database "{settings.pg_name}" already exists, not recreating it')
                 return False
             else:
-                print_func('dropping existing connections to "{name}"...'.format(**db))
-                cur.execute(DROP_CONNECTIONS, (db['name'],))
-                print_func('dropping database "{name}" as it already exists...'.format(**db))
-                cur.execute('DROP DATABASE {name}'.format(**db))
+                print_func(f'dropping existing connections to "{settings.pg_name}"...')
+                cur.execute(DROP_CONNECTIONS, (settings.pg_name,))
+                print_func(f'dropping database "{settings.pg_name}" as it already exists...')
+                cur.execute(f'DROP DATABASE {settings.pg_name}')
         else:
-            print_func('database "{name}" does not yet exist'.format(**db))
+            print_func(f'database "{settings.pg_name}" does not yet exist')
 
-        print_func('creating database "{name}"...'.format(**db))
-        cur.execute('CREATE DATABASE {name}'.format(**db))
+        print_func(f'creating database "{settings.pg_name}"...')
+        cur.execute(f'CREATE DATABASE {settings.pg_name}')
 
-    engine = create_engine(pg_dsn(db))
+    engine = create_engine(settings.pg_dsn)
     print_func('creating tables from model definition...')
     populate_db(engine)
     engine.dispose()
