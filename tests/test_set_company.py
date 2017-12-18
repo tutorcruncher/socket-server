@@ -20,7 +20,7 @@ async def test_create(cli, db_conn):
         'Content-Type': 'application/json',
     }
     r = await cli.post('/companies/create', data=payload, headers=headers)
-    assert r.status == 201
+    assert r.status == 201, await r.text()
     response_data = await r.json()
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
@@ -241,4 +241,11 @@ async def test_update_company_no_data(cli, db_conn, company, other_server):
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
-    assert response_data == {'company_domain': 'example.com', 'details': {}, 'status': 'success'}
+    debug(response_data)
+    assert response_data == {
+        'company_domain': None,
+        'details': {
+            'domain': None,
+        },
+        'status': 'success',
+    }

@@ -14,7 +14,7 @@ from psycopg2 import OperationalError
 from .logs import logger
 from .processing import contractor_set
 from .settings import load_settings, pg_dsn
-from .views import VIEW_SCHEMAS
+from .validation import ContractorModel
 
 CHUNK_SIZE = int(1e4)
 SIZE_LARGE = 1000, 1000
@@ -81,7 +81,7 @@ class MainActor(Actor):
     def request_headers(self, company):
         return dict(accept=CT_JSON, authorization=f'Token {company["private_key"]}')
 
-    async def _get_from_api(self, url, schema, company):
+    async def _get_from_api(self, url, model, company):
         headers = self.request_headers(company)
         while True:
             async with self.session.get(url, headers=headers) as r:
@@ -93,7 +93,7 @@ class MainActor(Actor):
                     raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
 
                 for con_data in response_data.get('results') or []:
-                    yield schema.check(con_data)
+                    yield model.parse_obj(con_data).dict()
 
                 url = response_data.get('next')
 
@@ -105,7 +105,7 @@ class MainActor(Actor):
         # TODO: delete existing contractors
         cons_created = 0
         async with self.pg_engine.acquire() as conn:
-            async for con_data in self._get_from_api(self.api_contractors, VIEW_SCHEMAS['contractor-set'], company):
+            async for con_data in self._get_from_api(self.api_contractors, ContractorModel, company):
 
                 await contractor_set(
                     conn=conn,

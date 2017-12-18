@@ -4,14 +4,14 @@ import logging
 from asyncio import CancelledError
 from datetime import datetime, timedelta
 
-import trafaret as t
 from aiohttp.hdrs import METH_GET, METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson
-from .views import VIEW_SCHEMAS
+from .validation import VIEW_MODELS
 
 request_logger = logging.getLogger('socket.request')
 
@@ -144,12 +144,12 @@ async def json_request_middleware(app, handler):
     async def _handler(request):
         if request.method == METH_POST and request.match_info.route.name:
             error_details = None
-            schema = VIEW_SCHEMAS[request.match_info.route.name]
+            model = VIEW_MODELS[request.match_info.route.name]
             try:
                 data = await request.json()
-                request['json_obj'] = schema.check(data)
-            except t.DataError as e:
-                error_details = e.as_dict()
+                request['json_obj'] = model.parse_obj(data).dict()
+            except ValidationError as e:
+                error_details = e.errors_dict
             except ValueError as e:
                 error_details = f'Value Error: {e}'
 
