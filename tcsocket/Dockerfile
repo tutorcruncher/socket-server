@@ -7,7 +7,6 @@ ADD ./requirements.txt /home/root/requirements.txt
 RUN pip install -r /home/root/requirements.txt
 
 ADD ./app /home/root/app
-ADD ./settings.yml /home/root/settings.yml
 ADD ./run.py /home/root/run.py
 
 WORKDIR /home/root

@@ -241,7 +241,6 @@ async def test_update_company_no_data(cli, db_conn, company, other_server):
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
-    debug(response_data)
     assert response_data == {
         'company_domain': None,
         'details': {
