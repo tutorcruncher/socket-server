@@ -28,10 +28,10 @@ def command(func):
 def lenient_connection(settings: Settings, retries=5):
     try:
         return psycopg2.connect(
-            password=settings.password,
-            host=settings.host,
-            port=settings.port,
-            user=settings.user,
+            password=settings.pg_password,
+            host=settings.pg_host,
+            port=settings.pg_port,
+            user=settings.pg_user,
         )
     except psycopg2.Error as e:
         if retries <= 0:

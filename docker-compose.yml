@@ -49,8 +49,8 @@ services:
   web:
     build: tcsocket
     environment:
-      APP_DATABASE_HOST: postgres
-      APP_DATABASE_PASSWORD: docker
+      APP_PG_HOST: postgres
+      APP_PG_PASSWORD: docker
       APP_REDIS_HOST: '172.20.0.102'
       APP_MASTER_KEY: ${APP_MASTER_KEY}
       APP_TC_API_ROOT: ${TC_API_ROOT}
@@ -78,8 +78,8 @@ services:
     - ./run.py
     - worker
     environment:
-      APP_DATABASE_HOST: postgres
-      APP_DATABASE_PASSWORD: docker
+      APP_PG_HOST: postgres
+      APP_PG_PASSWORD: docker
       APP_REDIS_HOST: '172.20.0.102'
       APP_MEDIA_DIR: /media
       APP_TC_API_ROOT: ${TC_API_ROOT}

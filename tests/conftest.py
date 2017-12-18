@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import json
-import os
 from collections import namedtuple
 from datetime import datetime
 from io import BytesIO
@@ -19,14 +18,7 @@ from tcsocket.app.management import populate_db, psycopg2_cursor
 from tcsocket.app.models import sa_companies, sa_con_skills, sa_qual_levels, sa_subjects
 from tcsocket.app.settings import Settings
 
-DB = {
-    'name': 'socket_test',
-    'user': 'postgres',
-    'password': os.getenv('APP_DATABASE_PASSWORD'),
-    'host': 'localhost',
-    'port': 5432,
-}
-
+DB_NAME = 'socket_test'
 MASTER_KEY = 'this is the master key'
 
 
@@ -217,9 +209,6 @@ def image_download_url(other_server):
     return f'http://localhost:{other_server.port}/_testing/image'
 
 
-DB_NAME = 'socket_test'
-
-
 @pytest.fixture
 def settings(tmpdir, other_server):
     return Settings(
@@ -238,13 +227,7 @@ def settings(tmpdir, other_server):
 @pytest.yield_fixture(scope='session')
 def db():
     settings_: Settings = Settings(pg_name=DB_NAME)
-    cursor_kwargs = dict(
-        user=settings_.pg_user,
-        password=settings_.pg_password,
-        host=settings_.pg_host,
-        port=settings_.pg_port,
-    )
-    with psycopg2_cursor(**cursor_kwargs) as cur:
+    with psycopg2_cursor(settings_) as cur:
         cur.execute(f'DROP DATABASE IF EXISTS {settings_.pg_name}')
         cur.execute(f'CREATE DATABASE {settings_.pg_name}')
 
@@ -255,7 +238,7 @@ def db():
 
 
 @pytest.yield_fixture
-def db_conn(loop, settings):
+def db_conn(loop, db, settings):
     engine = loop.run_until_complete(aio_create_engine(settings.pg_dsn, loop=loop))
     conn = loop.run_until_complete(engine.acquire())
     transaction = loop.run_until_complete(conn.begin())
