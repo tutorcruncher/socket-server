@@ -191,7 +191,7 @@ async def submit_enquiry(*, public_key, data, **kwargs):
     async with aiohttp.ClientSession(connector=CONN) as session:
         headers = {
             'User-Agent': 'Testing Browser',
-            'Referer': 'X' * 2000,
+            'Referer': 'https://www.example.com/referrer',
         }
         async with session.post(BASE_URL + f'{public_key}/enquiry', data=json.dumps(data), headers=headers) as r:
             print(f'status: {r.status}')
