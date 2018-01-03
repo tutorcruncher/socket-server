@@ -220,17 +220,28 @@ async def test_post_enquiry(cli, company, other_server):
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert other_server.app['request_log'] == [
-        ('grecaptcha_post', {
-            'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-            'response': 'goodgoodgoodgoodgood'
-        }),
-        ('enquiry_post', {
-            'client_name': 'Cat Flap',
-            'client_phone': '123',
-            'user_agent': 'Testing Browser',
-            'ip_address': None,
-            'http_referrer': None}
-         )
+        (
+            'grecaptcha_post',
+            {
+                'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+                'response': 'goodgoodgoodgoodgood',
+            },
+        ),
+        (
+            'enquiry_post',
+            {
+                'client_name': 'Cat Flap',
+                'client_email': None,
+                'client_phone': '123',
+                'service_recipient_name': None,
+                'attributes': None,
+                'contractor': None,
+                'upstream_http_referrer': None,
+                'user_agent': 'Testing Browser',
+                'ip_address': None,
+                'http_referrer': None,
+            },
+        ),
     ]
 
 
@@ -287,18 +298,29 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
 
     assert other_server.app['request_log'] == [
-        ('grecaptcha_post', {
-            'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
-            'response': 'goodgoodgoodgoodgood'
-        }),
-        ('enquiry_post', {
-            'client_name': 'Cat Flap',
-            'client_phone': '123',
-            'user_agent': 'Testing Browser',
-            'ip_address': None,
-            'http_referrer': 'http://cause400.com'
-        }),
-        'enquiry_options'
+        (
+            'grecaptcha_post',
+            {
+                'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+                'response': 'goodgoodgoodgoodgood',
+            },
+        ),
+        (
+            'enquiry_post',
+            {
+                'client_name': 'Cat Flap',
+                'client_email': None,
+                'client_phone': '123',
+                'service_recipient_name': None,
+                'attributes': None,
+                'contractor': None,
+                'upstream_http_referrer': None,
+                'user_agent': 'Testing Browser',
+                'ip_address': None,
+                'http_referrer': 'http://cause400.com',
+            },
+        ),
+        'enquiry_options',
     ]
     assert '400 response forwarding enquiry to http://localhost:' in caplog
 
@@ -315,13 +337,21 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert other_server.app['request_log'] == [
-        ('enquiry_post', {
-            'client_name': 'Cat Flap',
-            'user_agent': 'Testing Browser',
-            'ip_address': None,
-            'upstream_http_referrer': 'foobar',
-            'http_referrer': None}
-         )
+        (
+            'enquiry_post',
+            {
+                'client_name': 'Cat Flap',
+                'client_email': None,
+                'client_phone': None,
+                'service_recipient_name': None,
+                'attributes': None,
+                'contractor': None,
+                'upstream_http_referrer': 'foobar',
+                'user_agent': 'Testing Browser',
+                'ip_address': None,
+                'http_referrer': None,
+            },
+        ),
     ]
 
 

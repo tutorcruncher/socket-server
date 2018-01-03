@@ -1,21 +1,17 @@
 from enum import Enum, unique
+from typing import Type
 
 from sqlalchemy import Enum as _SAEnum
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 
+from .validation import NameOptions
+
 Base = declarative_base()
 
 
-@unique
-class NameOptions(str, Enum):
-    first_name = 'first_name'
-    first_name_initial = 'first_name_initial'
-    full_name = 'full_name'
-
-
-def sa_enum(enum: Enum):
+def sa_enum(enum: Type[Enum]):
     return _SAEnum(*(v.value for v in enum.__members__.values()), name=enum.__name__.lower())
 
 

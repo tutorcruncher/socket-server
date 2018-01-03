@@ -3,14 +3,7 @@ from datetime import datetime
 import pytest
 
 from tcsocket.app.logs import logger, setup_logging
-from tcsocket.app.settings import load_settings
 from tcsocket.app.utils import to_pretty_json
-
-
-def test_load_settings():
-    s = load_settings()
-    assert isinstance(s, dict)
-    assert s['database']['host'] == 'localhost'
 
 
 def test_universal_encoder():

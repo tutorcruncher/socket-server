@@ -411,7 +411,13 @@ async def test_invalid_schema(cli, company):
     assert r.status == 400, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'details': {'id': "value can't be converted to int"},
+        'details': {
+            'id': {
+                'error_msg': "invalid literal for int() with base 10: 'not an int'",
+                'error_type': 'ValueError',
+                'track': 'int'
+            }
+        },
         'status': 'invalid request data',
     }
 

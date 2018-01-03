@@ -6,15 +6,15 @@ from urllib.parse import urlencode
 
 from aiohttp import ClientSession
 from aiopg.sa import create_engine
-from arq import Actor, BaseWorker, RedisSettings, concurrent
+from arq import Actor, BaseWorker, concurrent
 from arq.utils import timestamp
 from PIL import Image, ImageOps
 from psycopg2 import OperationalError
 
 from .logs import logger
 from .processing import contractor_set
-from .settings import load_settings, pg_dsn
-from .views import VIEW_SCHEMAS
+from .settings import Settings
+from .validation import ContractorModel
 
 CHUNK_SIZE = int(1e4)
 SIZE_LARGE = 1000, 1000
@@ -24,11 +24,11 @@ CT_JSON = 'application/json'
 
 
 class MainActor(Actor):
-    def __init__(self, *, settings=None, **kwargs):
-        self.settings = settings or load_settings()
-        kwargs['redis_settings'] = RedisSettings(**self.settings['redis'])
+    def __init__(self, *, settings: Settings=None, **kwargs):
+        self.settings = settings or Settings()
+        self.redis_settings = self.settings.redis_settings
         super().__init__(**kwargs)
-        self.api_root = self.settings['tc_api_root']
+        self.api_root = self.settings.tc_api_root
         self.api_contractors = self.api_root + '/contractors/'
         self.api_enquiries = self.api_root + '/enquiry/'
         self.session = self.media = self.pg_engine = None
@@ -38,7 +38,7 @@ class MainActor(Actor):
             # happens if startup is called twice eg. in test setup
             return
         try:
-            self.pg_engine = await create_engine(pg_dsn(self.settings['database']), loop=self.loop)
+            self.pg_engine = await create_engine(self.settings.pg_dsn, loop=self.loop)
         except OperationalError:
             if retries > 0:
                 logger.info('create_engine failed, %d retries remaining, retrying...', retries)
@@ -49,7 +49,7 @@ class MainActor(Actor):
         else:
             logger.info('db engine created successfully')
             self.session = ClientSession(loop=self.loop)
-            self.media = Path(self.settings['media_dir'])
+            self.media = Path(self.settings.media_dir)
 
     @concurrent
     async def get_image(self, company, contractor_id, url):
@@ -81,7 +81,7 @@ class MainActor(Actor):
     def request_headers(self, company):
         return dict(accept=CT_JSON, authorization=f'Token {company["private_key"]}')
 
-    async def _get_from_api(self, url, schema, company):
+    async def _get_from_api(self, url, model, company):
         headers = self.request_headers(company)
         while True:
             async with self.session.get(url, headers=headers) as r:
@@ -93,7 +93,7 @@ class MainActor(Actor):
                     raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
 
                 for con_data in response_data.get('results') or []:
-                    yield schema.check(con_data)
+                    yield model.parse_obj(con_data).dict()
 
                 url = response_data.get('next')
 
@@ -105,7 +105,7 @@ class MainActor(Actor):
         # TODO: delete existing contractors
         cons_created = 0
         async with self.pg_engine.acquire() as conn:
-            async for con_data in self._get_from_api(self.api_contractors, VIEW_SCHEMAS['contractor-set'], company):
+            async for con_data in self._get_from_api(self.api_contractors, ContractorModel, company):
 
                 await contractor_set(
                     conn=conn,
@@ -146,14 +146,14 @@ class MainActor(Actor):
             logger.info('skipping recaptcha using company private key')
             return True
         data = dict(
-            secret=self.settings['grecaptcha_secret'],
+            secret=self.settings.grecaptcha_secret,
             response=grecaptcha_response,
         )
         if client_ip:
             data['remoteip'] = client_ip
         data = urlencode(data).encode()
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        async with self.session.post(self.settings['grecaptcha_url'], data=data, headers=headers) as r:
+        async with self.session.post(self.settings.grecaptcha_url, data=data, headers=headers) as r:
             assert r.status == 200
             obj = await r.json()
             domain = company['domain']
@@ -204,5 +204,5 @@ class Worker(BaseWorker):
     shadows = [MainActor]
 
     def __init__(self, **kwargs):
-        kwargs['redis_settings'] = RedisSettings(**load_settings()['redis'])
+        kwargs['redis_settings'] = Settings().redis_settings
         super().__init__(**kwargs)

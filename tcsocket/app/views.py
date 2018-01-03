@@ -5,11 +5,10 @@ from operator import attrgetter, itemgetter
 from secrets import token_hex
 from typing import Any, Callable
 
-import trafaret as t
+from aiohttp import web_exceptions
 from aiohttp.hdrs import METH_POST
-from aiohttp.web import HTTPMovedPermanently, Response
+from aiohttp.web import Response
 from arq.utils import timestamp
-from dateutil.parser import parse as dt_parse
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
@@ -21,87 +20,7 @@ from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
-
-AnyDict = t.Dict()
-AnyDict.allow_extra('*')
 MISSING = object()
-
-VIEW_SCHEMAS = {
-    'company-create': t.Dict({
-        'name': t.String(min_length=3, max_length=63),
-        t.Key('name_display', optional=True): t.Or(
-            t.Null |
-            t.Atom('first_name') |
-            t.Atom('first_name_initial') |
-            t.Atom('full_name')
-        ),
-        t.Key('url', default=None): t.Or(t.Null | t.URL),
-        t.Key('public_key', default=None): t.Or(t.Null | t.String(min_length=18, max_length=20)),
-        t.Key('private_key', default=None): t.Or(t.Null | t.String(min_length=20, max_length=50)),
-    }),
-    'company-update': t.Dict({
-        t.Key('name', optional=True): t.Or(t.Null | t.String(min_length=3, max_length=63)),
-        t.Key('name_display', optional=True): t.Or(
-            t.Null |
-            t.Atom('first_name') |
-            t.Atom('first_name_initial') |
-            t.Atom('full_name')
-        ),
-        t.Key('url', optional=True): t.Or(t.Null | t.URL),
-        t.Key('private_key', optional=True): t.Or(t.Null | t.String(min_length=20, max_length=50)),
-    }),
-    'contractor-set': t.Dict({
-        'id': t.Int(),
-        t.Key('deleted', default=False): t.Bool,
-        t.Key('first_name', optional=True): t.Or(t.Null | t.String(max_length=63)),
-        t.Key('last_name', optional=True): t.Or(t.Null | t.String(max_length=63)),
-
-        t.Key('town', optional=True): t.Or(t.Null | t.String(max_length=63)),
-        t.Key('country', optional=True): t.Or(t.Null | t.String(max_length=63)),
-        t.Key('location', optional=True): t.Or(t.Null | t.Dict({
-            'latitude': t.Or(t.Float | t.Null),
-            'longitude': t.Or(t.Float | t.Null),
-        })),
-
-        t.Key('extra_attributes', default=[]): t.List(t.Dict({
-            'machine_name': t.Or(t.Null | t.String),
-            'type': t.Or(*[t.Atom(eat) for eat in EXTRA_ATTR_TYPES]),
-            'name': t.String,
-            'value': t.Or(t.Null | t.Bool | t.String | t.Float),
-            'id': t.Int,
-            'sort_index': t.Float,
-        })),
-
-        t.Key('skills', default=[]): t.List(t.Dict({
-            'subject': t.String,
-            'subject_id': t.Int,
-            'category': t.String,
-            'qual_level': t.String,
-            'qual_level_id': t.Int,
-            t.Key('qual_level_ranking', default=0): t.Float,
-        })),
-
-        t.Key('last_updated', optional=True): t.Or(t.Null | t.String >> dt_parse),
-        t.Key('photo', optional=True): t.Or(t.Null | t.URL),
-    }),
-    'enquiry': t.Dict({
-        'client_name': t.String(max_length=255),
-        t.Key('client_email', optional=True): t.Or(t.Null | t.Email),
-        t.Key('client_phone', optional=True): t.Or(t.Null | t.String(max_length=255)),
-        t.Key('service_recipient_name', optional=True): t.Or(t.Null | t.String(max_length=255)),
-        t.Key('attributes', optional=True): t.Or(t.Null | AnyDict),
-
-        t.Key('contractor', optional=True): t.Or(t.Null | t.Int(gt=0)),
-        # TODO:
-        # t.Key('subject', optional=True): t.Or(t.Null | t.Int(gt=0)),
-        # t.Key('qual_level', optional=True): t.Or(t.Null | t.Int(gt=0)),
-
-        t.Key('upstream_http_referrer', optional=True): t.Or(t.Null | t.String(max_length=1023)),
-
-        t.Key('grecaptcha_response'): t.String(min_length=20, max_length=1000),
-    }),
-}
-VIEW_SCHEMAS['contractor-set'].ignore_extra('*')
 VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'
 
 
@@ -120,7 +39,7 @@ async def robots_txt(request):
 
 
 async def favicon(request):
-    raise HTTPMovedPermanently('https://secure.tutorcruncher.com/favicon.ico')
+    raise web_exceptions.HTTPMovedPermanently('https://secure.tutorcruncher.com/favicon.ico')
 
 
 async def company_create(request):
@@ -265,12 +184,12 @@ def _get_name(name_display, row):
 
 def _photo_url(request, con, thumb):
     ext = '.thumb.jpg' if thumb else '.jpg'
-    return request.app['media_url'] + '/' + request['company'].public_key + '/' + str(con.id) + ext
+    return request.app['settings'].media_url + '/' + request['company'].public_key + '/' + str(con.id) + ext
 
 
 def _route_url(request, view_name, **kwargs):
     uri = request.app.router[view_name].url_for(**kwargs)
-    return '{}{}'.format(request.app['root_url'], uri)
+    return '{}{}'.format(request.app['settings'].root_url, uri)
 
 
 def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):

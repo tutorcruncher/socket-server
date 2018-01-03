@@ -6,16 +6,17 @@ from aiohttp import web
 from aiopg.sa import create_engine
 
 from .middleware import middleware
-from .settings import THIS_DIR, load_settings, pg_dsn
+from .settings import THIS_DIR, Settings
 from .views import (company_create, company_list, company_update, contractor_get, contractor_list, contractor_set,
                     enquiry, favicon, index, qual_level_list, robots_txt, subject_list)
 from .worker import MainActor
 
 
 async def startup(app: web.Application):
+    settings: Settings = app['settings']
     app.update(
-        pg_engine=await create_engine(pg_dsn(app['database']), loop=app.loop),
-        worker=MainActor(settings=app['settings']),
+        pg_engine=await create_engine(settings.pg_dsn, loop=app.loop),
+        worker=MainActor(settings=settings),
     )
     await app['worker'].startup()
 
@@ -42,10 +43,10 @@ def setup_routes(app):
     app.router.add_get('/{company}/qual-levels', qual_level_list, name='qual-level-list')
 
 
-def create_app(loop, *, settings=None):
+def create_app(loop, *, settings: Settings=None):
     app = web.Application(middlewares=middleware)
-    settings = settings or load_settings()
-    app.update(settings, settings=settings)
+    settings = settings or Settings()
+    app['settings'] = settings
 
     ctx = dict(
         commit=os.getenv('COMMIT', '-'),
