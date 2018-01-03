@@ -387,11 +387,13 @@ async def enquiry(request):
     company = dict(request['company'])
     if request.method == METH_POST:
         data = request['json_obj']
+        data = {k: v for k, v in data.items() if v is not None}
         x_forward_for = request.headers.get('X-Forwarded-For')
+        referrer = request.headers.get('Referer')
         data.update(
             user_agent=request.headers.get('User-Agent'),
             ip_address=x_forward_for and x_forward_for.split(',', 1)[0].strip(' '),
-            http_referrer=request.headers.get('Referer'),
+            http_referrer=referrer and referrer[:1023],
         )
         await request.app['worker'].submit_enquiry(company, data)
         return public_json_response(request, status='enquiry submitted to TutorCruncher', status_=201)

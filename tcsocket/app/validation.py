@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum, unique
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, NoneStr, constr
+from pydantic import BaseModel, EmailStr, NoneStr, constr, validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -89,8 +89,12 @@ class EnquiryModal(BaseModel):
     # TODO:
     # subject: Optional[int] = None
     # qual_level: Optional[int] = None
-    upstream_http_referrer: Optional[constr(max_length=1023)] = None
+    upstream_http_referrer: Optional[str] = None
     grecaptcha_response: constr(min_length=20, max_length=1000)
+
+    @validator('upstream_http_referrer')
+    def val_upstream_http_referrer(cls, v):
+        return v[:1023]
 
 
 VIEW_MODELS = {
