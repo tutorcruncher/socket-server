@@ -18,7 +18,7 @@ fi
 echo "allow all;" > nginx/prod/allowed.nginx.conf
 export LOGSPOUT_ENDPOINT="syslog://example.com"
 export APP_MASTER_KEY="123"
-export SERVER_NAME="scaleway"
+export SERVER_NAME="end2endtest"
 export MODE="PRODUCTION"
 export RAVEN_DSN="-"
 

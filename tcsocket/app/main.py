@@ -49,8 +49,9 @@ def create_app(loop, *, settings: Settings=None):
     app['settings'] = settings
 
     ctx = dict(
-        commit=os.getenv('COMMIT', '-'),
-        release_date=os.getenv('RELEASE_DATE', '-'),
+        COMMIT=os.getenv('COMMIT', '-'),
+        RELEASE_DATE=os.getenv('RELEASE_DATE', '-'),
+        SERVER_NAME=os.getenv('SERVER_NAME', '-'),
     )
     index_html = (THIS_DIR / 'index.html').read_text()
     for key, value in ctx.items():

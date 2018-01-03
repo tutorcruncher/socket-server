@@ -231,12 +231,7 @@ async def test_post_enquiry(cli, company, other_server):
             'enquiry_post',
             {
                 'client_name': 'Cat Flap',
-                'client_email': None,
                 'client_phone': '123',
-                'service_recipient_name': None,
-                'attributes': None,
-                'contractor': None,
-                'upstream_http_referrer': None,
                 'user_agent': 'Testing Browser',
                 'ip_address': None,
                 'http_referrer': None,
@@ -309,12 +304,7 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
             'enquiry_post',
             {
                 'client_name': 'Cat Flap',
-                'client_email': None,
                 'client_phone': '123',
-                'service_recipient_name': None,
-                'attributes': None,
-                'contractor': None,
-                'upstream_http_referrer': None,
                 'user_agent': 'Testing Browser',
                 'ip_address': None,
                 'http_referrer': 'http://cause400.com',
@@ -341,11 +331,6 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
             'enquiry_post',
             {
                 'client_name': 'Cat Flap',
-                'client_email': None,
-                'client_phone': None,
-                'service_recipient_name': None,
-                'attributes': None,
-                'contractor': None,
                 'upstream_http_referrer': 'foobar',
                 'user_agent': 'Testing Browser',
                 'ip_address': None,
@@ -363,6 +348,22 @@ async def test_post_enquiry_500(cli, company, other_server, caplog):
     # because jobs are being executed directly
     assert r.status == 500, await r.text()
     assert 'Bad response from http://localhost:' in caplog
+
+
+async def test_post_enquiry_referrer_too_long(cli, company, other_server):
+    data = {
+        'client_name': 'Cat Flap',
+        'client_phone': '123',
+        'grecaptcha_response': 'good' * 5,
+        'upstream_http_referrer': 'X' * 2000
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser', 'Referer': 'Y' * 2000})
+    assert r.status == 201, await r.text()
+    data = await r.json()
+    assert data == {'status': 'enquiry submitted to TutorCruncher'}
+    assert other_server.app['request_log'][1][1]['upstream_http_referrer'] == 'X' * 1023
+    assert other_server.app['request_log'][1][1]['http_referrer'] == 'Y' * 1023
 
 
 async def snap(request):
