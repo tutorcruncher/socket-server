@@ -194,3 +194,63 @@ def resetdb(*, no_input, **kwargs):
     """
     delete = no_input or partial(click.confirm, 'Are you sure you want to delete the database and recreate it?')
     prepare_database(delete, print_func=logger.info)
+
+
+patches = []
+
+
+def patch(func):
+    patches.append(func)
+    return func
+
+
+def run_patch(live, patch_name):
+    if patch_name is None:
+        print('available patches:\n{}'.format(
+            '\n'.join('  {}: {}'.format(p.__name__, p.__doc__.strip('\n ')) for p in patches)
+        ))
+        return
+    patch_lookup = {p.__name__: p for p in patches}
+    try:
+        patch_func = patch_lookup[patch_name]
+    except KeyError:
+        raise RuntimeError(f'patch {patch_name} not found in patches: {[p.__name__ for p in patches]}')
+
+    print(f'running patch {patch_name} live {live}')
+    settings = Settings()
+    engine = create_engine(settings.pg_dsn)
+    conn = engine.connect()
+    trans = conn.begin()
+    print('=' * 40)
+    try:
+        patch_func(conn=conn, settings=settings)
+    except BaseException as e:
+        print('=' * 40)
+        trans.rollback()
+        raise RuntimeError('error running patch, rolling back') from e
+    else:
+        print('=' * 40)
+        if live:
+            trans.commit()
+            print('live, committed patch')
+        else:
+            print('not live, rolling back')
+            trans.rollback()
+
+
+@patch
+def print_tables(conn, settings):
+    """
+    print names of all tables
+    """
+    result = conn.execute("""SELECT tablename FROM pg_catalog.pg_tables where schemaname='public'""")
+    for row in result:
+        print(row[0])
+
+
+@patch
+def other(conn, settings):
+    """
+    simple test patch
+    """
+    print(r)

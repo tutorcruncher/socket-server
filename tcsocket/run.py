@@ -10,16 +10,18 @@ from gunicorn.app.base import BaseApplication
 
 from app.logs import logger, setup_logging
 from app.main import create_app
-from app.management import prepare_database
+from app.management import prepare_database, run_patch
 from app.settings import Settings
 from app.worker import Worker
 
-commands = []
 
-
-def command(func):
-    commands.append(func)
-    return func
+@click.group()
+@click.option('-v', '--verbose', is_flag=True)
+def cli(verbose):
+    """
+    Run TutorCruncher socket
+    """
+    setup_logging(verbose)
 
 
 async def _check_port_open(host, port, loop):
@@ -55,8 +57,8 @@ def check_app():
     logger.info('app started and stopped successfully, apparently configured correctly')
 
 
-@command
-def web(**kwargs):
+@cli.command()
+def web():
     """
     Serve the application
 
@@ -114,8 +116,8 @@ def _check_worker():
     exit(Worker.check_health())
 
 
-@command
-def check(**kwargs):
+@cli.command()
+def check():
     """
     Check the application is running correctly, what this does depends on the CHECK environment variable
     """
@@ -128,8 +130,8 @@ def check(**kwargs):
         raise ValueError(f'"CHECK" environment variable should be set to "web" or "worker" not "{check_mode}"')
 
 
-@command
-def worker(**kwargs):
+@cli.command()
+def worker():
     """
     Run the worker
     """
@@ -138,8 +140,9 @@ def worker(**kwargs):
     RunWorkerProcess('app/worker.py', 'Worker')
 
 
-@command
-def resetdb(*, no_input, **kwargs):
+@cli.command()
+@click.option('--no-input', is_flag=True)
+def resetdb(no_input):
     """
     create a database and run migrations, optionally deleting an existing database.
     """
@@ -160,7 +163,7 @@ EXEC_LINES = [
     'await_ = loop.run_until_complete',
     'settings = Settings()',
     'pg = await_(create_engine(pg_dsn(Settings.pg_dsn)))',
-    'conn = await_(pg._acquire())',
+    'conn = await_(pg.acquire())',  # TODO, does this work?
 ]
 EXEC_LINES += (
     ['print("\\n    Python {v.major}.{v.minor}.{v.micro}\\n".format(v=sys.version_info))'] +
@@ -168,8 +171,11 @@ EXEC_LINES += (
 )
 
 
-@command
-def shell(**kwargs):
+@cli.command()
+def shell():
+    """
+    ipython shell
+    """
     from IPython import start_ipython
     from IPython.terminal.ipapp import load_default_config
     c = load_default_config()
@@ -180,21 +186,14 @@ def shell(**kwargs):
     start_ipython(argv=(), config=c)
 
 
-@click.command()
-@click.argument('command', type=click.Choice([c.__name__ for c in commands]))
-@click.option('--no-input', is_flag=True)
-@click.option('-v', '--verbose', is_flag=True)
-def cli(*, command, no_input, verbose):
+@cli.command()
+@click.option('--live', is_flag=True)
+@click.argument('patch', required=False)
+def patch(live, patch):
     """
-    Run TutorCruncher socket
+    Run patch script
     """
-    setup_logging(verbose)
-
-    command_lookup = {c.__name__: c for c in commands}
-
-    func = command_lookup[command]
-    logger.info('running %s...', func.__name__)
-    func(verbose=verbose, no_input=no_input)
+    run_patch(live, patch)
 
 
 if __name__ == '__main__':
