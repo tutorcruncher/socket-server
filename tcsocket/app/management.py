@@ -249,8 +249,12 @@ def print_tables(conn, settings):
 
 
 @patch
-def other(conn, settings):
+def add_labels(conn, settings):
     """
-    simple test patch
+    add labels field to contractors
     """
-    print(r)
+    conn.execute('ALTER TABLE contractors ADD labels VARCHAR(255)[]')
+    conn.execute("""
+    CREATE INDEX ix_contractors_labels
+      ON contractors
+      USING btree (labels);""")
