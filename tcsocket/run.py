@@ -68,7 +68,7 @@ def web():
     check_services_ready()
 
     logger.info('preparing the database...')
-    prepare_database(False, print_func=logger.info)
+    prepare_database(False)
 
     check_app()
 
@@ -147,7 +147,7 @@ def resetdb(no_input):
     create a database and run migrations, optionally deleting an existing database.
     """
     delete = no_input or partial(click.confirm, 'Are you sure you want to delete the database and recreate it?')
-    prepare_database(delete, print_func=logger.info)
+    prepare_database(delete)
 
 
 EXEC_LINES = [
