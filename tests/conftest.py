@@ -11,11 +11,12 @@ from aiopg.sa import create_engine as aio_create_engine
 from PIL import Image
 from sqlalchemy import create_engine as sa_create_engine
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.main import create_app
 from tcsocket.app.management import populate_db, psycopg2_cursor
-from tcsocket.app.models import sa_companies, sa_con_skills, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_companies, sa_con_labels, sa_con_skills, sa_labels, sa_qual_levels, sa_subjects
 from tcsocket.app.settings import Settings
 
 DB_NAME = 'socket_test'
@@ -338,7 +339,7 @@ async def select_set(db_conn, *fields, select_from=None):
     return {tuple(cs.values()) async for cs in await db_conn.execute(q)}
 
 
-async def create_con_skills(db_conn, *con_ids):
+async def create_con_skills_labels(db_conn, company_id, *con_ids):
     await db_conn.execute(
         sa_subjects
         .insert()
@@ -357,11 +358,27 @@ async def create_con_skills(db_conn, *con_ids):
             {'id': 13, 'name': 'Degree', 'ranking': 21},
         ])
     )
-    ids = [(1, 11), (2, 12)]
+    skill_ids = [(1, 11), (2, 12)]
+
+    v = await db_conn.execute(
+        pg_insert(sa_labels)
+        .values([
+            {'name': 'Apple', 'machine_name': 'apple', 'company': company_id},
+            {'name': 'Banana', 'machine_name': 'banana', 'company': company_id},
+            {'name': 'Carrot', 'machine_name': 'carrot', 'company': company_id},
+        ])
+        .returning(sa_labels.c.id)
+    )
+    label_ids = [r.id for r in v]
 
     for con_id in con_ids:
         await db_conn.execute(
             sa_con_skills
             .insert()
-            .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
+            .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in skill_ids])
+        )
+        await db_conn.execute(
+            sa_con_labels
+            .insert()
+            .values([{'contractor': con_id, 'label': label_id} for label_id in label_ids])
         )

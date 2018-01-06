@@ -5,7 +5,7 @@ import pytest
 
 from tcsocket.app.models import sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 
-from .conftest import create_con_skills
+from .conftest import create_con_skills_labels
 
 
 async def test_list_contractors_origin(cli, company):
@@ -48,7 +48,7 @@ async def test_filter_contractors_skills(cli, db_conn, company, filter_args, con
             dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
         ])
     )
-    await create_con_skills(db_conn, 1)
+    await create_con_skills_labels(db_conn, company.id, 1)
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
     r = await cli.get(url + '?' + filter_args)
@@ -65,7 +65,7 @@ async def test_filter_contractors_skills_distinct(cli, db_conn, company):
         .insert()
         .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
     )
-    await create_con_skills(db_conn, 1)
+    await create_con_skills_labels(db_conn, company.id, 1)
     await db_conn.execute(
         sa_con_skills.insert().values({'contractor': 1, 'subject': 1, 'qual_level': 12})
     )
@@ -101,7 +101,7 @@ async def test_subject_list(cli, db_conn, company):
         ])
     )
     # adding subjects to both cons checks distinct in query
-    await create_con_skills(db_conn, 1, 2)
+    await create_con_skills_labels(db_conn, company.id, 1, 2)
 
     await db_conn.execute(sa_subjects.insert().values({'id': 4, 'name': 's4', 'category': 'sc4'}))
 
@@ -124,7 +124,7 @@ async def test_qual_level_list(cli, db_conn, company):
         ])
     )
     # adding qual levels to both cons checks distinct in query
-    await create_con_skills(db_conn, 1, 2)
+    await create_con_skills_labels(db_conn, company.id, 1, 2)
 
     await db_conn.execute(sa_qual_levels.insert().values({'id': 4, 'name': 'ql4', 'ranking': 0}))
 
@@ -168,3 +168,30 @@ async def test_distance_filter(cli, db_conn, company):
         'details': 'distance sorting not available if latitude and longitude are not provided',
         'status': 'invalid_argument'
     }
+
+
+async def test_label_filter(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values([
+            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
+            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+        ])
+    )
+    await create_con_skills_labels(db_conn, company.id, 1)
+
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url + '?label=carrot')
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert len(obj) == 1
+    assert obj[0]['link'] == '1-fred-b'
+
+    # TODO this isn't working, need to reconfigure to use an array of label_ids on contractor
+    # url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    # r = await cli.get(url + '?label_exclude=carrot')
+    # assert r.status == 200, await r.text()
+    # obj = await r.json()
+    # assert len(obj) == 1
+    # assert obj[0]['link'] == '1-con2-t', obj

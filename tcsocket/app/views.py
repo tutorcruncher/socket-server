@@ -16,7 +16,8 @@ from sqlalchemy.sql import and_
 from yarl import URL
 
 from .logs import logger
-from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from .models import (Action, NameOptions, sa_companies, sa_con_labels, sa_con_skills, sa_contractors, sa_labels,
+                     sa_qual_levels, sa_subjects)
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
 from .validation import ContractorModel
@@ -225,15 +226,25 @@ async def contractor_list(request):
     subject_filter = _get_arg(request, 'subject')
     qual_level_filter = _get_arg(request, 'qual_level')
 
-    join = None
+    select_from = None
     if subject_filter or qual_level_filter:
-        join = sa_con_skills.join(sa_contractors)
+        select_from = sa_contractors.join(sa_con_skills)
         if subject_filter:
-            join = join.join(sa_subjects)
+            select_from = select_from.join(sa_subjects)
             where += sa_subjects.c.id == subject_filter,
         if qual_level_filter:
-            join = join.join(sa_qual_levels)
+            select_from = select_from.join(sa_qual_levels)
             where += sa_qual_levels.c.id == qual_level_filter,
+
+    labels_filter = request.GET.getall('label', [])
+    labels_exclude_filter = request.GET.getall('label_exclude', [])
+    if labels_filter or labels_exclude_filter:
+        select_from = (select_from or sa_contractors).join(sa_con_labels).join(sa_labels)
+
+        if labels_filter:
+            where += sa_labels.c.machine_name.in_(labels_filter),
+        if labels_exclude_filter:
+            where += ~sa_labels.c.machine_name.in_(labels_exclude_filter),
 
     lat = _get_arg(request, 'latitude', decoder=float)
     lng = _get_arg(request, 'longitude', decoder=float)
@@ -264,8 +275,8 @@ async def contractor_list(request):
         .offset(offset)
         .limit(PAGINATION)
     )
-    if join is not None:
-        q = q.select_from(join)
+    if select_from is not None:
+        q = q.select_from(select_from)
 
     results = []
     name_display = request['company'].name_display
