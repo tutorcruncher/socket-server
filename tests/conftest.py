@@ -331,6 +331,13 @@ async def count(db_conn, sa_table):
     return (await cur.first())[0]
 
 
+async def select_set(db_conn, *fields, select_from=None):
+    q = select(fields)
+    if select_from is not None:
+        q = q.select_from(select_from)
+    return {tuple(cs.values()) async for cs in await db_conn.execute(q)}
+
+
 async def create_con_skills(db_conn, *con_ids):
     await db_conn.execute(
         sa_subjects

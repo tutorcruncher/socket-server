@@ -106,7 +106,7 @@ class Label(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     company = Column(Integer, ForeignKey('companies.id'), nullable=False)
     machine_name = Column(String(255), nullable=False)
-    display_name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=False)
 
     __table_args__ = (
         UniqueConstraint('company', 'machine_name', name='_labels_company_machine_name'),

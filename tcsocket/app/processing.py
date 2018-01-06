@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
 
 from .logs import logger
-from .models import Action, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from .models import Action, sa_con_labels, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
 from .validation import ContractorModel
 
@@ -67,6 +67,49 @@ async def _set_skills(conn, contractor_id, skills):
             .values([
                 dict(contractor=contractor_id, subject=subject, qual_level=qual_level)
                 for subject, qual_level in con_skills_to_create
+            ])
+        )
+
+
+async def _set_labels(conn, contractor_id, company_id, labels):
+    """
+    create missing labels, then create contractor labels for them.
+    """
+    if not labels:
+        # just delete skills and return
+        await conn.execute(sa_con_labels.delete().where(sa_con_labels.c.contractor == contractor_id))
+        return
+    async with conn.begin():
+        stmt = pg_insert(sa_labels).values([
+            {'company': company_id, 'machine_name': l.machine_name, 'name': l.name}
+            for l in labels
+        ])
+        update_stmt = (
+            stmt
+            .on_conflict_do_update(
+                index_elements=['company', 'machine_name'],
+                set_=dict(name=stmt.excluded.name)
+            )
+            .returning(sa_labels.c.id)
+        )
+        v = await conn.execute(update_stmt)
+        cls_to_create = {r.id for r in v}
+
+        q = select([sa_con_labels.c.id, sa_con_labels.c.label]).where(sa_con_labels.c.contractor == contractor_id)
+        cls_to_delete = set()
+        async for r in conn.execute(q):
+            con_label_id, label_id = r.values()
+            try:
+                cls_to_create.remove(label_id)
+            except KeyError:
+                cls_to_delete.add(con_label_id)
+
+        cls_to_delete and await conn.execute(sa_con_labels.delete().where(sa_con_labels.c.id.in_(cls_to_delete)))
+        cls_to_create and await conn.execute(
+            sa_con_labels.insert()
+            .values([
+                dict(contractor=contractor_id, label=label_id)
+                for label_id in cls_to_create
             ])
         )
 
@@ -146,6 +189,7 @@ async def contractor_set(*, conn, company, worker, contractor: ContractorModel, 
             details=f'you do not have permission to update contractor {contractor.id}',
         )
     await _set_skills(conn, contractor.id, contractor.skills)
+    await _set_labels(conn, contractor.id, company['id'], contractor.labels)
     contractor.photo and await worker.get_image(company['public_key'], contractor.id, contractor.photo)
     logger.info('%s contractor on %s', r.action, company['public_key'])
     return r.action

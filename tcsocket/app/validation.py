@@ -78,10 +78,10 @@ class ContractorModel(BaseModel):
         qual_level_ranking: float = 0
     skills: List[SkillModel] = []
 
-    # class LabelModel(BaseModel):
-    #     name: str
-    #     machine_name: str
-    # labels: List[LabelModel] = []
+    class LabelModel(BaseModel):
+        name: str
+        machine_name: str
+    labels: List[LabelModel] = []
 
 
 class EnquiryModal(BaseModel):
