@@ -155,15 +155,16 @@ EXEC_LINES = [
     'from datetime import datetime, timedelta, timezone',
     'from pprint import pprint as pp',
     '',
-    'from aiopg.sa import create_engine',
+    'from sqlalchemy import create_engine',
+    'from sqlalchemy import func, select, update',
     'from app.settings import Settings',
     'from app.models import sa_companies, sa_contractors, sa_subjects, sa_qual_levels, sa_con_skills',
     '',
     'loop = asyncio.get_event_loop()',
     'await_ = loop.run_until_complete',
     'settings = Settings()',
-    'pg = await_(create_engine(pg_dsn(Settings.pg_dsn)))',
-    'conn = await_(pg.acquire())',  # TODO, does this work?
+    'engine = create_engine(settings.pg_dsn)',
+    'conn = engine.connect()',
 ]
 EXEC_LINES += (
     ['print("\\n    Python {v.major}.{v.minor}.{v.micro}\\n".format(v=sys.version_info))'] +

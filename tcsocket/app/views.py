@@ -9,6 +9,7 @@ from aiohttp import web_exceptions
 from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
 from arq.utils import timestamp
+from pydantic import ValidationError
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
@@ -18,6 +19,7 @@ from .logs import logger
 from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
+from .validation import ContractorModel
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
@@ -135,11 +137,18 @@ async def contractor_set(request):
     """
     Create or update a contractor.
     """
+    try:
+        contractor = ContractorModel.parse_obj(request['json_obj'])
+    except ValidationError as e:
+        raise HTTPBadRequestJson(
+            status='invalid data',
+            details=e.errors_dict,
+        )
     action = await _contractor_set(
         conn=await request['conn_manager'].get_connection(),
         worker=request.app['worker'],
         company=request['company'],
-        data=request['json_obj'],
+        contractor=contractor,
     )
     if action == Action.deleted:
         return pretty_json_response(

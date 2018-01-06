@@ -93,7 +93,7 @@ class MainActor(Actor):
                     raise RuntimeError(f'Bad response from {url} {r.status}, response:\n{body}') from e
 
                 for con_data in response_data.get('results') or []:
-                    yield model.parse_obj(con_data).dict()
+                    yield model.parse_obj(con_data)
 
                 url = response_data.get('next')
 
@@ -105,13 +105,13 @@ class MainActor(Actor):
         # TODO: delete existing contractors
         cons_created = 0
         async with self.pg_engine.acquire() as conn:
-            async for con_data in self._get_from_api(self.api_contractors, ContractorModel, company):
+            async for contractor in self._get_from_api(self.api_contractors, ContractorModel, company):
 
                 await contractor_set(
                     conn=conn,
                     worker=self,
                     company=company,
-                    data=con_data,
+                    contractor=contractor,
                     skip_deleted=True,
                 )
                 cons_created += 1

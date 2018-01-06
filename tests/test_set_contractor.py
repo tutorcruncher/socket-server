@@ -434,3 +434,24 @@ async def test_missing_company(cli, company):
         'details': 'No company found for key not-thepublickey',
         'status': 'company not found',
     }
+
+
+async def test_invalid_input(cli, db_conn, company):
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/contractors/set',
+        id=123,
+        first_name='x' * 100,
+    )
+    assert r.status == 400, await r.text()
+    data = await r.json()
+    assert {
+        'details': {
+            'first_name': {
+                'error_msg': 'length greater than maximum allowed: 63',
+                'error_type': 'ValueError',
+                'track': 'ConstrainedStrValue',
+            },
+        },
+        'status': 'invalid request data',
+    } == data
