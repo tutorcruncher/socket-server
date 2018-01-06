@@ -236,15 +236,26 @@ async def contractor_list(request):
             select_from = select_from.join(sa_qual_levels)
             where += sa_qual_levels.c.id == qual_level_filter,
 
+    conn = await request['conn_manager'].get_connection()
     labels_filter = request.GET.getall('label', [])
     labels_exclude_filter = request.GET.getall('label_exclude', [])
-    if labels_filter or labels_exclude_filter:
-        select_from = (select_from or sa_contractors).join(sa_con_labels).join(sa_labels)
 
-        if labels_filter:
-            where += sa_labels.c.machine_name.in_(labels_filter),
-        if labels_exclude_filter:
-            where += ~sa_labels.c.machine_name.in_(labels_exclude_filter),
+    if labels_filter:
+        select_from = (select_from or sa_contractors).join(sa_con_labels).join(sa_labels)
+        where += sa_labels.c.machine_name.in_(labels_filter),
+    if labels_exclude_filter:
+        v = await conn.execute(
+            select([c.id])
+            .select_from(sa_contractors.join(sa_con_labels).join(sa_labels))
+            .where(
+                and_(
+                    c.company == request['company'].id,
+                    sa_labels.c.machine_name.in_(labels_exclude_filter)
+                )
+            )
+        )
+        con_ids = [r_.id for r_ in v]
+        where += ~c.id.in_(con_ids),
 
     lat = _get_arg(request, 'latitude', decoder=float)
     lng = _get_arg(request, 'longitude', decoder=float)

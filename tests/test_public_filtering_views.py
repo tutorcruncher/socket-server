@@ -188,10 +188,9 @@ async def test_label_filter(cli, db_conn, company):
     assert len(obj) == 1
     assert obj[0]['link'] == '1-fred-b'
 
-    # TODO this isn't working, need to reconfigure to use an array of label_ids on contractor
-    # url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    # r = await cli.get(url + '?label_exclude=carrot')
-    # assert r.status == 200, await r.text()
-    # obj = await r.json()
-    # assert len(obj) == 1
-    # assert obj[0]['link'] == '1-con2-t', obj
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url + '?label_exclude=carrot')
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert len(obj) == 1
+    assert obj[0]['link'] == '2-con-t', obj
