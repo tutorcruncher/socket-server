@@ -3,7 +3,7 @@ from typing import Type
 
 from sqlalchemy import Enum as _SAEnum
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 
 from .validation import NameOptions
@@ -57,6 +57,7 @@ class Contractor(Base):
 
     last_updated = Column(DateTime, nullable=False, index=True)
     action = Column(sa_enum(Action), default=Action.created, nullable=False)
+    labels = Column(ARRAY(String(255)), nullable=True)
 
 
 sa_contractors = Contractor.__table__
@@ -114,18 +115,3 @@ class Label(Base):
 
 
 sa_labels = Label.__table__
-
-
-class ConLabels(Base):
-    __tablename__ = 'contractor_labels'
-
-    id = Column(Integer, primary_key=True, nullable=False)
-    contractor = Column(Integer, ForeignKey('contractors.id', ondelete='CASCADE'), nullable=False)
-    label = Column(Integer, ForeignKey('labels.id', ondelete='CASCADE'), nullable=False)
-
-    __table_args__ = (
-        UniqueConstraint('contractor', 'label', name='_con_labels'),
-    )
-
-
-sa_con_labels = ConLabels.__table__

@@ -5,9 +5,9 @@ from pathlib import Path
 
 from PIL import Image
 
-from tcsocket.app.models import sa_con_labels, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 
-from .conftest import count, select_set, signed_post
+from .conftest import count, get, select_set, signed_post
 
 
 async def test_create_master_key(cli, db_conn, company):
@@ -477,9 +477,8 @@ async def test_create_labels(cli, db_conn, company):
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name, sa_labels.c.company)
     assert labels == {('apple-pie', 'Apple Pie', company.id), ('foobar', 'Foobar', company.id)}
 
-    con_labels = await select_set(db_conn, sa_con_labels.c.contractor, sa_labels.c.machine_name,
-                                  select_from=sa_con_labels.join(sa_labels))
-    assert con_labels == {(123, 'foobar'), (123, 'apple-pie')}
+    con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
+    assert con['labels'] == ['foobar', 'apple-pie']
 
 
 async def test_delete_all_labels(cli, db_conn, company):
@@ -496,14 +495,16 @@ async def test_delete_all_labels(cli, db_conn, company):
     )
     assert r.status == 201, await r.text()
     assert 1 == await count(db_conn, sa_contractors)
-    assert 1 == await count(db_conn, sa_con_labels)
     assert 1 == await count(db_conn, sa_labels)
+    con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
+    assert con['labels'] == ['foobar']
 
     r = await signed_post(cli, f'/{company.public_key}/contractors/set', id=123)
     assert r.status == 200
     assert 1 == await count(db_conn, sa_contractors)
-    assert 0 == await count(db_conn, sa_con_labels)
     assert 1 == await count(db_conn, sa_labels)
+    con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
+    assert con['labels'] == []
 
 
 async def test_delete_some_labels(cli, db_conn, company):
@@ -521,9 +522,8 @@ async def test_delete_some_labels(cli, db_conn, company):
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
     assert labels == {('foobar', 'Foobar')}
-    con_labels = await select_set(db_conn, sa_con_labels.c.contractor, sa_labels.c.machine_name,
-                                  select_from=sa_con_labels.join(sa_labels))
-    assert con_labels == {(123, 'foobar')}
+    con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
+    assert con['labels'] == ['foobar']
 
     r = await signed_post(
         cli,
@@ -540,9 +540,8 @@ async def test_delete_some_labels(cli, db_conn, company):
 
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
     assert labels == {('squiggle', 'Squiggle'), ('foobar', 'Foobar')}
-    con_labels = await select_set(db_conn, sa_con_labels.c.contractor, sa_labels.c.machine_name,
-                                  select_from=sa_con_labels.join(sa_labels))
-    assert con_labels == {(123, 'squiggle')}
+    con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
+    assert con['labels'] == ['squiggle']
 
 
 async def test_labels_conflict(cli, db_conn, company):
@@ -562,9 +561,8 @@ async def test_labels_conflict(cli, db_conn, company):
     assert labels == {('foobar', 'Foobar')}
     label_ids = await select_set(db_conn, sa_labels.c.id)
 
-    con_labels = await select_set(db_conn, sa_con_labels.c.contractor, sa_labels.c.machine_name,
-                                  select_from=sa_con_labels.join(sa_labels))
-    assert con_labels == {(123, 'foobar')}
+    con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
+    assert con['labels'] == ['foobar']
 
     r = await signed_post(
         cli,
@@ -582,8 +580,7 @@ async def test_labels_conflict(cli, db_conn, company):
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
     assert labels == {('foobar', 'Squiggle')}
 
-    con_labels = await select_set(db_conn, sa_con_labels.c.contractor, sa_labels.c.machine_name,
-                                  select_from=sa_con_labels.join(sa_labels))
-    assert con_labels == {(123, 'foobar')}
+    con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
+    assert con['labels'] == ['foobar']
 
     assert label_ids == await select_set(db_conn, sa_labels.c.id)

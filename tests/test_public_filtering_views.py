@@ -2,10 +2,11 @@ from datetime import datetime
 from operator import itemgetter
 
 import pytest
+from sqlalchemy import update
 
-from tcsocket.app.models import sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 
-from .conftest import create_con_skills_labels
+from .conftest import create_con_skills
 
 
 async def test_list_contractors_origin(cli, company):
@@ -48,7 +49,7 @@ async def test_filter_contractors_skills(cli, db_conn, company, filter_args, con
             dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
         ])
     )
-    await create_con_skills_labels(db_conn, company.id, 1)
+    await create_con_skills(db_conn, 1)
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
     r = await cli.get(url + '?' + filter_args)
@@ -65,7 +66,7 @@ async def test_filter_contractors_skills_distinct(cli, db_conn, company):
         .insert()
         .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
     )
-    await create_con_skills_labels(db_conn, company.id, 1)
+    await create_con_skills(db_conn, 1)
     await db_conn.execute(
         sa_con_skills.insert().values({'contractor': 1, 'subject': 1, 'qual_level': 12})
     )
@@ -101,7 +102,7 @@ async def test_subject_list(cli, db_conn, company):
         ])
     )
     # adding subjects to both cons checks distinct in query
-    await create_con_skills_labels(db_conn, company.id, 1, 2)
+    await create_con_skills(db_conn, 1, 2)
 
     await db_conn.execute(sa_subjects.insert().values({'id': 4, 'name': 's4', 'category': 'sc4'}))
 
@@ -124,7 +125,7 @@ async def test_qual_level_list(cli, db_conn, company):
         ])
     )
     # adding qual levels to both cons checks distinct in query
-    await create_con_skills_labels(db_conn, company.id, 1, 2)
+    await create_con_skills(db_conn, 1, 2)
 
     await db_conn.execute(sa_qual_levels.insert().values({'id': 4, 'name': 'ql4', 'ranking': 0}))
 
@@ -170,27 +171,43 @@ async def test_distance_filter(cli, db_conn, company):
     }
 
 
-async def test_label_filter(cli, db_conn, company):
+@pytest.mark.parametrize('filter_args, cons', [
+    ('', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x']),
+    ('label=apple', ['1-anne-x', '2-ben-x']),
+    ('label=apple&label=banana&label=carrot', ['1-anne-x']),
+    ('label=banana&label=carrot', ['1-anne-x', '3-charlie-x']),
+    ('label_exclude=carrot', ['2-ben-x', '4-dave-x']),
+    ('label_exclude=apple&label_exclude=carrot', ['4-dave-x']),
+    ('label=apple&label_exclude=carrot', ['2-ben-x']),
+])
+async def test_label_filter(cli, db_conn, company, filter_args, cons):
     await db_conn.execute(
         sa_contractors
         .insert()
         .values([
-            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
-            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+            dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now()),
+            dict(id=2, company=company.id, first_name='Ben', last_name='x', last_updated=datetime.now()),
+            dict(id=3, company=company.id, first_name='Charlie', last_name='x', last_updated=datetime.now()),
+            dict(id=4, company=company.id, first_name='Dave', last_name='x', last_updated=datetime.now()),
         ])
     )
-    await create_con_skills_labels(db_conn, company.id, 1)
+
+    await db_conn.execute(
+        sa_labels
+        .insert()
+        .values([
+            {'name': 'Apple', 'machine_name': 'apple', 'company': company.id},
+            {'name': 'Banana', 'machine_name': 'banana', 'company': company.id},
+            {'name': 'Carrot', 'machine_name': 'carrot', 'company': company.id},
+        ])
+    )
+    await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
+                          .where(sa_contractors.c.id == 1))
+    await db_conn.execute(update(sa_contractors).values(labels=['apple']).where(sa_contractors.c.id == 2))
+    await db_conn.execute(update(sa_contractors).values(labels=['banana', 'carrot']).where(sa_contractors.c.id == 3))
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(url + '?label=carrot')
+    r = await cli.get(url + '?' + filter_args)
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert len(obj) == 1
-    assert obj[0]['link'] == '1-fred-b'
-
-    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(url + '?label_exclude=carrot')
-    assert r.status == 200, await r.text()
-    obj = await r.json()
-    assert len(obj) == 1
-    assert obj[0]['link'] == '2-con-t', obj
+    assert [c['link'] for c in obj] == cons

@@ -4,6 +4,7 @@ import json
 from collections import namedtuple
 from datetime import datetime
 from io import BytesIO
+from itertools import product
 
 import pytest
 from aiohttp.web import Application, Response, json_response
@@ -11,12 +12,11 @@ from aiopg.sa import create_engine as aio_create_engine
 from PIL import Image
 from sqlalchemy import create_engine as sa_create_engine
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.main import create_app
 from tcsocket.app.management import populate_db, psycopg2_cursor
-from tcsocket.app.models import sa_companies, sa_con_labels, sa_con_skills, sa_labels, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_companies, sa_con_skills, sa_qual_levels, sa_subjects
 from tcsocket.app.settings import Settings
 
 DB_NAME = 'socket_test'
@@ -339,7 +339,17 @@ async def select_set(db_conn, *fields, select_from=None):
     return {tuple(cs.values()) async for cs in await db_conn.execute(q)}
 
 
-async def create_con_skills_labels(db_conn, company_id, *con_ids):
+async def get(db_conn, model, *where):
+    v = list(await db_conn.execute(
+        select([c for c in model.c])
+        .where(*where)
+    ))
+    if len(v) != 1:
+        raise RuntimeError(f'get got wrong number of results: {len(v)} != 1, model: {model}')
+    return dict(v[0])
+
+
+async def create_con_skills(db_conn, *con_ids):
     await db_conn.execute(
         sa_subjects
         .insert()
@@ -360,25 +370,10 @@ async def create_con_skills_labels(db_conn, company_id, *con_ids):
     )
     skill_ids = [(1, 11), (2, 12)]
 
-    v = await db_conn.execute(
-        pg_insert(sa_labels)
-        .values([
-            {'name': 'Apple', 'machine_name': 'apple', 'company': company_id},
-            {'name': 'Banana', 'machine_name': 'banana', 'company': company_id},
-            {'name': 'Carrot', 'machine_name': 'carrot', 'company': company_id},
-        ])
-        .returning(sa_labels.c.id)
+    await db_conn.execute(
+        sa_con_skills
+        .insert()
+        .values(
+            [{'contractor': con_id, 'subject': s[0], 'qual_level': s[1]} for con_id, s in product(con_ids, skill_ids)]
+        )
     )
-    label_ids = [r.id for r in v]
-
-    for con_id in con_ids:
-        await db_conn.execute(
-            sa_con_skills
-            .insert()
-            .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in skill_ids])
-        )
-        await db_conn.execute(
-            sa_con_labels
-            .insert()
-            .values([{'contractor': con_id, 'label': label_id} for label_id in label_ids])
-        )

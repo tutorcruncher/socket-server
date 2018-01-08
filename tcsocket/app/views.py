@@ -10,14 +10,14 @@ from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
 from arq.utils import timestamp
 from pydantic import ValidationError
-from sqlalchemy import func, select, update
+from sqlalchemy import String, cast, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.sql import and_
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.sql import and_, or_
 from yarl import URL
 
 from .logs import logger
-from .models import (Action, NameOptions, sa_companies, sa_con_labels, sa_con_skills, sa_contractors, sa_labels,
-                     sa_qual_levels, sa_subjects)
+from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
 from .validation import ContractorModel
@@ -236,26 +236,12 @@ async def contractor_list(request):
             select_from = select_from.join(sa_qual_levels)
             where += sa_qual_levels.c.id == qual_level_filter,
 
-    conn = await request['conn_manager'].get_connection()
     labels_filter = request.GET.getall('label', [])
     labels_exclude_filter = request.GET.getall('label_exclude', [])
-
     if labels_filter:
-        select_from = (select_from or sa_contractors).join(sa_con_labels).join(sa_labels)
-        where += sa_labels.c.machine_name.in_(labels_filter),
+        where += c.labels.contains(cast(labels_filter, ARRAY(String(255)))),
     if labels_exclude_filter:
-        v = await conn.execute(
-            select([c.id])
-            .select_from(sa_contractors.join(sa_con_labels).join(sa_labels))
-            .where(
-                and_(
-                    c.company == request['company'].id,
-                    sa_labels.c.machine_name.in_(labels_exclude_filter)
-                )
-            )
-        )
-        con_ids = [r_.id for r_ in v]
-        where += ~c.id.in_(con_ids),
+        where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
 
     lat = _get_arg(request, 'latitude', decoder=float)
     lng = _get_arg(request, 'longitude', decoder=float)
@@ -288,7 +274,6 @@ async def contractor_list(request):
     )
     if select_from is not None:
         q = q.select_from(select_from)
-
     results = []
     name_display = request['company'].name_display
 

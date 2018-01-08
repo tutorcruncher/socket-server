@@ -8,7 +8,7 @@ from sqlalchemy import update
 from tcsocket.app import middleware
 from tcsocket.app.models import NameOptions, sa_companies, sa_contractors
 
-from .conftest import create_con_skills_labels
+from .conftest import create_con_skills
 
 
 async def test_index(cli):
@@ -145,7 +145,7 @@ async def test_get_contractor(cli, db_conn):
         .returning(sa_contractors.c.id)
     )
     con_id = (await v.first()).id
-    await create_con_skills_labels(db_conn, company_id, con_id)
+    await create_con_skills(db_conn, con_id)
 
     r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=con_id, slug='x'))
     assert r.status == 200
