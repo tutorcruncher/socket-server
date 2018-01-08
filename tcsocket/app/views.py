@@ -17,7 +17,8 @@ from sqlalchemy.sql import and_, or_
 from yarl import URL
 
 from .logs import logger
-from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
+                     sa_subjects)
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
 from .validation import ContractorModel
@@ -320,7 +321,10 @@ async def _get_skills(conn, con_id):
 
 async def contractor_get(request):
     c = sa_contractors.c
-    cols = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town, c.country
+    cols = (
+        c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
+        c.country, c.labels
+    )
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
     curr = await conn.execute(
@@ -340,7 +344,8 @@ async def contractor_get(request):
         country=con.country,
         photo=_photo_url(request, con, False),
         extra_attributes=con.extra_attributes,
-        skills=await _get_skills(conn, con_id)
+        skills=await _get_skills(conn, con_id),
+        labels=con.labels or [],
     )
 
 
@@ -371,6 +376,18 @@ async def qual_level_list(request):
         .distinct(sa_qual_levels.c.ranking, sa_qual_levels.c.id)
     )
     return await _sub_qual_list(request, q)
+
+
+async def labels_list(request):
+    q = (
+        select([sa_labels.c.name, sa_labels.c.machine_name])
+        .where(sa_labels.c.company == request['company'].id)
+    )
+    conn = await request['conn_manager'].get_connection()
+    return public_json_response(
+        request,
+        **{s.machine_name: s.name async for s in conn.execute(q)}
+    )
 
 
 FIELD_TYPE_LOOKUP = {

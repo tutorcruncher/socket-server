@@ -156,6 +156,7 @@ async def test_get_contractor(cli, db_conn):
         'town': None,
         'country': None,
         'extra_attributes': [{'foo': 'bar'}],
+        'labels': [],
         'tag_line': None,
         'photo': 'https://socket.tutorcruncher.com/media/thepublickey/1.jpg',
         'primary_description': None,
@@ -378,3 +379,23 @@ async def test_500_error(test_client, caplog):
     assert r.status == 500
     assert '500: Internal Server Error' == await r.text()
     assert 'socket.request ERROR: RuntimeError: snap' in caplog
+
+
+async def view(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now()))
+    )
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x'))
+    assert r.status == 200
+    obj = await r.json()
+    assert obj['label'] == []
+
+    await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
+                          .where(sa_contractors.c.id == 1))
+
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x'))
+    assert r.status == 200
+    obj = await r.json()
+    assert obj['label'] == ['apple', 'banana', 'carrot']

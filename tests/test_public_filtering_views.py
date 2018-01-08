@@ -4,7 +4,7 @@ from operator import itemgetter
 import pytest
 from sqlalchemy import update
 
-from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 
 from .conftest import create_con_skills
 
@@ -171,6 +171,18 @@ async def test_distance_filter(cli, db_conn, company):
     }
 
 
+async def create_labels(db_conn, company):
+    await db_conn.execute(
+        sa_labels
+        .insert()
+        .values([
+            {'name': 'Apple', 'machine_name': 'apple', 'company': company.id},
+            {'name': 'Banana', 'machine_name': 'banana', 'company': company.id},
+            {'name': 'Carrot', 'machine_name': 'carrot', 'company': company.id},
+        ])
+    )
+
+
 @pytest.mark.parametrize('filter_args, cons', [
     ('', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x']),
     ('label=apple', ['1-anne-x', '2-ben-x']),
@@ -191,16 +203,8 @@ async def test_label_filter(cli, db_conn, company, filter_args, cons):
             dict(id=4, company=company.id, first_name='Dave', last_name='x', last_updated=datetime.now()),
         ])
     )
+    await create_labels(db_conn, company)
 
-    await db_conn.execute(
-        sa_labels
-        .insert()
-        .values([
-            {'name': 'Apple', 'machine_name': 'apple', 'company': company.id},
-            {'name': 'Banana', 'machine_name': 'banana', 'company': company.id},
-            {'name': 'Carrot', 'machine_name': 'carrot', 'company': company.id},
-        ])
-    )
     await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
                           .where(sa_contractors.c.id == 1))
     await db_conn.execute(update(sa_contractors).values(labels=['apple']).where(sa_contractors.c.id == 2))
@@ -211,3 +215,36 @@ async def test_label_filter(cli, db_conn, company, filter_args, cons):
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert [c['link'] for c in obj] == cons
+
+
+async def test_labels_list(cli, db_conn, company):
+    url = cli.server.app.router['labels'].url_for(company=company.public_key)
+
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj == {}
+
+    await create_labels(db_conn, company)
+
+    v = await db_conn.execute(
+        sa_companies
+        .insert()
+        .values(name='snap', public_key='snap', private_key='snap', domain='example.com')
+        .returning(sa_companies.c.id)
+    )
+    new_company_id = next(r.id for r in v)
+    await db_conn.execute(
+        sa_labels
+        .insert()
+        .values({'name': 'Different', 'machine_name': 'different', 'company': new_company_id})
+    )
+
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj == {
+        'apple': 'Apple',
+        'banana': 'Banana',
+        'carrot': 'Carrot',
+    }
