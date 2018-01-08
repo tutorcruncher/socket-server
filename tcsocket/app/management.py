@@ -274,10 +274,10 @@ def add_missing_tables(conn, settings):
     """
     adding tables to the database that are defined in models but not the db.
     """
-    c = next(conn.execute("SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE schemaname='public'"))[0]
+    c = next(v[0] for v in conn.execute("SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE schemaname='public'"))
     print(f'tables: {c}, running create_all...')
     Base.metadata.create_all(conn)
-    c = next(conn.execute("SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE schemaname='public'"))[0]
+    c = next(v[0] for v in conn.execute("SELECT COUNT(*) FROM pg_catalog.pg_tables WHERE schemaname='public'"))
     print(f'tables: {c}, done')
 
 
