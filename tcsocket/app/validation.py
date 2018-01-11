@@ -31,40 +31,6 @@ class CompanyUpdateModel(BaseModel):
     private_key: str = None
 
 
-class LatitudeModel(BaseModel):
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-
-
-class EATypeEnum(str, Enum):
-    checkbox = 'checkbox'
-    text_short = 'text_short'
-    text_extended = 'text_extended'
-    integer = 'integer'
-    stars = 'stars'
-    dropdown = 'dropdown'
-    datetime = 'datetime'
-    date = 'date'
-
-
-class ExtraAttributeModel(BaseModel):
-    machine_name: NoneStr
-    type: EATypeEnum
-    name: str
-    value: Any
-    id: int
-    sort_index: float
-
-
-class SkillModel(BaseModel):
-    subject: str
-    subject_id: str
-    category: str
-    qual_level: str
-    qual_level_id: int
-    qual_level_ranking: float = 0
-
-
 class ContractorModel(BaseModel):
     id: int
     deleted: bool = False
@@ -72,11 +38,50 @@ class ContractorModel(BaseModel):
     last_name: constr(max_length=63) = None
     town: constr(max_length=63) = None
     country: constr(max_length=63) = None
-    location: LatitudeModel = None
-    extra_attributes: List[ExtraAttributeModel] = []
-    skills: List[SkillModel] = []
     last_updated: datetime = None
     photo: NoneStr = None
+
+    @validator('last_updated', pre=True, always=True)
+    def set_last_updated(cls, v):
+        return v or datetime(2016, 1, 1)
+
+    class LatitudeModel(BaseModel):
+        latitude: Optional[float] = None
+        longitude: Optional[float] = None
+    location: LatitudeModel = None
+
+    class ExtraAttributeModel(BaseModel):
+        machine_name: NoneStr
+        name: str
+        value: Any
+        id: int
+        sort_index: float
+
+        class EATypeEnum(str, Enum):
+            checkbox = 'checkbox'
+            text_short = 'text_short'
+            text_extended = 'text_extended'
+            integer = 'integer'
+            stars = 'stars'
+            dropdown = 'dropdown'
+            datetime = 'datetime'
+            date = 'date'
+        type: EATypeEnum
+    extra_attributes: List[ExtraAttributeModel] = []
+
+    class SkillModel(BaseModel):
+        subject: str
+        subject_id: str
+        category: str
+        qual_level: str
+        qual_level_id: int
+        qual_level_ranking: float = 0
+    skills: List[SkillModel] = []
+
+    class LabelModel(BaseModel):
+        name: str
+        machine_name: str
+    labels: List[LabelModel] = []
 
 
 class EnquiryModal(BaseModel):

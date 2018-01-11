@@ -24,6 +24,7 @@ PUBLIC_VIEWS = {
     'enquiry',
     'subject-list',
     'qual-level-list',
+    'labels',
 }
 
 

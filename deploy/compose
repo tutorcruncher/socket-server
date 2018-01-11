@@ -4,7 +4,7 @@ if [ "$MODE" != "PRODUCTION" ] && [ "$MODE" != "BETA" ] ; then
     echo "MODE not set to PRODUCTION or BETA, use 'source activate.prod.sh'"
     exit 2
 fi
-export COMMIT=`git rev-parse HEAD`
+export COMMIT="`git symbolic-ref --short HEAD`:`git rev-parse HEAD`"
 export RELEASE_DATE=`date`
 the_command="docker-compose -f docker-compose.yml -f ${COMPOSE_EXTRA:-docker-compose.prod.yml} $@"
 echo "Running '${the_command}'..."

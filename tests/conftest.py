@@ -4,6 +4,7 @@ import json
 from collections import namedtuple
 from datetime import datetime
 from io import BytesIO
+from itertools import product
 
 import pytest
 from aiohttp.web import Application, Response, json_response
@@ -331,6 +332,23 @@ async def count(db_conn, sa_table):
     return (await cur.first())[0]
 
 
+async def select_set(db_conn, *fields, select_from=None):
+    q = select(fields)
+    if select_from is not None:
+        q = q.select_from(select_from)
+    return {tuple(cs.values()) async for cs in await db_conn.execute(q)}
+
+
+async def get(db_conn, model, *where):
+    v = list(await db_conn.execute(
+        select([c for c in model.c])
+        .where(*where)
+    ))
+    if len(v) != 1:
+        raise RuntimeError(f'get got wrong number of results: {len(v)} != 1, model: {model}')
+    return dict(v[0])
+
+
 async def create_con_skills(db_conn, *con_ids):
     await db_conn.execute(
         sa_subjects
@@ -350,11 +368,12 @@ async def create_con_skills(db_conn, *con_ids):
             {'id': 13, 'name': 'Degree', 'ranking': 21},
         ])
     )
-    ids = [(1, 11), (2, 12)]
+    skill_ids = [(1, 11), (2, 12)]
 
-    for con_id in con_ids:
-        await db_conn.execute(
-            sa_con_skills
-            .insert()
-            .values([{'contractor': con_id, 'subject': s, 'qual_level': ql} for s, ql in ids])
+    await db_conn.execute(
+        sa_con_skills
+        .insert()
+        .values(
+            [{'contractor': con_id, 'subject': s[0], 'qual_level': s[1]} for con_id, s in product(con_ids, skill_ids)]
         )
+    )

@@ -9,15 +9,19 @@ from aiohttp import web_exceptions
 from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
 from arq.utils import timestamp
-from sqlalchemy import func, select, update
+from pydantic import ValidationError
+from sqlalchemy import String, cast, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.sql import and_
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.sql import and_, or_
 from yarl import URL
 
 from .logs import logger
-from .models import Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
+from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
+                     sa_subjects)
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
+from .validation import ContractorModel
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
@@ -135,11 +139,18 @@ async def contractor_set(request):
     """
     Create or update a contractor.
     """
+    try:
+        contractor = ContractorModel.parse_obj(request['json_obj'])
+    except ValidationError as e:
+        raise HTTPBadRequestJson(
+            status='invalid data',
+            details=e.errors_dict,
+        )
     action = await _contractor_set(
         conn=await request['conn_manager'].get_connection(),
         worker=request.app['worker'],
         company=request['company'],
-        data=request['json_obj'],
+        contractor=contractor,
     )
     if action == Action.deleted:
         return pretty_json_response(
@@ -216,15 +227,22 @@ async def contractor_list(request):
     subject_filter = _get_arg(request, 'subject')
     qual_level_filter = _get_arg(request, 'qual_level')
 
-    join = None
+    select_from = None
     if subject_filter or qual_level_filter:
-        join = sa_con_skills.join(sa_contractors)
+        select_from = sa_contractors.join(sa_con_skills)
         if subject_filter:
-            join = join.join(sa_subjects)
+            select_from = select_from.join(sa_subjects)
             where += sa_subjects.c.id == subject_filter,
         if qual_level_filter:
-            join = join.join(sa_qual_levels)
+            select_from = select_from.join(sa_qual_levels)
             where += sa_qual_levels.c.id == qual_level_filter,
+
+    labels_filter = request.GET.getall('label', [])
+    labels_exclude_filter = request.GET.getall('label_exclude', [])
+    if labels_filter:
+        where += c.labels.contains(cast(labels_filter, ARRAY(String(255)))),
+    if labels_exclude_filter:
+        where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
 
     lat = _get_arg(request, 'latitude', decoder=float)
     lng = _get_arg(request, 'longitude', decoder=float)
@@ -255,9 +273,8 @@ async def contractor_list(request):
         .offset(offset)
         .limit(PAGINATION)
     )
-    if join is not None:
-        q = q.select_from(join)
-
+    if select_from is not None:
+        q = q.select_from(select_from)
     results = []
     name_display = request['company'].name_display
 
@@ -304,7 +321,10 @@ async def _get_skills(conn, con_id):
 
 async def contractor_get(request):
     c = sa_contractors.c
-    cols = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town, c.country
+    cols = (
+        c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
+        c.country, c.labels
+    )
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
     curr = await conn.execute(
@@ -324,7 +344,8 @@ async def contractor_get(request):
         country=con.country,
         photo=_photo_url(request, con, False),
         extra_attributes=con.extra_attributes,
-        skills=await _get_skills(conn, con_id)
+        skills=await _get_skills(conn, con_id),
+        labels=con.labels or [],
     )
 
 
@@ -355,6 +376,18 @@ async def qual_level_list(request):
         .distinct(sa_qual_levels.c.ranking, sa_qual_levels.c.id)
     )
     return await _sub_qual_list(request, q)
+
+
+async def labels_list(request):
+    q = (
+        select([sa_labels.c.name, sa_labels.c.machine_name])
+        .where(sa_labels.c.company == request['company'].id)
+    )
+    conn = await request['conn_manager'].get_connection()
+    return public_json_response(
+        request,
+        **{s.machine_name: s.name async for s in conn.execute(q)}
+    )
 
 
 FIELD_TYPE_LOOKUP = {

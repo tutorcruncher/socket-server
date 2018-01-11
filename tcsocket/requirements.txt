@@ -10,3 +10,6 @@ pillow==4.3.0
 pydantic==0.6.3
 raven==6.4.0
 uvloop==0.9.1
+ipython==6.2.1
+pgcli==1.8.2
+ipython-sql==0.3.8
