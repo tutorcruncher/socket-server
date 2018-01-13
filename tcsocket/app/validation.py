@@ -16,12 +16,40 @@ class NameOptions(str, Enum):
     full_name = 'full_name'
 
 
+@unique
+class DisplayMode(str, Enum):
+    grid = 'grid'
+    list = 'list'
+    enquiry = 'enquiry'
+    enquiry_modal = 'enquiry-modal'  # TODO does this work?
+
+
+@unique
+class RouterMode(str, Enum):
+    hash = 'hash'
+    history = 'history'
+
+
 class CompanyCreateModal(BaseModel):
     name: constr(min_length=3, max_length=63)
     name_display: NameOptions = NameOptions.first_name_initial
     url: NoneStr = None
     public_key: Optional[constr(min_length=18, max_length=20)] = None
     private_key: Optional[constr(min_length=20, max_length=50)] = None
+
+
+# class CompanyUpdateModel(BaseModel):
+#     name: constr(min_length=3, max_length=63) = None
+#     private_key: str = None
+#
+#     domains: List[constr(max_length=255)] = []
+#     name_display: NameOptions = None
+#
+#     display_mode: DisplayMode = None
+#     router_mode: RouterMode = None
+#     show_stars: bool = False
+#     show_hours_reviewed: bool = False
+#     show_labels: bool = False
 
 
 class CompanyUpdateModel(BaseModel):
@@ -105,6 +133,7 @@ class EnquiryModal(BaseModel):
 VIEW_MODELS = {
     'company-create': CompanyCreateModal,
     'company-update': CompanyUpdateModel,
+    'webhook-contractor': ContractorModel,
     'contractor-set': ContractorModel,
     'enquiry': EnquiryModal,
 }

@@ -156,8 +156,8 @@ class MainActor(Actor):
         async with self.session.post(self.settings.grecaptcha_url, data=data, headers=headers) as r:
             assert r.status == 200
             obj = await r.json()
-            domain = company['domain']
-            if obj['success'] is True and (domain is None or obj['hostname'].endswith(domain)):
+            domains = company['domains']
+            if obj['success'] is True and (domains is None or obj['hostname'] in domains):
                 return True
             else:
                 logger.warning('google recaptcha failure, response: %s', obj)

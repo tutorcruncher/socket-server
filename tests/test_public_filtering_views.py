@@ -11,22 +11,19 @@ from .conftest import create_con_skills
 
 async def test_list_contractors_origin(cli, company):
     url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
-    r = await cli.get(url, headers={'Origin': 'http://www.example.com'})
-    assert r.status == 200
-    assert r.headers.get('Access-Control-Allow-Origin') == 'http://www.example.com'
-    assert [] == await r.json()
 
-    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
     r = await cli.get(url, headers={'Origin': 'http://example.com'})
     assert r.status == 200
-    assert r.headers.get('Access-Control-Allow-Origin') == 'http://example.com'
+    assert r.headers.get('Access-Control-Allow-Origin') == '*'
     assert [] == await r.json()
 
-    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
     r = await cli.get(url, headers={'Origin': 'http://different.com'})
-    assert r.status == 200
-    assert r.headers.get('Access-Control-Allow-Origin') == 'http://example.com'
-    assert [] == await r.json()
+    assert r.status == 403
+    assert r.headers.get('Access-Control-Allow-Origin') == '*'
+    assert {
+        'details': 'the current Origin "http://different.com" does not match the allowed domains',
+        'status': 'wrong Origin domain'
+    } == await r.json()
 
 
 @pytest.mark.parametrize('filter_args, con_count', [
@@ -230,7 +227,7 @@ async def test_labels_list(cli, db_conn, company):
     v = await db_conn.execute(
         sa_companies
         .insert()
-        .values(name='snap', public_key='snap', private_key='snap', domain='example.com')
+        .values(name='snap', public_key='snap', private_key='snap', domains=['example.com'])
         .returning(sa_companies.c.id)
     )
     new_company_id = next(r.id for r in v)

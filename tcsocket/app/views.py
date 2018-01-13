@@ -58,7 +58,7 @@ async def company_create(request):
     data.update(
         public_key=data['public_key'] or token_hex(10),
         private_key=data['private_key'] or token_hex(20),
-        domain=url and re.sub('^w+\.', '', URL(url).host),
+        domains=url and [URL(url).host],  # TODO here for backwards compatibility, to be removed
     )
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute((
@@ -97,7 +97,7 @@ async def company_update(request):
     url = data.pop('url', MISSING)
     data = {k: v for k, v in data.items() if v is not None}
     if url is not MISSING:
-        data['domain'] = url and re.sub('^w+\.', '', URL(url).host)
+        data['domains'] = url and [URL(url).host]
     conn = await request['conn_manager'].get_connection()
     public_key = request['company'].public_key
     c = sa_companies.c
@@ -109,7 +109,7 @@ async def company_update(request):
         ))
         logger.info('company "%s" updated, %s', public_key, data)
 
-    select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domain
+    select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domains
     q = select(select_fields).where(c.public_key == public_key)
     result = await conn.execute(q)
     company = dict(await result.first())
@@ -119,7 +119,7 @@ async def company_update(request):
         status_=200,
         status='success',
         details=data,
-        company_domain=company['domain'],
+        company_domains=company['domains'],
     )
 
 
@@ -128,7 +128,7 @@ async def company_list(request):
     List companies.
     """
     c = sa_companies.c
-    q = select([c.id, c.name, c.name_display, c.domain, c.public_key, c.private_key]).limit(1000)
+    q = select([c.id, c.name, c.name_display, c.domains, c.public_key, c.private_key]).limit(1000)
 
     conn = await request['conn_manager'].get_connection()
     results = [dict(r) async for r in conn.execute(q)]

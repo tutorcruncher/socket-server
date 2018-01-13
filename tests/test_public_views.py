@@ -220,7 +220,7 @@ async def test_post_enquiry(cli, company, other_server):
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
-    assert other_server.app['request_log'] == [
+    assert [
         (
             'grecaptcha_post',
             {
@@ -238,7 +238,7 @@ async def test_post_enquiry(cli, company, other_server):
                 'http_referrer': None,
             },
         ),
-    ]
+    ] == other_server.app['request_log']
 
 
 async def test_post_enquiry_bad_captcha(cli, company, other_server):

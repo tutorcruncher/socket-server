@@ -83,7 +83,7 @@ async def company_update(*, public_key, data=None, **kwargs):
         'Content-Type': 'application/json',
     }
     async with aiohttp.ClientSession(connector=CONN) as session:
-        async with session.post(BASE_URL + f'{public_key}/update', data=payload, headers=headers) as r:
+        async with session.post(BASE_URL + f'{public_key}/webhook/options', data=payload, headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')
@@ -171,7 +171,7 @@ async def contractor_create(*, public_key, **kwargs):
         'Content-Type': 'application/json',
     }
     async with aiohttp.ClientSession(connector=CONN) as session:
-        async with session.post(BASE_URL + f'{public_key}/contractors/set', data=payload, headers=headers) as r:
+        async with session.post(BASE_URL + f'{public_key}/webhook/contractor', data=payload, headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')

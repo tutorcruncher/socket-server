@@ -73,18 +73,6 @@ def pretty_json_response(*, status_=200, list_=None, **data):
 
 
 def public_json_response(request, *, status_=200, list_=None, **data):
-    company = request.get('company')
-    if company and company.domain:
-        origin = request.headers.get('Origin')
-        if origin and origin.endswith(company.domain):
-            uri = origin
-        else:
-            uri = f'{request.url.scheme}://{company.domain}'
-
-        headers = {ACCESS_CONTROL_HEADER: uri}
-    else:
-        headers = {ACCESS_CONTROL_HEADER: '*'}
-
     if JSON_CONTENT_TYPE in request.headers.get('Accept', ''):
         to_json = json.dumps
     else:
@@ -94,5 +82,5 @@ def public_json_response(request, *, status_=200, list_=None, **data):
         body=to_json(data if list_ is None else list_).encode(),
         status=status_,
         content_type=JSON_CONTENT_TYPE,
-        headers=headers,
+        headers={ACCESS_CONTROL_HEADER: '*'}
     )
