@@ -120,7 +120,6 @@ async def pg_conn_middleware(app, handler):
 
 async def company_middleware(app, handler):
     async def _handler(request):
-        # if hasattr(request.match_info.route, 'status'):
         try:
             public_key = request.match_info.get('company')
             if public_key:
@@ -132,7 +131,7 @@ async def company_middleware(app, handler):
                 company = await result.first()
 
                 if company and company.domains is not None:
-                    origin = request.headers.get('Origin')  # or request.headers.get('Referer')
+                    origin = request.headers.get('Origin') or request.headers.get('Referer')
                     if origin:
                         domain = URL(origin).host
                         if domain not in company.domains:

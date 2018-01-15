@@ -33,7 +33,7 @@ async def test_list_contractors_origin(cli, company):
     (None, 'http://example.com', 200),
     (['localhost'], 'http://localhost:8000', 200),
 ])
-async def test_list_contractors_no_domain(cli, company, domains, origin, response):
+async def test_list_contractors_domains(cli, company, domains, origin, response):
     r = await signed_post(
         cli,
         f'/{company.public_key}/webhook/options',
@@ -45,6 +45,16 @@ async def test_list_contractors_no_domain(cli, company, domains, origin, respons
     url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
     r = await cli.get(url, headers={'Origin': origin})
     assert r.status == response
+
+
+async def test_list_contractors_referrer(cli, company):
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url, headers={'Origin': 'https://example.com', 'Referer': 'http://www.whatever.com'})
+    assert r.status == 200
+    r = await cli.get(url, headers={'Referer': 'http://www.whatever.com'})
+    assert r.status == 403
+    r = await cli.get(url)
+    assert r.status == 200
 
 
 @pytest.mark.parametrize('filter_args, con_count', [
