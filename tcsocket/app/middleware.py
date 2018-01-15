@@ -118,10 +118,10 @@ async def pg_conn_middleware(app, handler):
     return _handler
 
 
-def domain_match(allow_domain, current_domain):
-    return (
-        allow_domain == current_domain
-        or (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
+def domain_allowed(allow_domains, current_domain):
+    return any(
+        allow_domain == current_domain or (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
+        for allow_domain in allow_domains
     )
 
 
@@ -139,13 +139,11 @@ async def company_middleware(app, handler):
 
                 if company and company.domains is not None:
                     origin = request.headers.get('Origin') or request.headers.get('Referer')
-                    if origin:
-                        current_dom = URL(origin).host
-                        if not any(domain_match(allowed_dom, current_dom) for allowed_dom in company.domains):
-                            raise HTTPForbiddenJson(
-                                status='wrong Origin domain',
-                                details=f"the current Origin '{origin}' does not match the allowed domains",
-                            )
+                    if origin and not domain_allowed(company.domains, URL(origin).host):
+                        raise HTTPForbiddenJson(
+                            status='wrong Origin domain',
+                            details=f"the current Origin '{origin}' does not match the allowed domains",
+                        )
                 if company:
                     request['company'] = company
                 else:

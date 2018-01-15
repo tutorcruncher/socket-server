@@ -89,6 +89,15 @@ async def company_update(*, public_key, data=None, **kwargs):
             print(f'response: {text}')
 
 
+@command
+async def company_options(*, public_key, **kwargs):
+    async with aiohttp.ClientSession(connector=CONN) as session:
+        async with session.get(BASE_URL + f'{public_key}/options') as r:
+            print(f'status: {r.status}')
+            text = await r.text()
+            print(f'response: {text}')
+
+
 CON_DATA = {
     'id': 23502,
     'deleted': False,

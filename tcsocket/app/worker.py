@@ -12,6 +12,7 @@ from PIL import Image, ImageOps
 from psycopg2 import OperationalError
 
 from .logs import logger
+from .middleware import domain_allowed
 from .processing import contractor_set
 from .settings import Settings
 from .validation import ContractorModel
@@ -157,7 +158,7 @@ class MainActor(Actor):
             assert r.status == 200
             obj = await r.json()
             domains = company['domains']
-            if obj['success'] is True and (domains is None or obj['hostname'] in domains):
+            if obj['success'] is True and (domains is None or domain_allowed(domains, obj['hostname'])):
                 return True
             else:
                 logger.warning('google recaptcha failure, response: %s', obj)
