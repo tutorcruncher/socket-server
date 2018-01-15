@@ -22,7 +22,7 @@ class DisplayMode(str, Enum):
     grid = 'grid'
     list = 'list'
     enquiry = 'enquiry'
-    enquiry_modal = 'enquiry-modal'  # TODO does this work?
+    enquiry_modal = 'enquiry-modal'
 
 
 @unique

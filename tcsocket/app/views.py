@@ -18,8 +18,8 @@ from .logs import logger
 from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
                      sa_subjects)
 from .processing import contractor_set as _contractor_set
-from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
-from .validation import CompanyCreateModal, CompanyUpdateModel, ContractorModel
+from .utils import HTTPBadRequestJson, json_response
+from .validation import CompanyCreateModal, CompanyUpdateModel, ContractorModel, DisplayMode, RouterMode
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
@@ -73,7 +73,8 @@ async def company_create(request):
                     new_company.name, new_company.id, new_company.public_key, new_company.private_key)
         if existing_company:
             await request.app['worker'].update_contractors(dict(new_company))
-        return pretty_json_response(
+        return json_response(
+            request,
             status_=201,
             status='success',
             details={
@@ -116,7 +117,8 @@ async def company_update(request):
     company = dict(await result.first())
 
     await request.app['worker'].update_contractors(company)
-    return pretty_json_response(
+    return json_response(
+        request,
         status_=200,
         status='success',
         details=data,
@@ -129,11 +131,30 @@ async def company_list(request):
     List companies.
     """
     c = sa_companies.c
-    q = select([c.id, c.name, c.name_display, c.domains, c.public_key, c.private_key]).limit(1000)
+    q = select([c.id, c.name, c.name_display, c.domains, c.public_key, c.private_key, c.options]).limit(1000)
 
     conn = await request['conn_manager'].get_connection()
     results = [dict(r) async for r in conn.execute(q)]
-    return pretty_json_response(list_=results)
+    return json_response(request, list_=results)
+
+
+async def company_options(request):
+    """
+    Get a companies options
+    """
+    options = request['company'].options or {}
+    options.update(
+    )
+    return json_response(
+        request,
+        name=request['company'].name,
+        name_display=request['company'].name_display or NameOptions.first_name_initial,
+        show_stars=options.get('show_stars') or False,
+        display_mode=options.get('display_mode') or DisplayMode.grid,
+        router_mode=options.get('router_mode') or RouterMode.hash,
+        show_hours_reviewed=options.get('show_hours_reviewed') or False,
+        show_labels=options.get('show_labels') or False,
+    )
 
 
 async def contractor_set(request):
@@ -148,12 +169,14 @@ async def contractor_set(request):
         contractor=contractor,
     )
     if action == Action.deleted:
-        return pretty_json_response(
+        return json_response(
+            request,
             status='success',
             details='contractor deleted',
         )
     else:
-        return pretty_json_response(
+        return json_response(
+            request,
             status_=201 if action == Action.created else 200,
             status='success',
             details=f'contractor {action}',
@@ -288,7 +311,7 @@ async def contractor_list(request):
             photo=_photo_url(request, con, True),
             distance=inc_distance and int(con.distance),
         ))
-    return public_json_response(request, list_=results)
+    return json_response(request, list_=results)
 
 
 def _group_skills(skills):
@@ -329,7 +352,7 @@ async def contractor_get(request):
     )
     con = await curr.first()
 
-    return public_json_response(
+    return json_response(
         request,
         id=con.id,
         name=_get_name(request['company'].name_display, con),
@@ -347,7 +370,7 @@ async def contractor_get(request):
 async def _sub_qual_list(request, q):
     q = q.where(sa_contractors.c.company == request['company'].id)
     conn = await request['conn_manager'].get_connection()
-    return public_json_response(
+    return json_response(
         request,
         list_=[dict(s, link=f'{s.id}-{_slugify(s.name)}') async for s in conn.execute(q)]
     )
@@ -379,7 +402,7 @@ async def labels_list(request):
         .where(sa_labels.c.company == request['company'].id)
     )
     conn = await request['conn_manager'].get_connection()
-    return public_json_response(
+    return json_response(
         request,
         **{s.machine_name: s.name async for s in conn.execute(q)}
     )
@@ -424,7 +447,7 @@ async def enquiry(request):
             http_referrer=referrer and referrer[:1023],
         )
         await request.app['worker'].submit_enquiry(company, data)
-        return public_json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
+        return json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
     else:
         redis = await request.app['worker'].get_redis()
         raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
@@ -453,4 +476,4 @@ async def enquiry(request):
             },
             'last_updated': last_updated,
         }
-        return public_json_response(request, **enquiry_options)
+        return json_response(request, **enquiry_options)

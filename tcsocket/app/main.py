@@ -7,8 +7,8 @@ from aiopg.sa import create_engine
 
 from .middleware import middleware
 from .settings import THIS_DIR, Settings
-from .views import (company_create, company_list, company_update, contractor_get, contractor_list, contractor_set,
-                    enquiry, favicon, index, labels_list, qual_level_list, robots_txt, subject_list)
+from .views import (company_create, company_list, company_options, company_update, contractor_get, contractor_list,
+                    contractor_set, enquiry, favicon, index, labels_list, qual_level_list, robots_txt, subject_list)
 from .worker import MainActor
 
 
@@ -34,6 +34,7 @@ def setup_routes(app):
     app.router.add_post('/companies/create', company_create, name='company-create')
     app.router.add_get('/companies', company_list, name='company-list')
 
+    app.router.add_get('/{company}/options', company_options, name='company-options')
     # to work with tutorcruncher websockets
     app.router.add_post('/{company}/webhook/options', company_update, name='company-update')
     app.router.add_post('/{company}/webhook/contractor', contractor_set, name='webhook-contractor')

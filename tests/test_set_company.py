@@ -157,6 +157,7 @@ async def test_list(cli, company):
             'name_display': 'first_name_initial',
             'private_key': 'theprivatekey',
             'public_key': 'thepublickey',
+            'options': None,
         },
     ] == response_data
 
@@ -192,15 +193,15 @@ async def test_update_company(cli, db_conn, company, other_server):
         f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',
         domains=['changed.com'],
-        display_mode='list',
-        show_hours_reviewed=False,
+        display_mode='enquiry-modal',
+        show_hours_reviewed=True,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {
         'details': {
             'domains': ['changed.com'],
-            'options': {'display_mode': 'list', 'show_hours_reviewed': False},
+            'options': {'display_mode': 'enquiry-modal', 'show_hours_reviewed': True},
         },
         'company_domains': ['changed.com'],
         'status': 'success',
@@ -210,7 +211,19 @@ async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domains == ['changed.com']
-    assert result.options == {'display_mode': 'list', 'show_hours_reviewed': False}
+    assert result.options == {'display_mode': 'enquiry-modal', 'show_hours_reviewed': True}
+
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert {
+        'display_mode': 'enquiry-modal',
+        'name': 'foobar',
+        'name_display': 'first_name_initial',
+        'router_mode': 'hash',
+        'show_hours_reviewed': True,
+        'show_labels': False,
+        'show_stars': False,
+    } == await r.json()
 
 
 async def test_update_company_clear_domain(cli, db_conn, company, other_server):

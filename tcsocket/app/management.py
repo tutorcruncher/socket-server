@@ -302,7 +302,7 @@ def add_domains_options(conn, settings):
     conn.execute('ALTER TABLE companies ADD domains VARCHAR(255)[]')
     conn.execute('ALTER TABLE companies ADD options JSONB')
     updated = 0
-    for id, domain in conn.execute('SELECT id, domain FROM companies'):
+    for id, domain in conn.execute('SELECT id, domain FROM companies WHERE domain IS NOT NULL'):
         conn.execute((
             update(sa_companies)
             .values({'domains': [domain, 'www.' + domain]})
