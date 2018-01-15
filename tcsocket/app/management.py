@@ -10,11 +10,11 @@ import psycopg2
 from aiohttp import ClientSession
 from arq import RunWorkerProcess
 from gunicorn.app.base import BaseApplication
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, update
 
 from .logs import logger
 from .main import create_app
-from .models import Base
+from .models import Base, sa_companies
 from .settings import Settings
 
 commands = []
@@ -292,3 +292,22 @@ def add_labels(conn, settings):
       ON contractors
       USING btree (labels);
     """)
+
+
+@patch
+def add_domains_options(conn, settings):
+    """
+    add domains and options fields to companies, move domain values to domains, delete domain field
+    """
+    conn.execute('ALTER TABLE companies ADD domains VARCHAR(255)[]')
+    conn.execute('ALTER TABLE companies ADD options JSONB')
+    updated = 0
+    for id, domain in conn.execute('SELECT id, domain FROM companies'):
+        conn.execute((
+            update(sa_companies)
+            .values({'domains': [domain, 'www.' + domain]})
+            .where(sa_companies.c.id == id)
+        ))
+        updated += 1
+    print(f'domains updated for {updated} companies')
+    conn.execute('ALTER TABLE companies DROP COLUMN domain')
