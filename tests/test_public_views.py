@@ -220,7 +220,7 @@ async def test_post_enquiry(cli, company, other_server):
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
-    assert other_server.app['request_log'] == [
+    assert [
         (
             'grecaptcha_post',
             {
@@ -238,7 +238,7 @@ async def test_post_enquiry(cli, company, other_server):
                 'http_referrer': None,
             },
         ),
-    ]
+    ] == other_server.app['request_log']
 
 
 async def test_post_enquiry_bad_captcha(cli, company, other_server):
@@ -285,6 +285,7 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
     }
     headers = {
         'User-Agent': 'Testing Browser',
+        'Origin': 'http://example.com',
         'Referer': 'http://cause400.com',
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
@@ -343,7 +344,7 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
 
 async def test_post_enquiry_500(cli, company, other_server, caplog):
     data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5}
-    headers = {'Referer': 'http://snap.com'}
+    headers = {'Referer': 'http://snap.com', 'Origin': 'http://example.com'}
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers=headers)
     # because jobs are being executed directly
@@ -359,7 +360,8 @@ async def test_post_enquiry_referrer_too_long(cli, company, other_server):
         'upstream_http_referrer': 'X' * 2000
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
-    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser', 'Referer': 'Y' * 2000})
+    headers = {'User-Agent': 'Testing Browser', 'Referer': 'Y' * 2000, 'Origin': 'http://example.com'}
+    r = await cli.post(url, data=json.dumps(data), headers=headers)
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}

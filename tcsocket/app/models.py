@@ -22,8 +22,11 @@ class Company(Base):
     private_key = Column(String(50), index=True, nullable=False)
 
     name = Column(String(63), unique=True)
-    domain = Column(String(255))
+    domains = Column(ARRAY(String(255)))
+
     name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name_initial, nullable=False)
+
+    options = Column(JSONB)
 
 
 sa_companies = Company.__table__
@@ -57,7 +60,7 @@ class Contractor(Base):
 
     last_updated = Column(DateTime, nullable=False, index=True)
     action = Column(sa_enum(Action), default=Action.created, nullable=False)
-    labels = Column(ARRAY(String(255)), nullable=True)
+    labels = Column(ARRAY(String(255)))
 
 
 sa_contractors = Contractor.__table__

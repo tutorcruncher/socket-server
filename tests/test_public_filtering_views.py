@@ -6,27 +6,56 @@ from sqlalchemy import update
 
 from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 
-from .conftest import create_con_skills
+from .conftest import create_con_skills, signed_post
 
 
 async def test_list_contractors_origin(cli, company):
     url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
-    r = await cli.get(url, headers={'Origin': 'http://www.example.com'})
-    assert r.status == 200
-    assert r.headers.get('Access-Control-Allow-Origin') == 'http://www.example.com'
-    assert [] == await r.json()
 
-    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
     r = await cli.get(url, headers={'Origin': 'http://example.com'})
     assert r.status == 200
-    assert r.headers.get('Access-Control-Allow-Origin') == 'http://example.com'
+    assert r.headers.get('Access-Control-Allow-Origin') == '*'
     assert [] == await r.json()
 
-    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
     r = await cli.get(url, headers={'Origin': 'http://different.com'})
+    assert r.status == 403
+    assert r.headers.get('Access-Control-Allow-Origin') == '*'
+    assert {
+        'details': "the current Origin 'http://different.com' does not match the allowed domains",
+        'status': 'wrong Origin domain'
+    } == await r.json()
+
+
+@pytest.mark.parametrize('domains, origin, response', [
+    (['example.com'], 'http://example.com', 200),
+    (['example.com'], 'http://www.example.com', 403),
+    (['*.example.com'], 'http://www.example.com', 200),
+    ([], 'http://example.com', 403),
+    (None, 'http://example.com', 200),
+    (['localhost'], 'http://localhost:8000', 200),
+])
+async def test_list_contractors_domains(cli, company, domains, origin, response):
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
+        domains=domains,
+    )
+    assert r.status == 200, await r.text()
+
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url, headers={'Origin': origin})
+    assert r.status == response
+
+
+async def test_list_contractors_referrer(cli, company):
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url, headers={'Origin': 'https://example.com', 'Referer': 'http://www.whatever.com'})
     assert r.status == 200
-    assert r.headers.get('Access-Control-Allow-Origin') == 'http://example.com'
-    assert [] == await r.json()
+    r = await cli.get(url, headers={'Referer': 'http://www.whatever.com'})
+    assert r.status == 403
+    r = await cli.get(url)
+    assert r.status == 200
 
 
 @pytest.mark.parametrize('filter_args, con_count', [
@@ -230,7 +259,7 @@ async def test_labels_list(cli, db_conn, company):
     v = await db_conn.execute(
         sa_companies
         .insert()
-        .values(name='snap', public_key='snap', private_key='snap', domain='example.com')
+        .values(name='snap', public_key='snap', private_key='snap', domains=['example.com'])
         .returning(sa_companies.c.id)
     )
     new_company_id = next(r.id for r in v)

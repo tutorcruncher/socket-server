@@ -8,6 +8,7 @@ from aiohttp.hdrs import METH_GET, METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
 from pydantic import ValidationError
 from sqlalchemy import select
+from yarl import URL
 
 from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson
@@ -20,6 +21,7 @@ PUBLIC_VIEWS = {
     'robots-txt',
     'favicon',
     'contractor-list',
+    'company-options',
     'contractor-get',
     'enquiry',
     'subject-list',
@@ -116,18 +118,32 @@ async def pg_conn_middleware(app, handler):
     return _handler
 
 
+def domain_allowed(allow_domains, current_domain):
+    return any(
+        allow_domain == current_domain or (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
+        for allow_domain in allow_domains
+    )
+
+
 async def company_middleware(app, handler):
     async def _handler(request):
-        # if hasattr(request.match_info.route, 'status'):
         try:
             public_key = request.match_info.get('company')
             if public_key:
                 c = sa_companies.c
-                select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domain
+                select_fields = c.id, c.name, c.public_key, c.private_key, c.name_display, c.options, c.domains
                 q = select(select_fields).where(c.public_key == public_key)
                 conn = await request['conn_manager'].get_connection()
                 result = await conn.execute(q)
                 company = await result.first()
+
+                if company and company.domains is not None:
+                    origin = request.headers.get('Origin') or request.headers.get('Referer')
+                    if origin and not domain_allowed(company.domains, URL(origin).host):
+                        raise HTTPForbiddenJson(
+                            status='wrong Origin domain',
+                            details=f"the current Origin '{origin}' does not match the allowed domains",
+                        )
                 if company:
                     request['company'] = company
                 else:
@@ -148,7 +164,7 @@ async def json_request_middleware(app, handler):
             model = VIEW_MODELS[request.match_info.route.name]
             try:
                 data = await request.json()
-                request['json_obj'] = model.parse_obj(data).dict()
+                request['model'] = model.parse_obj(data)
             except ValidationError as e:
                 error_details = e.errors_dict
             except ValueError as e:

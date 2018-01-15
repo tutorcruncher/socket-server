@@ -55,7 +55,7 @@ async def test_create_with_url_public_key(cli, db_conn):
     result = await curr.first()
     assert result.name == 'foobar'
     assert result.public_key == 'X' * 20
-    assert result.domain == 'example.com'
+    assert result.domains == ['www.example.com']
     assert response_data == {
         'details': {
             'name': 'foobar',
@@ -81,9 +81,9 @@ async def test_create_with_keys(cli, db_conn):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.name == 'foobar'
-    assert [(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())] == [
+    assert {(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())} == {
         (22, 'James', 'Higgins'), (23, None, 'Person 2')
-    ]
+    }
 
 
 async def test_create_not_auth(cli):
@@ -152,11 +152,12 @@ async def test_list(cli, company):
     assert isinstance(response_data[0].pop('id'), int)
     assert [
         {
-            'domain': 'example.com',
+            'domains': ['example.com'],
             'name': 'foobar',
             'name_display': 'first_name_initial',
             'private_key': 'theprivatekey',
             'public_key': 'thepublickey',
+            'options': None,
         },
     ] == response_data
 
@@ -184,67 +185,83 @@ async def test_list_invalid_time(cli, company, payload_func, name):
 async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
-    assert result.domain == 'example.com'
+    assert result.domains == ['example.com']
     assert other_server.app['request_log'] == []
 
     r = await signed_post(
         cli,
-        f'/{company.public_key}/update',
+        f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',
-        url='http://changed.com',
+        domains=['changed.com'],
+        display_mode='enquiry-modal',
+        show_hours_reviewed=True,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'details': {'domain': 'changed.com'},
-        'company_domain': 'changed.com',
+        'details': {
+            'domains': ['changed.com'],
+            'options': {'display_mode': 'enquiry-modal', 'show_hours_reviewed': True},
+        },
+        'company_domains': ['changed.com'],
         'status': 'success',
     }
     assert other_server.app['request_log'] == [('contractor_list', None), ('contractor_list', '2')]
 
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
-    assert result.domain == 'changed.com'
+    assert result.domains == ['changed.com']
+    assert result.options == {'display_mode': 'enquiry-modal', 'show_hours_reviewed': True}
+
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert {
+        'display_mode': 'enquiry-modal',
+        'name': 'foobar',
+        'name_display': 'first_name_initial',
+        'router_mode': 'hash',
+        'show_hours_reviewed': True,
+        'show_labels': False,
+        'show_stars': False,
+    } == await r.json()
 
 
 async def test_update_company_clear_domain(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
-    assert result.domain == 'example.com'
+    assert result.domains == ['example.com']
     assert other_server.app['request_log'] == []
 
     r = await signed_post(
         cli,
-        f'/{company.public_key}/update',
+        f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',
-        url=None,
+        domains=None,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
-    assert response_data == {'details': {'domain': None}, 'status': 'success', 'company_domain': None}
+    assert response_data == {'details': {'domains': None}, 'status': 'success', 'company_domains': None}
 
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
-    assert result.domain is None
+    assert result.domains is None
 
 
 async def test_update_company_no_data(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
-    assert result.domain == 'example.com'
+    assert result.domains == ['example.com']
     assert other_server.app['request_log'] == []
 
     r = await signed_post(
         cli,
-        f'/{company.public_key}/update',
-        signing_key_='this is the master key'
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'company_domain': None,
-        'details': {
-            'domain': None,
-        },
+        'company_domains': ['example.com'],
+        'details': {},
         'status': 'success',
     }

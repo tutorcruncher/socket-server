@@ -198,7 +198,7 @@ def other_server(loop, test_server):
     app.router.add_post('/grecaptcha', grecaptcha_post_view)
     app.update(
         request_log=[],
-        grecaptcha_host='www.example.com',
+        grecaptcha_host='example.com',
     )
     server = loop.run_until_complete(test_server(app))
     app['server_name'] = f'http://localhost:{server.port}'
@@ -307,7 +307,7 @@ def company(loop, db_conn):
     coro = db_conn.execute(
         sa_companies
         .insert()
-        .values(name='foobar', public_key=public_key, private_key=private_key, domain='example.com')
+        .values(name='foobar', public_key=public_key, private_key=private_key, domains=['example.com'])
         .returning(sa_companies.c.id)
     )
     v = loop.run_until_complete(coro)

@@ -10,7 +10,7 @@ import aiohttp
 import click
 
 SIGNING_KEY = os.getenv('CLIENT_SIGNING_KEY', 'testing').encode()
-BASE_URL = os.getenv('CLIENT_BASE_URL', 'http://localhost:5000/')
+BASE_URL = os.getenv('CLIENT_BASE_URL', 'http://localhost:8000/')
 print(f'using shared secret {SIGNING_KEY} and url {BASE_URL}')
 # BASE_URL = 'https://socket.tutorcruncher.com/'
 CONN = aiohttp.TCPConnector(verify_ssl=False)
@@ -83,7 +83,16 @@ async def company_update(*, public_key, data=None, **kwargs):
         'Content-Type': 'application/json',
     }
     async with aiohttp.ClientSession(connector=CONN) as session:
-        async with session.post(BASE_URL + f'{public_key}/update', data=payload, headers=headers) as r:
+        async with session.post(BASE_URL + f'{public_key}/webhook/options', data=payload, headers=headers) as r:
+            print(f'status: {r.status}')
+            text = await r.text()
+            print(f'response: {text}')
+
+
+@command
+async def company_options(*, public_key, **kwargs):
+    async with aiohttp.ClientSession(connector=CONN) as session:
+        async with session.get(BASE_URL + f'{public_key}/options') as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')
@@ -171,7 +180,7 @@ async def contractor_create(*, public_key, **kwargs):
         'Content-Type': 'application/json',
     }
     async with aiohttp.ClientSession(connector=CONN) as session:
-        async with session.post(BASE_URL + f'{public_key}/contractors/set', data=payload, headers=headers) as r:
+        async with session.post(BASE_URL + f'{public_key}/webhook/contractor', data=payload, headers=headers) as r:
             print(f'status: {r.status}')
             text = await r.text()
             print(f'response: {text}')
