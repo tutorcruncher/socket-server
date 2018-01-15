@@ -124,21 +124,21 @@ async def company_middleware(app, handler):
             public_key = request.match_info.get('company')
             if public_key:
                 c = sa_companies.c
-                select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domains
+                select_fields = c.id, c.public_key, c.private_key, c.name_display, c.options, c.domains
                 q = select(select_fields).where(c.public_key == public_key)
                 conn = await request['conn_manager'].get_connection()
                 result = await conn.execute(q)
                 company = await result.first()
 
-                domains = company and company.domains and set(company.domains)
-                origin = request.headers.get('Origin')  # or request.headers.get('Referer')
-                if domains and origin:
-                    domain = URL(origin).host
-                    if domain not in domains:
-                        raise HTTPForbiddenJson(
-                            status='wrong Origin domain',
-                            details=f'the current Origin "{origin}" does not match the allowed domains'
-                        )
+                if company and company.domains is not None:
+                    origin = request.headers.get('Origin')  # or request.headers.get('Referer')
+                    if origin:
+                        domain = URL(origin).host
+                        if domain not in company.domains:
+                            raise HTTPForbiddenJson(
+                                status='wrong Origin domain',
+                                details=f'the current Origin "{origin}" does not match the allowed domains'
+                            )
                 if company:
                     request['company'] = company
                 else:

@@ -179,7 +179,7 @@ def _slugify(name):
 
 
 def _get_name(name_display, row):
-    name = row.first_name
+    name = row.first_name or ''
     if name_display != NameOptions.first_name and row.last_name:
         if name_display == NameOptions.first_name_initial:
             name += ' ' + row.last_name[0]

@@ -6,7 +6,7 @@ from sqlalchemy import update
 
 from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 
-from .conftest import create_con_skills
+from .conftest import create_con_skills, signed_post
 
 
 async def test_list_contractors_origin(cli, company):
@@ -24,6 +24,27 @@ async def test_list_contractors_origin(cli, company):
         'details': 'the current Origin "http://different.com" does not match the allowed domains',
         'status': 'wrong Origin domain'
     } == await r.json()
+
+
+@pytest.mark.parametrize('domains, origin, response', [
+    (['example.com'], 'http://example.com', 200),
+    (['example.com'], 'http://www.example.com', 403),
+    ([], 'http://example.com', 403),
+    (None, 'http://example.com', 200),
+    (['localhost'], 'http://localhost:8000', 200),
+])
+async def test_list_contractors_no_domain(cli, company, domains, origin, response):
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
+        domains=domains,
+    )
+    assert r.status == 200, await r.text()
+
+    url = cli.server.app.router['contractor-list'].url_for(company='thepublickey')
+    r = await cli.get(url, headers={'Origin': origin})
+    assert r.status == response
 
 
 @pytest.mark.parametrize('filter_args, con_count', [
