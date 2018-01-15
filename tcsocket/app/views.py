@@ -2,14 +2,12 @@ import json
 import re
 from itertools import groupby
 from operator import attrgetter, itemgetter
-from secrets import token_hex
 from typing import Any, Callable
 
 from aiohttp import web_exceptions
 from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
 from arq.utils import timestamp
-from pydantic import ValidationError
 from sqlalchemy import String, cast, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -21,7 +19,7 @@ from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contra
                      sa_subjects)
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
-from .validation import ContractorModel
+from .validation import CompanyCreateModal, ContractorModel
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
@@ -52,14 +50,11 @@ async def company_create(request):
 
     Authentication and json parsing are done by middleware.
     """
-    data = request['json_obj']
-    existing_company = bool(data['private_key'])
-    url = data.pop('url', None)
-    data.update(
-        public_key=data['public_key'] or token_hex(10),
-        private_key=data['private_key'] or token_hex(20),
-        domains=url and [URL(url).host],  # TODO here for backwards compatibility, to be removed
-    )
+    company: CompanyCreateModal = request['model']
+    existing_company = bool(company.private_key)
+    data = company.dict(exclude={'url'})
+    data['domains'] = company.url and [URL(company.url).host]  # TODO here for backwards compatibility, to be removed
+
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute((
         pg_insert(sa_companies)
@@ -93,7 +88,7 @@ async def company_update(request):
     """
     Modify a company.
     """
-    data = request['json_obj']
+    data = request['model'].dict()
     url = data.pop('url', MISSING)
     data = {k: v for k, v in data.items() if v is not None}
     if url is not MISSING:
@@ -139,13 +134,7 @@ async def contractor_set(request):
     """
     Create or update a contractor.
     """
-    try:
-        contractor = ContractorModel.parse_obj(request['json_obj'])
-    except ValidationError as e:
-        raise HTTPBadRequestJson(
-            status='invalid data',
-            details=e.errors_dict,
-        )
+    contractor: ContractorModel = request['model']
     action = await _contractor_set(
         conn=await request['conn_manager'].get_connection(),
         worker=request.app['worker'],
@@ -419,7 +408,7 @@ def _convert_field(name, value, prefix=None):
 async def enquiry(request):
     company = dict(request['company'])
     if request.method == METH_POST:
-        data = request['json_obj']
+        data = request['model'].dict()
         data = {k: v for k, v in data.items() if v is not None}
         x_forward_for = request.headers.get('X-Forwarded-For')
         referrer = request.headers.get('Referer')

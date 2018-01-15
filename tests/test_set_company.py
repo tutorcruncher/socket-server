@@ -81,9 +81,9 @@ async def test_create_with_keys(cli, db_conn):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.name == 'foobar'
-    assert [(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())] == [
+    assert {(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())} == {
         (22, 'James', 'Higgins'), (23, None, 'Person 2')
-    ]
+    }
 
 
 async def test_create_not_auth(cli):

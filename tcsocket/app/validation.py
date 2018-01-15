@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import Enum, unique
+from secrets import token_hex
 from typing import Any, List, Optional
 
 from pydantic import BaseModel, EmailStr, NoneStr, constr, validator
@@ -34,8 +35,16 @@ class CompanyCreateModal(BaseModel):
     name: constr(min_length=3, max_length=63)
     name_display: NameOptions = NameOptions.first_name_initial
     url: NoneStr = None
-    public_key: Optional[constr(min_length=18, max_length=20)] = None
-    private_key: Optional[constr(min_length=20, max_length=50)] = None
+    public_key: constr(min_length=18, max_length=20) = None
+    private_key: constr(min_length=20, max_length=50) = None
+
+    @validator('public_key', pre=True, always=True)
+    def set_public_key(cls, v):
+        return v or token_hex(10)
+
+    @validator('private_key', pre=True, always=True)
+    def set_private_key(cls, v):
+        return v or token_hex(20)
 
 
 # class CompanyUpdateModel(BaseModel):
@@ -55,7 +64,7 @@ class CompanyCreateModal(BaseModel):
 class CompanyUpdateModel(BaseModel):
     name: constr(min_length=3, max_length=63) = None
     name_display: NameOptions = None
-    url: NoneStr = None
+    url: NoneStr = ''
     private_key: str = None
 
 

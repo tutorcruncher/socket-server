@@ -159,7 +159,7 @@ async def json_request_middleware(app, handler):
             model = VIEW_MODELS[request.match_info.route.name]
             try:
                 data = await request.json()
-                request['json_obj'] = model.parse_obj(data).dict()
+                request['model'] = model.parse_obj(data)
             except ValidationError as e:
                 error_details = e.errors_dict
             except ValueError as e:
