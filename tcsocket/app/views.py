@@ -90,7 +90,7 @@ async def company_update(request):
     Modify a company.
     """
     company: CompanyUpdateModel = request['model']
-    data = company.dict(include={'name', 'private_key', 'name_display'})
+    data = company.dict(include={'name', 'public_key', 'private_key', 'name_display'})
     data = {k: v for k, v in data.items() if v is not None}
     if company.domains != 'UNCHANGED':
         data['domains'] = company.domains

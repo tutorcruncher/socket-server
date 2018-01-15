@@ -21,7 +21,7 @@ async def test_list_contractors_origin(cli, company):
     assert r.status == 403
     assert r.headers.get('Access-Control-Allow-Origin') == '*'
     assert {
-        'details': 'the current Origin "http://different.com" does not match the allowed domains',
+        'details': "the current Origin 'http://different.com' does not match the allowed domains",
         'status': 'wrong Origin domain'
     } == await r.json()
 
@@ -29,6 +29,7 @@ async def test_list_contractors_origin(cli, company):
 @pytest.mark.parametrize('domains, origin, response', [
     (['example.com'], 'http://example.com', 200),
     (['example.com'], 'http://www.example.com', 403),
+    (['*.example.com'], 'http://www.example.com', 200),
     ([], 'http://example.com', 403),
     (None, 'http://example.com', 200),
     (['localhost'], 'http://localhost:8000', 200),

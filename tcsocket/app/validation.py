@@ -49,7 +49,8 @@ class CompanyCreateModal(BaseModel):
 
 class CompanyUpdateModel(BaseModel):
     name: constr(min_length=3, max_length=63) = None
-    private_key: str = None
+    public_key: constr(min_length=18, max_length=20) = None
+    private_key: constr(min_length=20, max_length=50) = None
 
     domains: Optional[List[constr(max_length=255)]] = 'UNCHANGED'
     name_display: NameOptions = None
