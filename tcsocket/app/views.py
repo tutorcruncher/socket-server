@@ -19,7 +19,7 @@ from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contra
                      sa_subjects)
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, pretty_json_response, public_json_response
-from .validation import CompanyCreateModal, ContractorModel
+from .validation import CompanyCreateModal, CompanyUpdateModel, ContractorModel
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
@@ -88,11 +88,17 @@ async def company_update(request):
     """
     Modify a company.
     """
-    data = request['model'].dict()
-    url = data.pop('url', MISSING)
+    company: CompanyUpdateModel = request['model']
+    data = company.dict(include={'name', 'private_key', 'name_display'})
     data = {k: v for k, v in data.items() if v is not None}
-    if url is not MISSING:
-        data['domains'] = url and [URL(url).host]
+    if company.domains != 'UNCHANGED':
+        data['domains'] = company.domains
+
+    options = company.dict(include={'show_stars', 'display_mode', 'router_mode', 'show_hours_reviewed', 'show_labels'})
+    options = {k: v for k, v in options.items() if v is not None}
+    if options:
+        data['options'] = options
+
     conn = await request['conn_manager'].get_connection()
     public_key = request['company'].public_key
     c = sa_companies.c

@@ -47,25 +47,18 @@ class CompanyCreateModal(BaseModel):
         return v or token_hex(20)
 
 
-# class CompanyUpdateModel(BaseModel):
-#     name: constr(min_length=3, max_length=63) = None
-#     private_key: str = None
-#
-#     domains: List[constr(max_length=255)] = []
-#     name_display: NameOptions = None
-#
-#     display_mode: DisplayMode = None
-#     router_mode: RouterMode = None
-#     show_stars: bool = False
-#     show_hours_reviewed: bool = False
-#     show_labels: bool = False
-
-
 class CompanyUpdateModel(BaseModel):
     name: constr(min_length=3, max_length=63) = None
-    name_display: NameOptions = None
-    url: NoneStr = ''
     private_key: str = None
+
+    domains: Optional[List[constr(max_length=255)]] = 'UNCHANGED'
+    name_display: NameOptions = None
+
+    show_stars: bool = None
+    display_mode: DisplayMode = None
+    router_mode: RouterMode = None
+    show_hours_reviewed: bool = None
+    show_labels: bool = None
 
 
 class ContractorModel(BaseModel):

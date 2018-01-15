@@ -191,12 +191,17 @@ async def test_update_company(cli, db_conn, company, other_server):
         cli,
         f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',
-        url='http://changed.com',
+        domains=['changed.com'],
+        display_mode='list',
+        show_hours_reviewed=False,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'details': {'domains': ['changed.com']},
+        'details': {
+            'domains': ['changed.com'],
+            'options': {'display_mode': 'list', 'show_hours_reviewed': False},
+        },
         'company_domains': ['changed.com'],
         'status': 'success',
     }
@@ -205,6 +210,7 @@ async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domains == ['changed.com']
+    assert result.options == {'display_mode': 'list', 'show_hours_reviewed': False}
 
 
 async def test_update_company_clear_domain(cli, db_conn, company, other_server):
@@ -217,7 +223,7 @@ async def test_update_company_clear_domain(cli, db_conn, company, other_server):
         cli,
         f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',
-        url=None,
+        domains=None,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
@@ -237,14 +243,12 @@ async def test_update_company_no_data(cli, db_conn, company, other_server):
     r = await signed_post(
         cli,
         f'/{company.public_key}/webhook/options',
-        signing_key_='this is the master key'
+        signing_key_='this is the master key',
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'company_domains': None,
-        'details': {
-            'domains': None,
-        },
+        'company_domains': ['example.com'],
+        'details': {},
         'status': 'success',
     }

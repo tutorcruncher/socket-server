@@ -23,7 +23,10 @@ class Company(Base):
 
     name = Column(String(63), unique=True)
     domains = Column(ARRAY(String(255)))
+
     name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name_initial, nullable=False)
+
+    options = Column(JSONB)
 
 
 sa_companies = Company.__table__
