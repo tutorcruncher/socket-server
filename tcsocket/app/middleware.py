@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from aiohttp.hdrs import METH_GET, METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
+from aiohttp.web_middlewares import middleware
 from pydantic import ValidationError
 from sqlalchemy import select
 from yarl import URL
@@ -50,35 +51,34 @@ async def log_warning(request, response):
     })
 
 
-async def error_middleware(app, handler):
-    async def _handler(request):
-        try:
-            http_exception = getattr(request.match_info, 'http_exception', None)
-            if http_exception:
-                raise http_exception
-            else:
-                r = await handler(request)
-        except HTTPException as e:
-            if request.method == METH_GET and e.status == 404 and request.rel_url.raw_path.endswith('/'):
-                possible_path = request.rel_url.raw_path[:-1]
-                for resource in request.app.router._resources:
-                    match_dict = resource._match(possible_path)
-                    if match_dict:
-                        raise HTTPMovedPermanently(possible_path)
-            if e.status > 310:
-                await log_warning(request, e)
-            raise
-        except BaseException as e:
-            request_logger.exception('%s: %s', e.__class__.__name__, e, extra={
-                'fingerprint': [e.__class__.__name__, str(e)],
-                'data': await log_extra(request)
-            })
-            raise HTTPInternalServerError()
+@middleware
+async def error_middleware(request, handler):
+    try:
+        http_exception = getattr(request.match_info, 'http_exception', None)
+        if http_exception:
+            raise http_exception
         else:
-            if r.status > 310:
-                await log_warning(request, r)
-        return r
-    return _handler
+            r = await handler(request)
+    except HTTPException as e:
+        if request.method == METH_GET and e.status == 404 and request.rel_url.raw_path.endswith('/'):
+            possible_path = request.rel_url.raw_path[:-1]
+            for resource in request.app.router._resources:
+                match_dict = resource._match(possible_path)
+                if match_dict:
+                    raise HTTPMovedPermanently(possible_path)
+        if e.status > 310:
+            await log_warning(request, e)
+        raise
+    except BaseException as e:
+        request_logger.exception('%s: %s', e.__class__.__name__, e, extra={
+            'fingerprint': [e.__class__.__name__, str(e)],
+            'data': await log_extra(request)
+        })
+        raise HTTPInternalServerError()
+    else:
+        if r.status > 310:
+            await log_warning(request, r)
+    return r
 
 
 class ConnectionManager:
@@ -110,12 +110,11 @@ class ConnectionManager:
         return self._conn
 
 
-async def pg_conn_middleware(app, handler):
-    async def _handler(request):
-        async with ConnectionManager(app['pg_engine']) as conn_manager:
-            request['conn_manager'] = conn_manager
-            return await handler(request)
-    return _handler
+@middleware
+async def pg_conn_middleware(request, handler):
+    async with ConnectionManager(request.app['pg_engine']) as conn_manager:
+        request['conn_manager'] = conn_manager
+        return await handler(request)
 
 
 def domain_allowed(allow_domains, current_domain):
@@ -125,58 +124,56 @@ def domain_allowed(allow_domains, current_domain):
     )
 
 
-async def company_middleware(app, handler):
-    async def _handler(request):
-        try:
-            public_key = request.match_info.get('company')
-            if public_key:
-                c = sa_companies.c
-                select_fields = c.id, c.name, c.public_key, c.private_key, c.name_display, c.options, c.domains
-                q = select(select_fields).where(c.public_key == public_key)
-                conn = await request['conn_manager'].get_connection()
-                result = await conn.execute(q)
-                company = await result.first()
+@middleware
+async def company_middleware(request, handler):
+    try:
+        public_key = request.match_info.get('company')
+        if public_key:
+            c = sa_companies.c
+            select_fields = c.id, c.name, c.public_key, c.private_key, c.name_display, c.options, c.domains
+            q = select(select_fields).where(c.public_key == public_key)
+            conn = await request['conn_manager'].get_connection()
+            result = await conn.execute(q)
+            company = await result.first()
 
-                if company and company.domains is not None:
-                    origin = request.headers.get('Origin') or request.headers.get('Referer')
-                    if origin and not domain_allowed(company.domains, URL(origin).host):
-                        raise HTTPForbiddenJson(
-                            status='wrong Origin domain',
-                            details=f"the current Origin '{origin}' does not match the allowed domains",
-                        )
-                if company:
-                    request['company'] = company
-                else:
-                    raise HTTPNotFoundJson(
-                        status='company not found',
-                        details=f'No company found for key {public_key}',
+            if company and company.domains is not None:
+                origin = request.headers.get('Origin') or request.headers.get('Referer')
+                if origin and not domain_allowed(company.domains, URL(origin).host):
+                    raise HTTPForbiddenJson(
+                        status='wrong Origin domain',
+                        details=f"the current Origin '{origin}' does not match the allowed domains",
                     )
-            return await handler(request)
-        except CancelledError:
-            raise HTTPBadRequest()
-    return _handler
-
-
-async def json_request_middleware(app, handler):
-    async def _handler(request):
-        if request.method == METH_POST and request.match_info.route.name:
-            error_details = None
-            model = VIEW_MODELS[request.match_info.route.name]
-            try:
-                data = await request.json()
-                request['model'] = model.parse_obj(data)
-            except ValidationError as e:
-                error_details = e.errors_dict
-            except ValueError as e:
-                error_details = f'Value Error: {e}'
-
-            if error_details:
-                raise HTTPBadRequestJson(
-                    status='invalid request data',
-                    details=error_details,
+            if company:
+                request['company'] = company
+            else:
+                raise HTTPNotFoundJson(
+                    status='company not found',
+                    details=f'No company found for key {public_key}',
                 )
         return await handler(request)
-    return _handler
+    except CancelledError:
+        raise HTTPBadRequest()
+
+
+@middleware
+async def json_request_middleware(request, handler):
+    if request.method == METH_POST and request.match_info.route.name:
+        error_details = None
+        model = VIEW_MODELS[request.match_info.route.name]
+        try:
+            data = await request.json()
+            request['model'] = model.parse_obj(data)
+        except ValidationError as e:
+            error_details = e.errors_dict
+        except ValueError as e:
+            error_details = f'Value Error: {e}'
+
+        if error_details:
+            raise HTTPBadRequestJson(
+                status='invalid request data',
+                details=error_details,
+            )
+    return await handler(request)
 
 
 async def authenticate(request, api_key=None):
@@ -205,19 +202,19 @@ async def authenticate(request, api_key=None):
     )
 
 
-async def auth_middleware(app, handler):
-    async def _handler(request):
-        # status check avoids messing with requests which have already been processed, eg. 404
-        route_name = request.match_info.route.name
-        route_name = route_name and route_name.replace('-head', '')
-        if route_name not in PUBLIC_VIEWS:
-            company = request.get('company')
-            if company:
-                await authenticate(request, company.private_key.encode())
-            else:
-                await authenticate(request)
-        return await handler(request)
-    return _handler
+@middleware
+async def auth_middleware(request, handler):
+    # status check avoids messing with requests which have already been processed, eg. 404
+    route_name = request.match_info.route.name
+    route_name = route_name and route_name.replace('-head', '')
+    if route_name not in PUBLIC_VIEWS:
+        company = request.get('company')
+        if company:
+            await authenticate(request, company.private_key.encode())
+        else:
+            await authenticate(request)
+    return await handler(request)
+
 
 middleware = (
     error_middleware,
