@@ -141,6 +141,11 @@ async def contractor_set(*, conn, company, worker, contractor: ContractorModel, 
     if contractor.location:
         data.update(contractor.location.dict())
 
+    for f in ('review_rating', 'review_apt_duration'):
+        v = getattr(contractor, f)
+        if v is not None:
+            data[f] = v
+
     ex_attrs = [ea for ea in contractor.extra_attributes if ea.value is not None]
     tag_line, ex_attrs = _get_special_extra_attr(ex_attrs, 'tag_line', 'text_short')
     primary_description, ex_attrs = _get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')

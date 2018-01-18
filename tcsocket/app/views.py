@@ -143,8 +143,6 @@ async def company_options(request):
     Get a companies options
     """
     options = request['company'].options or {}
-    options.update(
-    )
     return json_response(
         request,
         name=request['company'].name,
@@ -341,7 +339,7 @@ async def contractor_get(request):
     c = sa_contractors.c
     cols = (
         c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
-        c.country, c.labels
+        c.country, c.labels, c.review_rating, c.review_apt_duration
     )
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
@@ -351,7 +349,7 @@ async def contractor_get(request):
         .limit(1)
     )
     con = await curr.first()
-
+    options = request['company'].options or {}
     return json_response(
         request,
         id=con.id,
@@ -363,7 +361,9 @@ async def contractor_get(request):
         photo=_photo_url(request, con, False),
         extra_attributes=con.extra_attributes,
         skills=await _get_skills(conn, con_id),
-        labels=con.labels or [],
+        labels=con.labels if (options.get('show_labels') and con.labels) else [],
+        review_rating=con.review_rating if options.get('show_stars') else None,
+        review_apt_duration=con.review_apt_duration if options.get('show_hours_reviewed') else None,
     )
 
 

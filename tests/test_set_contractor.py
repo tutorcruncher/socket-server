@@ -602,3 +602,20 @@ async def test_labels_conflict(cli, db_conn, company):
     assert con['labels'] == ['foobar']
 
     assert label_ids == await select_set(db_conn, sa_labels.c.id)
+
+
+async def test_add_review_info(cli, db_conn, company):
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        signing_key_='this is the master key',
+        id=321,
+        review_rating=3.5,
+        review_apt_duration=7200,
+    )
+    assert r.status == 201, await r.text()
+    curr = await db_conn.execute(sa_contractors.select())
+    result = await curr.first()
+    assert result.id == 321
+    assert result.review_rating == 3.5
+    assert result.review_apt_duration == 7200

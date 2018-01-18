@@ -71,6 +71,8 @@ class ContractorModel(BaseModel):
     country: constr(max_length=63) = None
     last_updated: datetime = None
     photo: NoneStr = None
+    review_rating: float = None
+    review_apt_duration: int = None
 
     @validator('last_updated', pre=True, always=True)
     def set_last_updated(cls, v):
