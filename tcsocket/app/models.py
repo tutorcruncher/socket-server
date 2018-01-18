@@ -63,7 +63,7 @@ class Contractor(Base):
     labels = Column(ARRAY(String(255)))
 
     review_rating = Column(Float)
-    review_apt_duration = Column(Integer, nullable=False, server_default='0')
+    review_duration = Column(Integer, nullable=False, server_default='0')
 
 
 sa_contractors = Contractor.__table__

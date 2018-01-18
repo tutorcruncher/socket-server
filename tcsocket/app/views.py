@@ -230,15 +230,29 @@ def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=
         )
 
 
-async def contractor_list(request):
+async def contractor_list(request):  # noqa: C901 (ignore complexity)
     sort_col = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
     sort_reverse = SORT_REVERSE.get(request.GET.get('sort'), False)
     page = _get_arg(request, 'page', default=1)
     offset = (page - 1) * PAGINATION
 
+    company = request['company']
+    options = company.options or {}
     c = sa_contractors.c
     fields = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country
-    where = c.company == request['company'].id,
+    show_labels = options.get('show_labels')
+    if show_labels:
+        fields += c.labels,
+
+    show_stars = options.get('show_stars')
+    if show_stars:
+        fields += c.review_rating,
+
+    show_hours_reviewed = options.get('show_hours_reviewed')
+    if show_hours_reviewed:
+        fields += c.review_duration,
+
+    where = c.company == company.id,
 
     subject_filter = _get_arg(request, 'subject')
     qual_level_filter = _get_arg(request, 'qual_level')
@@ -292,14 +306,14 @@ async def contractor_list(request):
     if select_from is not None:
         q = q.select_from(select_from)
     results = []
-    name_display = request['company'].name_display
+    name_display = company.name_display
 
     conn = await request['conn_manager'].get_connection()
     async for con in conn.execute(q):
         name = _get_name(name_display, con)
-        results.append(dict(
+        data = dict(
             id=con.id,
-            url=_route_url(request, 'contractor-get', company=request['company'].public_key, id=con.id),
+            url=_route_url(request, 'contractor-get', company=company.public_key, id=con.id),
             link='{}-{}'.format(con.id, _slugify(name)),
             name=name,
             tag_line=con.tag_line,
@@ -308,7 +322,15 @@ async def contractor_list(request):
             country=con.country,
             photo=_photo_url(request, con, True),
             distance=inc_distance and int(con.distance),
-        ))
+        )
+        if show_labels:
+            data['labels'] = con.labels or []
+        if show_stars:
+            data['review_rating'] = con.review_rating
+        if show_hours_reviewed:
+            data['review_duration'] = con.review_duration
+
+        results.append(data)
     return json_response(request, list_=results)
 
 
@@ -339,7 +361,7 @@ async def contractor_get(request):
     c = sa_contractors.c
     cols = (
         c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
-        c.country, c.labels, c.review_rating, c.review_apt_duration
+        c.country, c.labels, c.review_rating, c.review_duration
     )
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
@@ -363,7 +385,7 @@ async def contractor_get(request):
         skills=await _get_skills(conn, con_id),
         labels=con.labels if (options.get('show_labels') and con.labels) else [],
         review_rating=con.review_rating if options.get('show_stars') else None,
-        review_apt_duration=con.review_apt_duration if options.get('show_hours_reviewed') else None,
+        review_duration=con.review_duration if options.get('show_hours_reviewed') else None,
     )
 
 

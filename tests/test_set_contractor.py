@@ -30,24 +30,6 @@ async def test_create_master_key(cli, db_conn, company):
     assert result.extra_attributes == []
 
 
-async def test_old_url(cli, db_conn, company):
-    r = await signed_post(
-        cli,
-        f'/{company.public_key}/contractors/set',
-        signing_key_='this is the master key',
-        id=123,
-        deleted=False,
-        first_name='Fred',
-        last_name='Bloggs',
-    )
-    assert r.status == 201, await r.text()
-    response_data = await r.json()
-    assert response_data == {'details': 'contractor created', 'status': 'success'}
-    curr = await db_conn.execute(sa_contractors.select())
-    result = await curr.first()
-    assert result.id == 123
-
-
 async def test_create_company_key(cli, db_conn, company):
     r = await signed_post(
         cli,
@@ -611,11 +593,11 @@ async def test_add_review_info(cli, db_conn, company):
         signing_key_='this is the master key',
         id=321,
         review_rating=3.5,
-        review_apt_duration=7200,
+        review_duration=7200,
     )
     assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())
     result = await curr.first()
     assert result.id == 321
     assert result.review_rating == 3.5
-    assert result.review_apt_duration == 7200
+    assert result.review_duration == 7200

@@ -316,7 +316,7 @@ def add_domains_options(conn):
 @patch
 def add_review_fields(conn):
     """
-    add review_rating and review_apt_duration to contractors
+    add review_rating and review_duration to contractors
     """
     conn.execute('ALTER TABLE contractors ADD review_rating DOUBLE PRECISION')
-    conn.execute('ALTER TABLE contractors ADD review_apt_duration INTEGER NOT NULL DEFAULT 0')
+    conn.execute('ALTER TABLE contractors ADD review_duration INTEGER NOT NULL DEFAULT 0')

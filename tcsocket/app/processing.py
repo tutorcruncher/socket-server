@@ -141,7 +141,7 @@ async def contractor_set(*, conn, company, worker, contractor: ContractorModel, 
     if contractor.location:
         data.update(contractor.location.dict())
 
-    for f in ('review_rating', 'review_apt_duration'):
+    for f in ('review_rating', 'review_duration'):
         v = getattr(contractor, f)
         if v is not None:
             data[f] = v

@@ -72,7 +72,7 @@ class ContractorModel(BaseModel):
     last_updated: datetime = None
     photo: NoneStr = None
     review_rating: float = None
-    review_apt_duration: int = None
+    review_duration: int = None
 
     @validator('last_updated', pre=True, always=True)
     def set_last_updated(cls, v):
@@ -139,6 +139,5 @@ VIEW_MODELS = {
     'company-create': CompanyCreateModal,
     'company-update': CompanyUpdateModel,
     'webhook-contractor': ContractorModel,
-    'contractor-set': ContractorModel,
     'enquiry': EnquiryModal,
 }
