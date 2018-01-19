@@ -222,7 +222,7 @@ def run_patch(live, patch_name):
     trans = conn.begin()
     print('=' * 40)
     try:
-        patch_func(conn=conn, settings=settings)
+        patch_func(conn)
     except BaseException as e:
         print('=' * 40)
         trans.rollback()
@@ -240,7 +240,7 @@ def run_patch(live, patch_name):
 
 
 @patch
-def print_tables(conn, settings):
+def print_tables(conn):
     """
     print names of all tables
     """
@@ -270,7 +270,7 @@ def print_tables(conn, settings):
 
 
 @patch
-def add_missing_tables(conn, settings):
+def add_missing_tables(conn):
     """
     adding tables to the database that are defined in models but not the db.
     """
@@ -282,7 +282,7 @@ def add_missing_tables(conn, settings):
 
 
 @patch
-def add_labels(conn, settings):
+def add_labels(conn):
     """
     add labels field to contractors
     """
@@ -295,7 +295,7 @@ def add_labels(conn, settings):
 
 
 @patch
-def add_domains_options(conn, settings):
+def add_domains_options(conn):
     """
     add domains and options fields to companies, move domain values to domains, delete domain field
     """
@@ -311,3 +311,12 @@ def add_domains_options(conn, settings):
         updated += 1
     print(f'domains updated for {updated} companies')
     conn.execute('ALTER TABLE companies DROP COLUMN domain')
+
+
+@patch
+def add_review_fields(conn):
+    """
+    add review_rating and review_duration to contractors
+    """
+    conn.execute('ALTER TABLE contractors ADD review_rating DOUBLE PRECISION')
+    conn.execute('ALTER TABLE contractors ADD review_duration INTEGER NOT NULL DEFAULT 0')

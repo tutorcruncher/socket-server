@@ -50,8 +50,8 @@ class Contractor(Base):
 
     town = Column(String(63))
     country = Column(String(63))
-    latitude = Column(Float())
-    longitude = Column(Float())
+    latitude = Column(Float)
+    longitude = Column(Float)
 
     tag_line = Column(String(63))
     primary_description = Column(Text())
@@ -61,6 +61,9 @@ class Contractor(Base):
     last_updated = Column(DateTime, nullable=False, index=True)
     action = Column(sa_enum(Action), default=Action.created, nullable=False)
     labels = Column(ARRAY(String(255)))
+
+    review_rating = Column(Float)
+    review_duration = Column(Integer, nullable=False, server_default='0')
 
 
 sa_contractors = Contractor.__table__
@@ -82,7 +85,7 @@ class QualLevel(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=False, nullable=False)
     name = Column(String(63), nullable=False)
-    ranking = Column(Float())
+    ranking = Column(Float)
 
 
 sa_qual_levels = QualLevel.__table__

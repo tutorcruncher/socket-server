@@ -160,6 +160,8 @@ async def test_get_contractor(cli, db_conn):
         'tag_line': None,
         'photo': 'https://socket.tutorcruncher.com/media/thepublickey/1.jpg',
         'primary_description': None,
+        'review_duration': None,
+        'review_rating': None,
         'skills': [
             {
                 'category': 'English',
@@ -383,21 +385,52 @@ async def test_500_error(test_client, caplog):
     assert 'socket.request ERROR: RuntimeError: snap' in caplog
 
 
-async def view(cli, db_conn, company):
+async def test_view_labels(cli, db_conn, company):
     await db_conn.execute(
         sa_contractors
         .insert()
         .values(dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now()))
     )
-    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x'))
+    url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x')
+    r = await cli.get(url)
     assert r.status == 200
-    obj = await r.json()
-    assert obj['label'] == []
+    assert (await r.json())['labels'] == []
 
     await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
                           .where(sa_contractors.c.id == 1))
 
-    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x'))
+    r = await cli.get(url)
+    assert r.status == 200
+    assert (await r.json())['labels'] == []
+
+    await db_conn.execute(update(sa_companies).values(options={'show_labels': True}))
+
+    r = await cli.get(url)
+    assert r.status == 200
+    assert (await r.json())['labels'] == ['apple', 'banana', 'carrot']
+
+
+async def test_review_display(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now(),
+                     review_rating=4.249, review_duration=7200))
+    )
+    url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x')
+    r = await cli.get(url)
     assert r.status == 200
     obj = await r.json()
-    assert obj['label'] == ['apple', 'banana', 'carrot']
+    assert (obj['review_rating'], obj['review_duration']) == (None, None)
+
+    await db_conn.execute(update(sa_companies).values(options={'show_stars': True}))
+
+    r = await cli.get(url)
+    obj = await r.json()
+    assert (obj['review_rating'], obj['review_duration']) == (4.249, None)
+
+    await db_conn.execute(update(sa_companies).values(options={'show_stars': True, 'show_hours_reviewed': True}))
+
+    r = await cli.get(url)
+    obj = await r.json()
+    assert (obj['review_rating'], obj['review_duration']) == (4.249, 7200)

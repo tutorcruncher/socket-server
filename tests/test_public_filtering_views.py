@@ -277,3 +277,32 @@ async def test_labels_list(cli, db_conn, company):
         'banana': 'Banana',
         'carrot': 'Carrot',
     }
+
+
+async def test_show_permissions(cli, db_conn, company):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now(),
+                labels=['foo', 'bar'], review_rating=3.5, review_duration=1800)
+    )
+
+    url = cli.server.app.router['contractor-list'].url_for(company=company.public_key)
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert len(obj) == 1, obj
+    assert 'labels' not in obj[0], obj[0]
+    assert 'review_rating' not in obj[0], obj[0]
+    assert 'review_duration' not in obj[0], obj[0]
+
+    await db_conn.execute(update(sa_companies).values(options={
+        'show_labels': True, 'show_stars': True, 'show_hours_reviewed': True
+    }))
+
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj[0]['labels'] == ['foo', 'bar'], obj[0]
+    assert obj[0]['review_rating'] == 3.5, obj[0]
+    assert obj[0]['review_duration'] == 1800, obj[0]

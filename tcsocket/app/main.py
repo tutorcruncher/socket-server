@@ -35,12 +35,10 @@ def setup_routes(app):
     app.router.add_get('/companies', company_list, name='company-list')
 
     app.router.add_get('/{company}/options', company_options, name='company-options')
+
     # to work with tutorcruncher websockets
     app.router.add_post('/{company}/webhook/options', company_update, name='company-update')
     app.router.add_post('/{company}/webhook/contractor', contractor_set, name='webhook-contractor')
-
-    # TODO here for backwards compatibility, to be removed
-    app.router.add_post('/{company}/contractors/set', contractor_set, name='contractor-set')
 
     app.router.add_get('/{company}/contractors', contractor_list, name='contractor-list')
     app.router.add_get('/{company}/contractors/{id:\d+}', contractor_get, name='contractor-get')
