@@ -50,8 +50,8 @@ class Contractor(Base):
 
     town = Column(String(63))
     country = Column(String(63))
-    latitude = Column(Float())
-    longitude = Column(Float())
+    latitude = Column(Float)
+    longitude = Column(Float)
 
     tag_line = Column(String(63))
     primary_description = Column(Text())

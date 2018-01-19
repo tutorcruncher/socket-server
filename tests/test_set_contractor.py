@@ -601,3 +601,26 @@ async def test_add_review_info(cli, db_conn, company):
     assert result.id == 321
     assert result.review_rating == 3.5
     assert result.review_duration == 7200
+    assert result.latitude is None
+    assert result.longitude is None
+
+
+async def test_add_location(cli, db_conn, company):
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        signing_key_='this is the master key',
+        id=321,
+        location=dict(
+            latitude=12.345,
+            longitude=56.789,
+        )
+    )
+    assert r.status == 201, await r.text()
+    curr = await db_conn.execute(sa_contractors.select())
+    result = await curr.first()
+    assert result.id == 321
+    assert result.review_rating is None
+    assert result.review_duration == 0
+    assert result.latitude == 12.345
+    assert result.longitude == 56.789
