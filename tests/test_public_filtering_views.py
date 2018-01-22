@@ -240,7 +240,7 @@ async def test_label_filter(cli, db_conn, company, filter_args, cons):
     await db_conn.execute(update(sa_contractors).values(labels=['banana', 'carrot']).where(sa_contractors.c.id == 3))
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(url + '?' + filter_args)
+    r = await cli.get(url + '?sort=name&' + filter_args)
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert [c['link'] for c in obj] == cons

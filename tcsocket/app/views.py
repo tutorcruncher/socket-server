@@ -298,7 +298,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
     sort_on = sort_col.desc() if sort_reverse else sort_col.asc()
     q = (
         select(fields)
-        .where(and_(*where)).order_by(sort_col)
+        .where(and_(*where))
         .order_by(sort_on, c.id)
         .distinct(sort_col, c.id)
         .offset(offset)
