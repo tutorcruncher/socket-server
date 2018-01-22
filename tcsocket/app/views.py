@@ -191,7 +191,6 @@ SORT_OPTIONS = {
 SORT_REVERSE = {
     'update': True
 }
-PAGINATION = 100
 
 
 def _slugify(name):
@@ -231,10 +230,12 @@ def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=
 
 
 async def contractor_list(request):  # noqa: C901 (ignore complexity)
-    sort_col = SORT_OPTIONS.get(request.GET.get('sort'), SORT_OPTIONS['update'])
-    sort_reverse = SORT_REVERSE.get(request.GET.get('sort'), False)
+    sort_val = request.GET.get('sort') or 'update'
+    sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['update'])
+    sort_reverse = SORT_REVERSE.get(sort_val, False)
     page = _get_arg(request, 'page', default=1)
-    offset = (page - 1) * PAGINATION
+    pagination = min(_get_arg(request, 'pagination', default=100), 100)
+    offset = (page - 1) * pagination
 
     company = request['company']
     options = company.options or {}
@@ -301,7 +302,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         .order_by(sort_on, c.id)
         .distinct(sort_col, c.id)
         .offset(offset)
-        .limit(PAGINATION)
+        .limit(pagination)
     )
     if select_from is not None:
         q = q.select_from(select_from)
