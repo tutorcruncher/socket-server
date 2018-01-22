@@ -306,3 +306,30 @@ async def test_show_permissions(cli, db_conn, company):
     assert obj[0]['labels'] == ['foo', 'bar'], obj[0]
     assert obj[0]['review_rating'] == 3.5, obj[0]
     assert obj[0]['review_duration'] == 1800, obj[0]
+
+
+@pytest.mark.parametrize('filter_args, con_count, first_id, last_id', [
+    ('sort=name', 100, 1, 100),
+    ('sort=name&pagination=40', 40, 1, 40),
+    ('sort=name&page=1', 100, 1, 100),
+    ('sort=name&page=2', 10, 101, 110),
+    ('sort=name&pagination=40&page=2', 40, 41, 80),
+])
+async def test_contractor_pagination(cli, db_conn, company, filter_args, con_count, first_id, last_id):
+    cons = [
+        dict(id=i, company=company.id, first_name=f'Fred{i:04d}', last_name='X', last_updated=datetime.now())
+        for i in range(1, 111)
+    ]
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values(cons)
+    )
+
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url + '?' + filter_args)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert len(obj) == con_count
+    assert obj[0]['id'] == first_id, obj[0]
+    assert obj[-1]['id'] == last_id, obj[-1]
