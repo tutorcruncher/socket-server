@@ -140,7 +140,11 @@ async def test_get_contractor(cli, db_conn):
             first_name='Fred',
             last_name='Bloggs',
             last_updated=datetime.now(),
-            extra_attributes=[{'foo': 'bar'}]
+            extra_attributes=[
+                {'sort_index': 5, 'foo': 'bar'},
+                {'foo': 'apple'},
+                {'sort_index': 1, 'foo': 'spam'},
+            ]
         )
         .returning(sa_contractors.c.id)
     )
@@ -155,7 +159,11 @@ async def test_get_contractor(cli, db_conn):
         'name': 'Fred B',
         'town': None,
         'country': None,
-        'extra_attributes': [{'foo': 'bar'}],
+        'extra_attributes': [
+            {'sort_index': 1, 'foo': 'spam'},
+            {'sort_index': 5, 'foo': 'bar'},
+            {'foo': 'apple'},
+        ],
         'labels': [],
         'tag_line': None,
         'photo': 'https://socket.tutorcruncher.com/media/thepublickey/1.jpg',

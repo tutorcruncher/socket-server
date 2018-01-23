@@ -382,7 +382,7 @@ async def contractor_get(request):
         town=con.town,
         country=con.country,
         photo=_photo_url(request, con, False),
-        extra_attributes=con.extra_attributes,
+        extra_attributes=con.extra_attributes and sorted(con.extra_attributes, key=lambda e: e.get('sort_index', 1000)),
         skills=await _get_skills(conn, con_id),
         labels=con.labels if (options.get('show_labels') and con.labels) else [],
         review_rating=con.review_rating if options.get('show_stars') else None,
