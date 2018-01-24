@@ -94,3 +94,17 @@ services:
     depends_on:
     - postgres
     - redis
+
+  pgweb:
+    image: sosedoff/pgweb
+    entrypoint:
+    - '/usr/bin/pgweb'
+    - '--bind=0.0.0.0'
+    - '--listen=80'
+    - '--auth-user=${PG_AUTH_USER:-testing}'
+    - '--auth-pass=${PG_AUTH_PASS:-wq96nbgqe35msT41Jr7LaHzANhxcyU4V7lesFzD0wJjef07PwS}'
+    restart: always
+    environment:
+    - DATABASE_URL=postgres://postgres:docker@postgres:5432/socket?sslmode=disable
+    depends_on:
+    - postgres

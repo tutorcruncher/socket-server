@@ -21,6 +21,7 @@ export APP_MASTER_KEY="123"
 export SERVER_NAME="end2endtest"
 export MODE="PRODUCTION"
 export RAVEN_DSN="-"
+export PG_AUTH_PASS="testing"
 
 docker version
 docker info
