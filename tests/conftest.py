@@ -66,6 +66,38 @@ async def contractor_list_view(request):
 
 async def enquiry_options_view(request):
     request.app['request_log'].append('enquiry_options')
+    attribute_children = {}
+    if request.app.get('inc_extra_attributes', False):
+        attribute_children = {
+            'tell-us-about-yourself': {
+                'type': 'string',
+                'required': True,
+                'read_only': True,
+                'label': 'Tell us about yourself',
+                'help_text': 'whatever',
+                'max_length': 2047,
+                'sort_index': 1000
+            },
+            'how-did-you-hear-about-us': {
+                'type': 'choice',
+                'required': False,
+                'read_only': True,
+                'label': '...',
+                'choices': [
+                    {'value': 'foo', 'display_name': 'Foo'},
+                    {'value': 'bar', 'display_name': 'Bar'},
+                ],
+                'sort_index': 1001
+            },
+            'date-of-birth': {
+                'type': 'date',
+                'required': False,
+                'read_only': True,
+                'label': 'Date of Birth',
+                'help_text': 'Date your child was born',
+                'sort_index': 1003
+            }
+        }
     return json_response({
         'name': 'Enquiries',
         '_': 'unused fields missing...',
@@ -108,36 +140,7 @@ async def enquiry_options_view(request):
                     'required': False,
                     'read_only': False,
                     'label': 'Attributes',
-                    'children': {
-                        'tell-us-about-yourself': {
-                            'type': 'string',
-                            'required': True,
-                            'read_only': True,
-                            'label': 'Tell us about yourself',
-                            'help_text': 'whatever',
-                            'max_length': 2047,
-                            'sort_index': 1000
-                        },
-                        'how-did-you-hear-about-us': {
-                            'type': 'choice',
-                            'required': False,
-                            'read_only': True,
-                            'label': '...',
-                            'choices': [
-                                {'value': 'foo', 'display_name': 'Foo'},
-                                {'value': 'bar', 'display_name': 'Bar'},
-                            ],
-                            'sort_index': 1001
-                        },
-                        'date-of-birth': {
-                            'type': 'date',
-                            'required': False,
-                            'read_only': True,
-                            'label': 'Date of Birth',
-                            'help_text': 'Date your child was born',
-                            'sort_index': 1003
-                        }
-                    }
+                    'children': attribute_children,
                 },
                 'contractor': {
                     'type': 'field',

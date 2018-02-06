@@ -200,6 +200,7 @@ async def test_url_trailing_slash(cli, company):
 
 
 async def test_get_enquiry(cli, company, other_server):
+    other_server.app['inc_extra_attributes'] = True
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     data = await r.json()
@@ -226,6 +227,7 @@ async def test_get_enquiry(cli, company, other_server):
 
 
 async def test_post_enquiry_success(cli, company, other_server):
+    other_server.app['inc_extra_attributes'] = True
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -270,6 +272,7 @@ async def test_post_enquiry_success(cli, company, other_server):
 
 
 async def test_post_enquiry_invalid_attributes(cli, company, other_server):
+    other_server.app['inc_extra_attributes'] = True
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -309,7 +312,6 @@ async def test_post_enquiry_bad_captcha(cli, company, other_server):
         'client_name': 'Cat Flap',
         'client_phone': '123',
         'grecaptcha_response': 'bad_' * 5,
-        'attributes': {'tell-us-about-yourself': 'hello'},
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'X-Forwarded-For': '1.2.3.4'})
@@ -330,7 +332,6 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
         'client_name': 'Cat Flap',
         'client_phone': '123',
         'grecaptcha_response': 'good' * 5,
-        'attributes': {'tell-us-about-yourself': 'hello'},
     }
     other_server.app['grecaptcha_host'] = 'other.com'
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
@@ -347,6 +348,7 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
 
 
 async def test_post_enquiry_400(cli, company, other_server, caplog):
+    other_server.app['inc_extra_attributes'] = True
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -395,7 +397,6 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
         'client_name': 'Cat Flap',
         'upstream_http_referrer': 'foobar',
         'grecaptcha_response': 'mock-grecaptcha:{.private_key}'.format(company),
-        'attributes': {'tell-us-about-yourself': 'hello'},
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
@@ -413,7 +414,6 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
                 'user_agent': 'Testing Browser',
                 'ip_address': None,
                 'http_referrer': None,
-                'attributes': {'tell-us-about-yourself': 'hello'},
             },
         ),
     ]
