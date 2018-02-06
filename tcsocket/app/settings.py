@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from arq import RedisSettings
-
 from pydantic import BaseSettings, validator
 from pydantic.utils import make_dsn
 

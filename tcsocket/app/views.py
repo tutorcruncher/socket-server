@@ -6,6 +6,7 @@ from itertools import groupby
 from operator import attrgetter, itemgetter
 from typing import Any, Callable
 
+import pydantic
 from aiohttp import web_exceptions
 from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
@@ -15,8 +16,6 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, or_
 from yarl import URL
-
-import pydantic
 
 from .logs import logger
 from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
