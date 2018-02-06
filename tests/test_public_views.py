@@ -204,8 +204,13 @@ async def test_get_enquiry(cli, company, other_server):
     assert r.status == 200, await r.text()
     data = await r.json()
     assert len(data) == 3
+    assert len(data['visible']) == 7
     assert data['visible'][0]['field'] == 'client_name'
     assert data['visible'][0]['max_length'] == 255
+    date_field = next(f for f in data['visible'] if f['field'] == 'date-of-birth')
+    assert date_field['label'] == 'Date of Birth'
+    assert date_field['prefix'] == 'attributes'
+    assert date_field['type'] == 'datetime'
     assert data['last_updated'] == 0
     # once to get immediate response, once "on the worker"
     assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']
@@ -214,6 +219,7 @@ async def test_get_enquiry(cli, company, other_server):
     assert r.status == 200, await r.text()
     data = await r.json()
     assert len(data) == 3
+    assert len(data['visible']) == 7
     assert 1e9 < data['last_updated'] < 2e9
     # no more requests as data came from cache
     assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']

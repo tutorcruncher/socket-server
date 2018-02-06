@@ -437,9 +437,9 @@ FIELD_TYPE_LOOKUP = {
     'email': 'email',
     'choice': 'select',
     'boolean': 'checkbox',
-    'integer': None,
-    'date': None,
-    'datetime': None,
+    'integer': 'integer',
+    'date': 'date',
+    'datetime': 'datetime',
 }
 
 
@@ -459,44 +459,50 @@ def _convert_field(name, value, prefix=None):
 
 async def enquiry(request):
     company = dict(request['company'])
-    if request.method == METH_POST:
-        data = request['model'].dict()
-        data = {k: v for k, v in data.items() if v is not None}
-        x_forward_for = request.headers.get('X-Forwarded-For')
-        referrer = request.headers.get('Referer')
-        data.update(
-            user_agent=request.headers.get('User-Agent'),
-            ip_address=x_forward_for and x_forward_for.split(',', 1)[0].strip(' '),
-            http_referrer=referrer and referrer[:1023],
-        )
-        await request.app['worker'].submit_enquiry(company, data)
-        return json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
+    enq_method = enquiry_post if request.method == METH_POST else enquiry_get
+    return await enq_method(request, company)
+
+
+async def enquiry_post(request, company):
+    data = request['model'].dict()
+    data = {k: v for k, v in data.items() if v is not None}
+    x_forward_for = request.headers.get('X-Forwarded-For')
+    referrer = request.headers.get('Referer')
+    data.update(
+        user_agent=request.headers.get('User-Agent'),
+        ip_address=x_forward_for and x_forward_for.split(',', 1)[0].strip(' '),
+        http_referrer=referrer and referrer[:1023],
+    )
+    await request.app['worker'].submit_enquiry(company, data)
+    return json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
+
+
+async def enquiry_get(request, company):
+    redis = await request.app['worker'].get_redis()
+    raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
+    if raw_enquiry_options:
+        enquiry_options_ = json.loads(raw_enquiry_options.decode())
+        last_updated = enquiry_options_['last_updated']
+        update_enquiry_options = (timestamp() - last_updated) > 3600
     else:
-        redis = await request.app['worker'].get_redis()
-        raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
-        if raw_enquiry_options:
-            enquiry_options_ = json.loads(raw_enquiry_options.decode())
-            last_updated = enquiry_options_['last_updated']
-            update_enquiry_options = (timestamp() - last_updated) > 3600
-        else:
-            # no enquiry options yet exist, we have to get them now even though it will make the request slow
-            enquiry_options_ = await request.app['worker'].get_enquiry_options(company)
-            last_updated = 0
-            update_enquiry_options = True
-        update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
+        # no enquiry options yet exist, we have to get them now even though it will make the request slow
+        enquiry_options_ = await request.app['worker'].get_enquiry_options(company)
+        last_updated = 0
+        update_enquiry_options = True
+    update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
 
-        # make the enquiry form data easier to render for js
-        visible = filter(bool, [
-            _convert_field(f, enquiry_options_[f]) for f in VISIBLE_FIELDS
-        ] + [
-            _convert_field(k, v, 'attributes') for k, v in enquiry_options_['attributes'].get('children', {}).items()
-        ])
+    # make the enquiry form data easier to render for js
+    visible = filter(bool, [
+        _convert_field(f, enquiry_options_[f]) for f in VISIBLE_FIELDS
+    ] + [
+        _convert_field(k, v, 'attributes') for k, v in enquiry_options_['attributes'].get('children', {}).items()
+    ])
 
-        enquiry_options = {
-            'visible': sorted(visible, key=itemgetter('sort_index', )),
-            'hidden': {
-                'contractor': _convert_field('contractor', enquiry_options_['contractor']),
-            },
-            'last_updated': last_updated,
-        }
-        return json_response(request, **enquiry_options)
+    enquiry_options = {
+        'visible': sorted(visible, key=itemgetter('sort_index', )),
+        'hidden': {
+            'contractor': _convert_field('contractor', enquiry_options_['contractor']),
+        },
+        'last_updated': last_updated,
+    }
+    return json_response(request, **enquiry_options)
