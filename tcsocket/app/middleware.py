@@ -7,9 +7,10 @@ from datetime import datetime, timedelta
 from aiohttp.hdrs import METH_GET, METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
 from aiohttp.web_middlewares import middleware
-from pydantic import ValidationError
 from sqlalchemy import select
 from yarl import URL
+
+from pydantic import ValidationError
 
 from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson

@@ -120,17 +120,17 @@ async def enquiry_options_view(request):
                         },
                         'how-did-you-hear-about-us': {
                             'type': 'choice',
-                            'required': True,
+                            'required': False,
                             'read_only': True,
                             'label': '...',
                             'choices': [
                                 {'value': 'foo', 'display_name': 'Foo'},
-                                {'value': 'foo', 'display_name': 'Bar'},
+                                {'value': 'bar', 'display_name': 'Bar'},
                             ],
                             'sort_index': 1001
                         },
                         'date-of-birth': {
-                            'type': 'datetime',
+                            'type': 'date',
                             'required': False,
                             'read_only': True,
                             'label': 'Date of Birth',
