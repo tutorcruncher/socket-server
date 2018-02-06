@@ -9,8 +9,8 @@ from aiohttp.hdrs import METH_POST
 from aiohttp.web import Response
 from arq.utils import timestamp
 from sqlalchemy import String, cast, func, select, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, or_
 from yarl import URL
 
