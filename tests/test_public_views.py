@@ -204,7 +204,7 @@ async def test_get_enquiry(cli, company, other_server):
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     data = await r.json()
-    assert len(data) == 3
+    assert len(data) == 2
     assert len(data['visible']) == 7
     assert data['visible'][0]['field'] == 'client_name'
     assert data['visible'][0]['max_length'] == 255
@@ -212,18 +212,16 @@ async def test_get_enquiry(cli, company, other_server):
     assert date_field['label'] == 'Date of Birth'
     assert date_field['prefix'] == 'attributes'
     assert date_field['type'] == 'date'
-    assert data['last_updated'] == 0
     # once to get immediate response, once "on the worker"
-    assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']
+    assert other_server.app['request_log'] == ['enquiry_options']
 
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     data = await r.json()
-    assert len(data) == 3
+    assert len(data) == 2
     assert len(data['visible']) == 7
-    assert 1e9 < data['last_updated'] < 2e9
     # no more requests as data came from cache
-    assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']
+    assert other_server.app['request_log'] == ['enquiry_options']
 
 
 async def test_post_enquiry_success(cli, company, other_server):
@@ -244,7 +242,6 @@ async def test_post_enquiry_success(cli, company, other_server):
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert [
-        'enquiry_options',
         'enquiry_options',
         (
             'grecaptcha_post',
@@ -318,7 +315,6 @@ async def test_post_enquiry_bad_captcha(cli, company, other_server):
     assert r.status == 201, await r.text()
     assert other_server.app['request_log'] == [
         'enquiry_options',
-        'enquiry_options',
         ('grecaptcha_post', {
             'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
             'response': 'bad_bad_bad_bad_bad_',
@@ -338,7 +334,6 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
     assert other_server.app['request_log'] == [
-        'enquiry_options',
         'enquiry_options',
         ('grecaptcha_post', {
             'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
@@ -366,7 +361,6 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert other_server.app['request_log'] == [
-        'enquiry_options',
         'enquiry_options',
         (
             'grecaptcha_post',
@@ -404,7 +398,6 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert other_server.app['request_log'] == [
-        'enquiry_options',
         'enquiry_options',
         (
             'enquiry_post',
@@ -447,8 +440,8 @@ async def test_post_enquiry_referrer_too_long(cli, company, other_server):
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
-    assert other_server.app['request_log'][3][1]['upstream_http_referrer'] == 'X' * 1023
-    assert other_server.app['request_log'][3][1]['http_referrer'] == 'Y' * 1023
+    assert other_server.app['request_log'][2][1]['upstream_http_referrer'] == 'X' * 1023
+    assert other_server.app['request_log'][2][1]['http_referrer'] == 'Y' * 1023
 
 
 async def snap(request):

@@ -434,6 +434,29 @@ async def labels_list(request):
     )
 
 
+async def enquiry(request):
+    company = dict(request['company'])
+
+    redis = await request.app['worker'].get_redis()
+    redis_key = b'enquiry-data-%d' % company['id']
+    raw_enquiry_options = await redis.get(redis_key)
+    ts = timestamp()
+    if raw_enquiry_options:
+        enquiry_options = json.loads(raw_enquiry_options.decode())
+        enquiry_last_updated = enquiry_options['last_updated']
+        # 1800 so data should never expire for regularly used forms
+        if (ts - enquiry_last_updated) > 1800:
+            await request.app['worker'].update_enquiry_options(company)
+    else:
+        # no enquiry options yet exist, we have to get them now even though it will make the request slow
+        enquiry_options = await request.app['worker'].get_enquiry_options(company)
+        enquiry_options['last_updated'] = ts
+        await redis.setex(redis_key, 3600, json.dumps(enquiry_options).encode())
+
+    enq_method = enquiry_post if request.method == METH_POST else enquiry_get
+    return await enq_method(request, company, enquiry_options)
+
+
 FIELD_TYPE_LOOKUP = {
     'field': 'id',
     'string': 'text',
@@ -444,7 +467,6 @@ FIELD_TYPE_LOOKUP = {
     'date': 'date',
     'datetime': 'datetime',
 }
-
 CREATE_ENUM = object()
 FIELD_VALIDATION_LOOKUP = {
     'string': str,
@@ -459,7 +481,8 @@ FIELD_VALIDATION_LOOKUP = {
 
 class AttributeBaseModel(pydantic.BaseModel):
     @pydantic.validator('*')
-    def datetime_to_str(cls, v):
+    def make_serializable(cls, v):
+        # datetime is a subclass of date
         if isinstance(v, date):
             return v.isoformat()
         elif isinstance(v, Enum):
@@ -468,41 +491,7 @@ class AttributeBaseModel(pydantic.BaseModel):
             return v
 
 
-def _convert_field(name, value, prefix=None):
-    value_ = dict(value)
-    ftype = FIELD_TYPE_LOOKUP[value_.pop('type')]
-    if ftype is None:
-        return None
-    value_.pop('read_only')
-    return dict(
-        field=name,
-        type=ftype,
-        prefix=prefix,
-        **value_
-    )
-
-
-async def enquiry(request):
-    company = dict(request['company'])
-
-    redis = await request.app['worker'].get_redis()
-    raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company['id'])
-    if raw_enquiry_options:
-        enquiry_options = json.loads(raw_enquiry_options.decode())
-        enquiry_last_updated = enquiry_options['last_updated']
-        update_enquiry_options = (timestamp() - enquiry_last_updated) > 3600
-    else:
-        # no enquiry options yet exist, we have to get them now even though it will make the request slow
-        enquiry_options = await request.app['worker'].get_enquiry_options(company)
-        enquiry_last_updated = 0
-        update_enquiry_options = True
-    update_enquiry_options and await request.app['worker'].update_enquiry_options(company)
-
-    enq_method = enquiry_post if request.method == METH_POST else enquiry_get
-    return await enq_method(request, company, enquiry_options, enquiry_last_updated)
-
-
-async def enquiry_post(request, company, enquiry_options, enquiry_last_updated):
+async def enquiry_post(request, company, enquiry_options):
     data = request['model'].dict()
     data = {k: v for k, v in data.items() if v is not None}
     attributes = data.pop('attributes', None)
@@ -534,8 +523,21 @@ async def enquiry_post(request, company, enquiry_options, enquiry_last_updated):
     return json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
 
 
-async def enquiry_get(request, company, enquiry_options, enquiry_last_updated):
+def _convert_field(name, value, prefix=None):
+    value_ = dict(value)
+    ftype = FIELD_TYPE_LOOKUP[value_.pop('type')]
+    if ftype is None:
+        return None
+    value_.pop('read_only')
+    return dict(
+        field=name,
+        type=ftype,
+        prefix=prefix,
+        **value_
+    )
 
+
+async def enquiry_get(request, company, enquiry_options):
     # make the enquiry form data easier to render for js
     visible = filter(bool, [
         _convert_field(f, enquiry_options[f]) for f in VISIBLE_FIELDS
@@ -547,5 +549,4 @@ async def enquiry_get(request, company, enquiry_options, enquiry_last_updated):
         request,
         visible=sorted(visible, key=itemgetter('sort_index', )),
         hidden={'contractor': _convert_field('contractor', enquiry_options['contractor'])},
-        last_updated=enquiry_last_updated
-        )
+    )
