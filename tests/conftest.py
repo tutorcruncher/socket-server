@@ -66,16 +66,62 @@ async def contractor_list_view(request):
 
 async def enquiry_options_view(request):
     request.app['request_log'].append('enquiry_options')
+    extra_attributes = request.app.get('extra_attributes')
+    if extra_attributes == 'default':
+        attribute_children = {
+            'tell-us-about-yourself': {
+                'type': 'string',
+                'required': True,
+                'read_only': True,
+                'label': 'Tell us about yourself',
+                'help_text': 'whatever',
+                'max_length': 2047,
+                'sort_index': 1000
+            },
+            'how-did-you-hear-about-us': {
+                'type': 'choice',
+                'required': False,
+                'read_only': True,
+                'label': '...',
+                'choices': [
+                    {'value': 'foo', 'display_name': 'Foo'},
+                    {'value': 'bar', 'display_name': 'Bar'},
+                ],
+                'sort_index': 1001
+            },
+            'date-of-birth': {
+                'type': 'date',
+                'required': False,
+                'read_only': True,
+                'label': 'Date of Birth',
+                'help_text': 'Date your child was born',
+                'sort_index': 1003
+            }
+        }
+    elif extra_attributes == 'datetime':
+        attribute_children = {
+            'date-field': {
+                'type': 'date',
+                'required': True,
+                'read_only': True,
+                'label': 'Foobar date',
+                'help_text': 'xxx',
+                'sort_index': 1000
+            },
+            'datetime-field': {
+                'type': 'datetime',
+                'required': True,
+                'read_only': True,
+                'label': 'Foobar datetime',
+                'help_text': 'xxx',
+                'sort_index': 1001
+            }
+        }
+    else:
+        attribute_children = {}
     return json_response({
         'name': 'Enquiries',
-        'description': 'API endpoint for creating Enquiries.',
-        'renders': [
-            'application/json',
-            'text/html'
-        ],
-        'parses': [
-            'application/json'
-        ],
+        '_': 'unused fields missing...',
         'actions': {
             'POST': {
                 'client_name': {
@@ -114,7 +160,8 @@ async def enquiry_options_view(request):
                     'type': 'nested object',
                     'required': False,
                     'read_only': False,
-                    'label': 'Attributes'
+                    'label': 'Attributes',
+                    'children': attribute_children,
                 },
                 'contractor': {
                     'type': 'field',
