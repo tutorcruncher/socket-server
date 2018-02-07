@@ -66,7 +66,6 @@ async def contractor_list_view(request):
 
 async def enquiry_options_view(request):
     request.app['request_log'].append('enquiry_options')
-    attribute_children = {}
     extra_attributes = request.app.get('extra_attributes')
     if extra_attributes == 'default':
         attribute_children = {
@@ -99,7 +98,7 @@ async def enquiry_options_view(request):
                 'sort_index': 1003
             }
         }
-    if extra_attributes == 'datetime':
+    elif extra_attributes == 'datetime':
         attribute_children = {
             'date-field': {
                 'type': 'date',
@@ -118,6 +117,8 @@ async def enquiry_options_view(request):
                 'sort_index': 1001
             }
         }
+    else:
+        attribute_children = {}
     return json_response({
         'name': 'Enquiries',
         '_': 'unused fields missing...',
