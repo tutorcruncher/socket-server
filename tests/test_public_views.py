@@ -200,7 +200,7 @@ async def test_url_trailing_slash(cli, company):
 
 
 async def test_get_enquiry(cli, company, other_server):
-    other_server.app['inc_extra_attributes'] = True
+    other_server.app['extra_attributes'] = 'default'
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     data = await r.json()
@@ -225,7 +225,7 @@ async def test_get_enquiry(cli, company, other_server):
 
 
 async def test_post_enquiry_success(cli, company, other_server):
-    other_server.app['inc_extra_attributes'] = True
+    other_server.app['extra_attributes'] = 'default'
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -268,8 +268,47 @@ async def test_post_enquiry_success(cli, company, other_server):
     ] == other_server.app['request_log']
 
 
+async def test_post_enquiry_datetime(cli, company, other_server):
+    other_server.app['extra_attributes'] = 'datetime'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {
+            'date-field': '2032-06-01',
+            'datetime-field': '2018-02-07T14:45',
+        }
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    assert [
+        'enquiry_options',
+        (
+            'grecaptcha_post',
+            {
+                'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+                'response': 'goodgoodgoodgoodgood',
+            },
+        ),
+        (
+            'enquiry_post',
+            {
+                'client_name': 'Cat Flap',
+                'user_agent': 'Testing Browser',
+                'ip_address': None,
+                'http_referrer': None,
+                'attributes': {
+                    'date-field': '2032-06-01',
+                    'datetime-field': '2018-02-07T14:45:00',
+                },
+            },
+
+        ),
+    ] == other_server.app['request_log']
+
+
 async def test_post_enquiry_invalid_attributes(cli, company, other_server):
-    other_server.app['inc_extra_attributes'] = True
+    other_server.app['extra_attributes'] = 'default'
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -343,7 +382,7 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
 
 
 async def test_post_enquiry_400(cli, company, other_server, caplog):
-    other_server.app['inc_extra_attributes'] = True
+    other_server.app['extra_attributes'] = 'default'
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',

@@ -67,7 +67,8 @@ async def contractor_list_view(request):
 async def enquiry_options_view(request):
     request.app['request_log'].append('enquiry_options')
     attribute_children = {}
-    if request.app.get('inc_extra_attributes', False):
+    extra_attributes = request.app.get('extra_attributes')
+    if extra_attributes == 'default':
         attribute_children = {
             'tell-us-about-yourself': {
                 'type': 'string',
@@ -96,6 +97,25 @@ async def enquiry_options_view(request):
                 'label': 'Date of Birth',
                 'help_text': 'Date your child was born',
                 'sort_index': 1003
+            }
+        }
+    if extra_attributes == 'datetime':
+        attribute_children = {
+            'date-field': {
+                'type': 'date',
+                'required': True,
+                'read_only': True,
+                'label': 'Foobar date',
+                'help_text': 'xxx',
+                'sort_index': 1000
+            },
+            'datetime-field': {
+                'type': 'datetime',
+                'required': True,
+                'read_only': True,
+                'label': 'Foobar datetime',
+                'help_text': 'xxx',
+                'sort_index': 1001
             }
         }
     return json_response({
