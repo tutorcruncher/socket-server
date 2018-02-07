@@ -224,6 +224,33 @@ async def test_get_enquiry(cli, company, other_server):
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
+async def test_get_enquiry_repeat(cli, company, other_server):
+    other_server.app['extra_attributes'] = 'default'
+    r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    data = await r.json()
+    assert len(data['visible']) == 7
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+    r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    data = await r.json()
+    assert len(data['visible']) == 7
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+    redis = await cli.server.app['worker'].get_redis()
+    raw_enquiry_options = await redis.get(b'enquiry-data-%d' % company.id)
+    enquiry_options = json.loads(raw_enquiry_options.decode())
+    enquiry_options['last_updated'] -= 2000
+    await redis.set(b'enquiry-data-%d' % company.id, json.dumps(enquiry_options).encode())
+
+    r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    data = await r.json()
+    assert len(data['visible']) == 7
+    assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']
+
+
 async def test_post_enquiry_success(cli, company, other_server):
     other_server.app['extra_attributes'] = 'default'
     data = {
