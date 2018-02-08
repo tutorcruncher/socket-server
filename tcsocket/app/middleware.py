@@ -159,20 +159,21 @@ async def company_middleware(request, handler):
 async def json_request_middleware(request, handler):
     if request.method == METH_POST and request.match_info.route.name:
         error_details = None
-        model = VIEW_MODELS[request.match_info.route.name]
-        try:
-            data = await request.json()
-            request['model'] = model.parse_obj(data)
-        except ValidationError as e:
-            error_details = e.errors_dict
-        except ValueError as e:
-            error_details = f'Value Error: {e}'
+        model = VIEW_MODELS.get(request.match_info.route.name)
+        if model:
+            try:
+                data = await request.json()
+                request['model'] = model.parse_obj(data)
+            except ValidationError as e:
+                error_details = e.errors_dict
+            except ValueError as e:
+                error_details = f'Value Error: {e}'
 
-        if error_details:
-            raise HTTPBadRequestJson(
-                status='invalid request data',
-                details=error_details,
-            )
+            if error_details:
+                raise HTTPBadRequestJson(
+                    status='invalid request data',
+                    details=error_details,
+                )
     return await handler(request)
 
 

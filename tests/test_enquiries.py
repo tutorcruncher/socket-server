@@ -1,5 +1,7 @@
 import json
 
+from tests.conftest import signed_post
+
 
 async def test_get_enquiry(cli, company, other_server):
     other_server.app['extra_attributes'] = 'default'
@@ -310,3 +312,60 @@ async def test_post_enquiry_referrer_too_long(cli, company, other_server):
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert other_server.app['request_log'][2][1]['upstream_http_referrer'] == 'X' * 1023
     assert other_server.app['request_log'][2][1]['http_referrer'] == 'Y' * 1023
+
+
+async def test_clear_enquiry_options(cli, company, other_server):
+    redis = await cli.server.app['worker'].get_redis()
+    assert None is await redis.get(b'enquiry-data-%d' % company.id)
+
+    r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    data = await r.json()
+    assert len(data['visible']) == 4
+
+    assert None is not await redis.get(b'enquiry-data-%d' % company.id)
+
+    r = await signed_post(
+        cli,
+        cli.server.app.router['webhook-clear-enquiry'].url_for(company=company.public_key),
+        signing_key_='this is the master key',
+    )
+    assert r.status == 200, await r.text()
+    assert {'status': 'success', 'data_existed': True} == await r.json()
+
+    assert None is await redis.get(b'enquiry-data-%d' % company.id)
+
+
+async def test_clear_enquiry_options_no_data(cli, company):
+    redis = await cli.server.app['worker'].get_redis()
+    assert None is await redis.get(b'enquiry-data-%d' % company.id)
+
+    r = await signed_post(
+        cli,
+        cli.server.app.router['webhook-clear-enquiry'].url_for(company=company.public_key),
+        signing_key_='this is the master key',
+    )
+    assert r.status == 200, await r.text()
+    assert {'status': 'success', 'data_existed': False} == await r.json()
+
+    assert None is await redis.get(b'enquiry-data-%d' % company.id)
+
+
+async def test_clear_enquiry_options_invalid(cli, company, other_server):
+    redis = await cli.server.app['worker'].get_redis()
+
+    r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    data = await r.json()
+    assert len(data['visible']) == 4
+
+    assert None is not await redis.get(b'enquiry-data-%d' % company.id)
+
+    r = await signed_post(
+        cli,
+        cli.server.app.router['webhook-clear-enquiry'].url_for(company=company.public_key),
+        signing_key_='this is wrong',
+    )
+    assert r.status == 401, await r.text()
+
+    assert None is not await redis.get(b'enquiry-data-%d' % company.id)
