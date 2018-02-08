@@ -507,7 +507,7 @@ async def enquiry_post(request, company, enquiry_options):
     for name, field_data in enquiry_options['attributes'].get('children', {}).items():
         field_type = FIELD_VALIDATION_LOOKUP[field_data['type']]
         if field_type == CREATE_ENUM:
-            field_type = Enum('DynamicEnum', {c['value']: c['value'] for c in field_data['choices']})
+            field_type = Enum('DynamicEnum', {f'v{i}': c['value'] for i, c in enumerate(field_data['choices'])})
         fields[name] = (field_type, ... if field_data['required'] else None)
 
     if fields:

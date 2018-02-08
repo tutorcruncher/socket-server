@@ -84,6 +84,7 @@ async def enquiry_options_view(request):
                 'read_only': True,
                 'label': '...',
                 'choices': [
+                    {'value': '', 'display_name': ''},
                     {'value': 'foo', 'display_name': 'Foo'},
                     {'value': 'bar', 'display_name': 'Bar'},
                 ],
