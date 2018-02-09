@@ -5,6 +5,7 @@ from collections import namedtuple
 from datetime import datetime
 from io import BytesIO
 from itertools import product
+from time import time
 
 import pytest
 from aiohttp.web import Application, Response, json_response
@@ -365,6 +366,7 @@ def company(loop, db_conn):
 
 
 async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, **data):
+    data.setdefault('_request_time', int(time()))
     payload = json.dumps(data)
     b_payload = payload.encode()
     m = hmac.new(signing_key_.encode(), b_payload, hashlib.sha256)

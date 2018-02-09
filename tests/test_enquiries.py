@@ -1,5 +1,4 @@
 import json
-from time import time
 
 from tests.conftest import signed_post
 
@@ -344,8 +343,7 @@ async def test_clear_enquiry_options_no_data(cli, company):
     r = await signed_post(
         cli,
         cli.server.app.router['webhook-clear-enquiry'].url_for(company=company.public_key),
-        signing_key_='this is the master key',
-        time=time()
+        signing_key_=company.private_key,
     )
     assert r.status == 200, await r.text()
     assert {'status': 'success', 'data_existed': False} == await r.json()

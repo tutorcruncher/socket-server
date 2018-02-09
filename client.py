@@ -4,13 +4,14 @@ import json
 import os
 import hmac
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime
+from time import time
 
 import aiohttp
 import click
 
 SIGNING_KEY = os.getenv('CLIENT_SIGNING_KEY', 'testing').encode()
-BASE_URL = os.getenv('CLIENT_BASE_URL', 'http://localhost:8000/')
+BASE_URL = os.getenv('CLIENT_BASE_URL', 'http://localhost:5000/')
 print(f'using shared secret {SIGNING_KEY} and url {BASE_URL}')
 # BASE_URL = 'https://socket.tutorcruncher.com/'
 CONN = aiohttp.TCPConnector(verify_ssl=False)
@@ -34,7 +35,7 @@ async def index(**kwargs):
 
 @command
 async def company_list(**kwargs):
-    payload = (datetime.now() - timedelta(seconds=1)).strftime('%s')
+    payload = f'{time():0.0f}'
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
 
@@ -54,6 +55,7 @@ async def company_create(*, public_key=None, data=None, **kwargs):
     post_data = {
         'name': f'company {datetime.now():%y-%m-%d %H:%M:%S}',
         'public_key': public_key,
+        '_request_time': int(time()),
     }
     data and post_data.update(data)
     payload = json.dumps(post_data)
@@ -74,7 +76,9 @@ async def company_create(*, public_key=None, data=None, **kwargs):
 
 @command
 async def company_update(*, public_key, data=None, **kwargs):
-    payload = json.dumps(data or {})
+    payload = dict(_request_time=int(time()))
+    payload.update(data or {})
+    payload = json.dumps(payload)
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
     headers = {
@@ -171,7 +175,8 @@ CON_DATA = {
 
 @command
 async def contractor_create(*, public_key, **kwargs):
-    payload = json.dumps(CON_DATA)
+    payload = dict(_request_time=int(time()), **CON_DATA)
+    payload = json.dumps(payload)
     b_payload = payload.encode()
     m = hmac.new(SIGNING_KEY, b_payload, hashlib.sha256)
     headers = {

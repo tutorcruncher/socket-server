@@ -2,7 +2,7 @@ import hashlib
 import hmac
 import logging
 from asyncio import CancelledError
-from datetime import datetime, timedelta
+from time import time
 
 from aiohttp.hdrs import METH_GET, METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
@@ -159,39 +159,48 @@ async def company_middleware(request, handler):
 async def json_request_middleware(request, handler):
     if request.method == METH_POST and request.match_info.route.name:
         error_details = None
-        model = VIEW_MODELS.get(request.match_info.route.name)
-        if model:
-            try:
-                data = await request.json()
-                request['model'] = model.parse_obj(data)
-            except ValidationError as e:
-                error_details = e.errors_dict
-            except ValueError as e:
-                error_details = f'Value Error: {e}'
+        try:
+            data = await request.json()
+        except ValueError as e:
+            error_details = f'Value Error: {e}'
+        else:
+            request['body_request_time'] = data.pop('_request_time', None)
+            model = VIEW_MODELS.get(request.match_info.route.name)
+            if model:
+                try:
+                    request['model'] = model.parse_obj(data)
+                except ValidationError as e:
+                    error_details = e.errors_dict
 
-            if error_details:
-                raise HTTPBadRequestJson(
-                    status='invalid request data',
-                    details=error_details,
-                )
+        if error_details:
+            raise HTTPBadRequestJson(
+                status='invalid request data',
+                details=error_details,
+            )
     return await handler(request)
+
+
+def _check_timestamp(ts: str, now):
+    try:
+        offset = now - int(ts)
+        if not 10 > offset > -1:
+            raise ValueError()
+    except (TypeError, ValueError):
+        raise HTTPForbiddenJson(
+            status='invalid request time',
+            details=f"request time '{ts}' not in the last 10 seconds",
+        )
 
 
 async def authenticate(request, api_key=None):
     api_key_choices = api_key, request.app['settings'].master_key
+    now = time()
     if request.method == METH_GET:
         r_time = request.headers.get('Request-Time', '<missing>')
-        now = datetime.now()
-        try:
-            assert (now - timedelta(seconds=10)) < datetime.fromtimestamp(int(r_time)) < now
-        except (ValueError, AssertionError):
-            raise HTTPForbiddenJson(
-                status='invalid request time',
-                details=f'Request-Time header "{r_time}" not in the last 10 seconds',
-            )
-        else:
-            body = r_time.encode()
+        _check_timestamp(r_time, now)
+        body = r_time.encode()
     else:
+        _check_timestamp(request['body_request_time'], now)
         body = await request.read()
     signature = request.headers.get('Signature', request.headers.get('Webhook-Signature', '<missing>'))
     for _api_key in api_key_choices:

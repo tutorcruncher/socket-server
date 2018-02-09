@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 from datetime import datetime, timedelta
+from time import time
 
 import pytest
 
@@ -11,7 +12,7 @@ from .conftest import signed_post
 
 
 async def test_create(cli, db_conn):
-    payload = json.dumps({'name': 'foobar'})
+    payload = json.dumps({'name': 'foobar', '_request_time': int(time())})
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
@@ -40,6 +41,7 @@ async def test_create_with_url_public_key(cli, db_conn):
         'name': 'foobar',
         'url': 'https://www.example.com',
         'public_key': 'X' * 20,
+        '_request_time': int(time()),
     })
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
@@ -67,7 +69,7 @@ async def test_create_with_url_public_key(cli, db_conn):
 
 
 async def test_create_with_keys(cli, db_conn):
-    data = {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40}
+    data = {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40, '_request_time': int(time())}
     payload = json.dumps(data)
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
@@ -87,13 +89,14 @@ async def test_create_with_keys(cli, db_conn):
 
 
 async def test_create_not_auth(cli):
+    data = json.dumps({'name': 'foobar', '_request_time': int(time())})
     headers = {'Content-Type': 'application/json'}
-    r = await cli.post('/companies/create', data=json.dumps({'name': 'foobar'}), headers=headers)
+    r = await cli.post('/companies/create', data=data, headers=headers)
     assert r.status == 401
 
 
 async def test_create_bad_auth(cli):
-    payload = json.dumps({'name': 'foobar'})
+    payload = json.dumps({'name': 'foobar', '_request_time': int(time())})
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
@@ -105,6 +108,31 @@ async def test_create_bad_auth(cli):
     assert r.status == 401
 
 
+@pytest.mark.parametrize('request_time', [
+    lambda: 10,
+    lambda: int(time()) - 20,
+    lambda: int(time()) + 5,
+    lambda: 'foobar'
+])
+async def test_create_bad_body_time(cli, request_time):
+    _request_time = request_time()
+    data = {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40, '_request_time': _request_time}
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 403
+    assert {
+       'details': f"request time '{_request_time}' not in the last 10 seconds",
+       'status': 'invalid request time'
+    } == await r.json()
+
+
 async def test_create_duplicate_name(cli, company):
     r = await signed_post(cli, '/companies/create', name='foobar')
     assert r.status == 400
@@ -113,7 +141,8 @@ async def test_create_duplicate_name(cli, company):
 
 
 async def test_create_duplicate_public_key(cli, db_conn):
-    payload = json.dumps({'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40})
+    payload = json.dumps({'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40,
+                          '_request_time': int(time())})
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
@@ -124,7 +153,8 @@ async def test_create_duplicate_public_key(cli, db_conn):
     r = await cli.post('/companies/create', data=payload, headers=headers)
     assert r.status == 201
 
-    payload = json.dumps({'name': 'foobar 2', 'public_key': 'x' * 20, 'private_key': 'z' * 40})
+    payload = json.dumps({'name': 'foobar 2', 'public_key': 'x' * 20, 'private_key': 'z' * 40,
+                          '_request_time': int(time())})
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
     headers = {
