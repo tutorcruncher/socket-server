@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import json
 from pathlib import Path
+from time import time
 
 from PIL import Image
 
@@ -56,6 +57,7 @@ async def test_create_bad_auth(cli, company):
         deleted=False,
         first_name='Fred',
         last_name='Bloggs',
+        _request_time=time()
     )
     payload = json.dumps(data)
     b_payload = payload.encode()
@@ -66,7 +68,7 @@ async def test_create_bad_auth(cli, company):
         'Content-Type': 'application/json',
     }
     r = await cli.post(f'/{company.public_key}/webhook/contractor', data=payload, headers=headers)
-    assert r.status == 401
+    assert r.status == 401, await r.text()
 
 
 async def test_create_skills(cli, db_conn, company):
