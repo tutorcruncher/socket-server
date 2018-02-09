@@ -184,6 +184,19 @@ async def contractor_set(request):
         )
 
 
+REDIS_ENQUIRY_CACHE_KEY = b'enquiry-data-%d'
+
+
+async def clear_enquiry(request):
+    redis = await request.app['worker'].get_redis()
+    v = await redis.delete(REDIS_ENQUIRY_CACHE_KEY % request['company'].id)
+    return json_response(
+        request,
+        status='success',
+        data_existed=bool(v)
+    )
+
+
 DISTANCE_SORT = '__distance__'
 SORT_OPTIONS = {
     'update': sa_contractors.c.last_updated,
@@ -438,7 +451,7 @@ async def enquiry(request):
     company = dict(request['company'])
 
     redis = await request.app['worker'].get_redis()
-    redis_key = b'enquiry-data-%d' % company['id']
+    redis_key = REDIS_ENQUIRY_CACHE_KEY % company['id']
     raw_enquiry_options = await redis.get(redis_key)
     ts = timestamp()
     if raw_enquiry_options:
