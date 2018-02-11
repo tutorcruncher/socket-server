@@ -68,6 +68,10 @@ class HTTPNotFoundJson(HTTPClientErrorJson):
     status_code = 404
 
 
+class HTTPTooManyRequestsJson(HTTPClientErrorJson):
+    status_code = 429
+
+
 def json_response(request, *, status_=200, list_=None, **data):
     if JSON_CONTENT_TYPE in request.headers.get('Accept', ''):
         to_json = json.dumps

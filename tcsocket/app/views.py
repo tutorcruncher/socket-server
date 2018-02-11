@@ -17,6 +17,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, or_
 from yarl import URL
 
+from .geo import geocode
 from .logs import logger
 from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
                      sa_subjects)
@@ -188,7 +189,7 @@ REDIS_ENQUIRY_CACHE_KEY = b'enquiry-data-%d'
 
 
 async def clear_enquiry(request):
-    redis = await request.app['worker'].get_redis()
+    redis = request.app['redis']
     v = await redis.delete(REDIS_ENQUIRY_CACHE_KEY % request['company'].id)
     return json_response(
         request,
@@ -203,9 +204,6 @@ SORT_OPTIONS = {
     'name': sa_contractors.c.first_name,
     'distance': DISTANCE_SORT,
     # TODO some configurable sort index
-}
-SORT_REVERSE = {
-    'update': True
 }
 
 
@@ -246,9 +244,8 @@ def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=
 
 
 async def contractor_list(request):  # noqa: C901 (ignore complexity)
-    sort_val = request.GET.get('sort') or 'update'
+    sort_val = request.GET.get('sort')
     sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['update'])
-    sort_reverse = SORT_REVERSE.get(sort_val, False)
     page = _get_arg(request, 'page', default=1)
     pagination = min(_get_arg(request, 'pagination', default=100), 100)
     offset = (page - 1) * pagination
@@ -291,18 +288,18 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
     if labels_exclude_filter:
         where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
 
-    lat = _get_arg(request, 'latitude', decoder=float)
-    lng = _get_arg(request, 'longitude', decoder=float)
-    max_distance = _get_arg(request, 'max_distance', default=80_000)
-
+    location = await geocode(request)
     inc_distance = None
-    if lat is not None and lng is not None:
+    if location:
+        max_distance = _get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
-        request_loc = func.ll_to_earth(lat, lng)
+        request_loc = func.ll_to_earth(location['lat'], location['lng'])
         con_loc = func.ll_to_earth(c.latitude, c.longitude)
         distance_func = func.earth_distance(request_loc, con_loc)
         where += distance_func < max_distance,
         fields += distance_func.label('distance'),
+        if not sort_val:
+            sort_col = DISTANCE_SORT
         if sort_col == DISTANCE_SORT:
             sort_col = distance_func
     elif sort_col == DISTANCE_SORT:
@@ -311,7 +308,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
             details=f'distance sorting not available if latitude and longitude are not provided',
         )
 
-    sort_on = sort_col.desc() if sort_reverse else sort_col.asc()
+    sort_on = sort_col.desc() if sort_col == sa_contractors.c.last_updated else sort_col.asc()
     q = (
         select(fields)
         .where(and_(*where))
@@ -450,7 +447,7 @@ async def labels_list(request):
 async def enquiry(request):
     company = dict(request['company'])
 
-    redis = await request.app['worker'].get_redis()
+    redis = request.app['redis']
     redis_key = REDIS_ENQUIRY_CACHE_KEY % company['id']
     raw_enquiry_options = await redis.get(redis_key)
     ts = timestamp()

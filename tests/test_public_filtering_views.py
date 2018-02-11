@@ -172,27 +172,27 @@ async def test_distance_filter(cli, db_conn, company):
         sa_contractors
         .insert()
         .values([
-            dict(id=1, company=company.id, latitude=50, longitude=0, first_name='b_con1', last_name='t',
+            dict(id=1, company=company.id, latitude=51.5, longitude=-0.1, first_name='b_con1', last_name='t',
                  last_updated=datetime.now()),
-            dict(id=2, company=company.id, latitude=50, longitude=-0.1, first_name='a_con2', last_name='t',
+            dict(id=2, company=company.id, latitude=51.5, longitude=0, first_name='a_con2', last_name='t',
                  last_updated=datetime.now()),
         ])
     )
 
-    base_url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(base_url + '?latitude=50.1&longitude=0&sort=distance')
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.1'})
     assert r.status == 200, await r.text()
     obj = await r.json()
     link_distance = list(map(itemgetter('link', 'distance'), obj))
-    assert link_distance == [('1-bcon-t', 11132), ('2-acon-t', 13229)]
+    assert link_distance == [('1-bcon-t', 3129), ('2-acon-t', 10054)]
 
-    r = await cli.get(base_url + '?latitude=50.1&longitude=0&sort=name')
+    r = await cli.get(url, params={'location': 'SW1W 0EN', 'sort': 'name'}, headers={'X-Forwarded-For': '1.1.1.1'})
     assert r.status == 200, await r.text()
     obj = await r.json()
     link_distance = list(map(itemgetter('link', 'distance'), obj))
-    assert link_distance == [('2-acon-t', 13229), ('1-bcon-t', 11132)]
+    assert link_distance == [('2-acon-t', 10054), ('1-bcon-t', 3129)]
 
-    r = await cli.get(base_url + '?latitude=50.1&sort=distance')
+    r = await cli.get(url, params={'sort': 'distance'})
     assert r.status == 400, await r.text()
     assert (await r.json()) == {
         'details': 'distance sorting not available if latitude and longitude are not provided',

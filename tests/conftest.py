@@ -237,6 +237,36 @@ async def grecaptcha_post_view(request):
     return json_response(d)
 
 
+async def geocoding_view(request):
+    address = request.GET.get('address')
+    if address == 'SW1W 0EN':
+        loc = {
+            'results': [
+                {
+                    'address_components': None,
+                    'formatted_address': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
+                    'geometry': {
+                        'bounds': None,
+                        'location': {
+                            'lat': 51.4980603,
+                            'lng': -0.14505,
+                        },
+                        'location_type': 'APPROXIMATE',
+                        'viewport': None,
+                    },
+                    'types': ['postal_code'],
+                },
+            ],
+            'status': 'OK',
+        }
+    else:
+        loc = {
+            'results': [],
+            'status': 'INVALID_REQUEST',
+        }
+    return json_response(loc)
+
+
 @pytest.fixture
 def other_server(loop, test_server):
     app = Application(loop=loop)
@@ -245,6 +275,7 @@ def other_server(loop, test_server):
     app.router.add_route('OPTIONS', '/api/enquiry/', enquiry_options_view)
     app.router.add_post('/api/enquiry/', enquiry_post_view)
     app.router.add_post('/grecaptcha', grecaptcha_post_view)
+    app.router.add_get('/geocode', geocoding_view)
     app.update(
         request_log=[],
         grecaptcha_host='example.com',
@@ -271,6 +302,7 @@ def settings(tmpdir, other_server):
         media_url='https://socket.tutorcruncher.com/media',
         grecaptcha_url=f'http://localhost:{other_server.port}/grecaptcha',
         tc_api_root=f'http://localhost:{other_server.port}/api',
+        geocoding_url=f'http://localhost:{other_server.port}/geocode',
     )
 
 
