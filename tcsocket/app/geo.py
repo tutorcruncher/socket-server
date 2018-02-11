@@ -4,7 +4,8 @@ import json
 from .settings import Settings
 from .utils import HTTPTooManyRequestsJson
 
-NINETY_DAYS = 3600 * 24 * 90
+ONE_HOUR = 3_600
+NINETY_DAYS = ONE_HOUR * 24 * 90
 IP_HEADER = 'X-Forwarded-For'
 
 
@@ -15,31 +16,31 @@ def get_ip(request):
 
 
 async def geocode(request):
-    address_str = request.GET.get('address')
-    if not address_str:
+    location_str = request.GET.get('location')
+    if not location_str:
         return
 
-    address_str = address_str.strip(' \t\n\r,.')
-    loc_ref = 'loc:' + hashlib.md5(address_str.encode()).hexdigest()
+    location_str = location_str.strip(' \t\n\r,.')
+    loc_key = 'loc:' + hashlib.md5(location_str.encode()).hexdigest()
     redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
     with await redis_pool as redis:
-        loc_data = await redis.get(loc_ref)
+        loc_data = await redis.get(loc_key)
         if loc_data:
             return json.loads(loc_data.decode())
 
-        ip_key = b'geoip:%s' % get_ip(request).encode()
+        ip_key = 'geoip:' + get_ip(request)
         geo_attempts = int(await redis.incr(ip_key))
         if geo_attempts == 1:
             # set expires on the first attempt
-            await redis.expire(ip_key, 3600)
+            await redis.expire(ip_key, ONE_HOUR)
         elif geo_attempts > 10:
             raise HTTPTooManyRequestsJson(
                 status='too_many_requests',
                 details='to many geocoding requests submitted',
             )
         params = {
-            'address': address_str,
+            'address': location_str,
             'key': settings.geocoding_key,
         }
         data = None
@@ -61,5 +62,5 @@ async def geocode(request):
             }
         else:
             result = None
-        await redis.setex(loc_ref, NINETY_DAYS, json.dumps(result).encode())
+        await redis.setex(loc_key, NINETY_DAYS, json.dumps(result).encode())
         return result

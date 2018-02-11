@@ -289,8 +289,11 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
 
     location = await geocode(request)
+    headers = {'Access-Control-Allow-Headers': 'Geocoded-Location'}
     inc_distance = None
     if location:
+        # have to use headers because socket frontend assumes the response will be a list
+        headers.update({'Geocoded-Location': json.dumps(location)})
         max_distance = _get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
         request_loc = func.ll_to_earth(location['lat'], location['lng'])
@@ -345,7 +348,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
             data['review_duration'] = con.review_duration
 
         results.append(data)
-    return json_response(request, list_=results)
+    return json_response(request, list_=results, headers_=headers)
 
 
 def _group_skills(skills):

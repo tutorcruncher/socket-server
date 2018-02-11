@@ -40,7 +40,10 @@ def to_pretty_json(data):
 
 
 JSON_CONTENT_TYPE = 'application/json'
-ACCESS_CONTROL_HEADER = 'Access-Control-Allow-Origin'
+ACCESS_CONTROL_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+
+}
 
 
 class HTTPClientErrorJson(web.HTTPClientError):
@@ -48,7 +51,7 @@ class HTTPClientErrorJson(web.HTTPClientError):
         super().__init__(
             body=to_pretty_json(data).encode(),
             content_type=JSON_CONTENT_TYPE,
-            headers={ACCESS_CONTROL_HEADER: '*'},
+            headers=ACCESS_CONTROL_HEADERS,
         )
 
 
@@ -72,7 +75,7 @@ class HTTPTooManyRequestsJson(HTTPClientErrorJson):
     status_code = 429
 
 
-def json_response(request, *, status_=200, list_=None, **data):
+def json_response(request, *, status_=200, list_=None, headers_=None, **data):
     if JSON_CONTENT_TYPE in request.headers.get('Accept', ''):
         to_json = json.dumps
     else:
@@ -82,5 +85,5 @@ def json_response(request, *, status_=200, list_=None, **data):
         body=to_json(data if list_ is None else list_).encode(),
         status=status_,
         content_type=JSON_CONTENT_TYPE,
-        headers={ACCESS_CONTROL_HEADER: '*'}
+        headers=dict(ACCESS_CONTROL_HEADERS, **(headers_ or {}))
     )
