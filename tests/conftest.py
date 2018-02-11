@@ -239,6 +239,8 @@ async def grecaptcha_post_view(request):
 
 async def geocoding_view(request):
     address = request.GET.get('address')
+    request.app['request_log'].append(('geocode', address))
+    status = 200
     if address == 'SW1W 0EN':
         loc = {
             'results': [
@@ -259,12 +261,19 @@ async def geocoding_view(request):
             ],
             'status': 'OK',
         }
+    elif address == '500':
+        status = 500
+        loc = {
+            'results': [],
+            'status': 'error',
+        }
     else:
+        status = 400
         loc = {
             'results': [],
             'status': 'INVALID_REQUEST',
         }
-    return json_response(loc)
+    return json_response(loc, status=status)
 
 
 @pytest.fixture

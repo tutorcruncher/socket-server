@@ -15,13 +15,13 @@ def get_ip(request):
 
 
 async def geocode(request):
-    location_str = request.GET.get('location')
-    if not location_str:
+    address_str = request.GET.get('address')
+    if not address_str:
         return
 
-    location_str = location_str.strip(' \t\n\r,.')
-    loc_ref = 'loc:' + hashlib.md5(location_str.encode()).hexdigest()
-    redis_pool = await request.app['redis']
+    address_str = address_str.strip(' \t\n\r,.')
+    loc_ref = 'loc:' + hashlib.md5(address_str.encode()).hexdigest()
+    redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
     with await redis_pool as redis:
         loc_data = await redis.get(loc_ref)
@@ -39,13 +39,13 @@ async def geocode(request):
                 details='to many geocoding requests submitted',
             )
         params = {
-            'address': location_str,
+            'address': address_str,
             'key': settings.geocoding_key,
         }
         data = None
         async with request.app['session'].get(settings.geocoding_url, params=params) as r:
             try:
-                # 400 if the location is invalid
+                # 400 if the address is invalid
                 assert r.status in {200, 400}
                 data = await r.json()
             except (ValueError, AssertionError) as e:
