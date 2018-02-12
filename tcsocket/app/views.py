@@ -14,7 +14,8 @@ from arq.utils import timestamp
 from sqlalchemy import String, cast, func, select, update
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.sql import and_, or_
+from sqlalchemy.sql import and_, distinct, or_
+from sqlalchemy.sql.functions import count as count_func
 from yarl import URL
 
 from .geo import geocode
@@ -289,11 +290,10 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
 
     location = await geocode(request)
-    headers = {'Access-Control-Allow-Headers': 'Geocoded-Location'}
+    data = {}
     inc_distance = None
     if location:
-        # have to use headers because socket frontend assumes the response will be a list
-        headers.update({'Geocoded-Location': json.dumps(location)})
+        data['location'] = location
         max_distance = _get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
         request_loc = func.ll_to_earth(location['lat'], location['lng'])
@@ -322,33 +322,42 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
     )
     if select_from is not None:
         q = q.select_from(select_from)
+
     results = []
     name_display = company.name_display
-
     conn = await request['conn_manager'].get_connection()
-    async for con in conn.execute(q):
-        name = _get_name(name_display, con)
-        data = dict(
-            id=con.id,
-            url=_route_url(request, 'contractor-get', company=company.public_key, id=con.id),
-            link='{}-{}'.format(con.id, _slugify(name)),
+    async for row in conn.execute(q):
+        name = _get_name(name_display, row)
+        con = dict(
+            id=row.id,
+            url=_route_url(request, 'contractor-get', company=company.public_key, id=row.id),
+            link='{}-{}'.format(row.id, _slugify(name)),
             name=name,
-            tag_line=con.tag_line,
-            primary_description=con.primary_description,
-            town=con.town,
-            country=con.country,
-            photo=_photo_url(request, con, True),
-            distance=inc_distance and int(con.distance),
+            tag_line=row.tag_line,
+            primary_description=row.primary_description,
+            town=row.town,
+            country=row.country,
+            photo=_photo_url(request, row, True),
+            distance=inc_distance and int(row.distance),
         )
         if show_labels:
-            data['labels'] = con.labels or []
+            con['labels'] = row.labels or []
         if show_stars:
-            data['review_rating'] = con.review_rating
+            con['review_rating'] = row.review_rating
         if show_hours_reviewed:
-            data['review_duration'] = con.review_duration
+            con['review_duration'] = row.review_duration
 
-        results.append(data)
-    return json_response(request, list_=results, headers_=headers)
+        results.append(con)
+
+    q = select([count_func(distinct(c.id))]).where(and_(*where))
+    if select_from is not None:
+        q = q.select_from(select_from)
+    cur = await conn.execute(q)
+    data.update(
+        results=results,
+        count=(await cur.first())[0],
+    )
+    return json_response(request, **data)
 
 
 def _group_skills(skills):
