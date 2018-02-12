@@ -18,7 +18,7 @@ from sqlalchemy.sql import and_, distinct, or_
 from sqlalchemy.sql.functions import count as count_func
 from yarl import URL
 
-from .geo import geocode
+from .geo import geocode, get_ip
 from .logs import logger
 from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
                      sa_subjects)
@@ -516,11 +516,10 @@ async def enquiry_post(request, company, enquiry_options):
     data = request['model'].dict()
     data = {k: v for k, v in data.items() if v is not None}
     attributes = data.pop('attributes', None)
-    x_forward_for = request.headers.get('X-Forwarded-For')
     referrer = request.headers.get('Referer')
     data.update(
         user_agent=request.headers.get('User-Agent'),
-        ip_address=x_forward_for and x_forward_for.split(',', 1)[0].strip(' '),
+        ip_address=get_ip(request),
         http_referrer=referrer and referrer[:1023],
     )
 

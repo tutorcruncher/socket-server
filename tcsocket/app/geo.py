@@ -11,8 +11,7 @@ IP_HEADER = 'X-Forwarded-For'
 
 def get_ip(request):
     ips = request.headers.get(IP_HEADER)
-    assert ips, 'missing header "X-Forwarded-For"'
-    return ips.split(',', 1)[0]
+    return ips and ips.split(',', 1)[0].strip(' ')
 
 
 async def geocode(request):
@@ -24,12 +23,15 @@ async def geocode(request):
     loc_key = 'loc:' + hashlib.md5(location_str.encode()).hexdigest()
     redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
+
+    ip_address = get_ip(request)
+    assert ip_address, 'missing header "X-Forwarded-For"'
     with await redis_pool as redis:
         loc_data = await redis.get(loc_key)
         if loc_data:
             return json.loads(loc_data.decode())
 
-        ip_key = 'geoip:' + get_ip(request)
+        ip_key = 'geoip:' + ip_address
         geo_attempts = int(await redis.incr(ip_key))
         if geo_attempts == 1:
             # set expires on the first attempt
