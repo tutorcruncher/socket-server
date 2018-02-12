@@ -15,7 +15,7 @@ async def test_list_contractors_origin(cli, company):
     r = await cli.get(url, headers={'Origin': 'http://example.com'})
     assert r.status == 200
     assert r.headers.get('Access-Control-Allow-Origin') == '*'
-    assert [] == await r.json()
+    assert {'results': [], 'location': None, 'count': 0} == await r.json()
 
     r = await cli.get(url, headers={'Origin': 'http://different.com'})
     assert r.status == 403
@@ -84,9 +84,10 @@ async def test_filter_contractors_skills(cli, db_conn, company, filter_args, con
     r = await cli.get(url + '?' + filter_args)
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert len(obj) == con_count
+    assert obj['count'] == con_count, obj
+    assert len(obj['results']) == con_count, obj
     if con_count == 1:
-        assert obj[0]['link'] == '1-fred-b'
+        assert obj['results'][0]['link'] == '1-fred-b'
 
 
 async def test_filter_contractors_skills_distinct(cli, db_conn, company):
@@ -104,7 +105,8 @@ async def test_filter_contractors_skills_distinct(cli, db_conn, company):
     r = await cli.get(url + '?subject=1')
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert len(obj) == 1, obj
+    assert obj['count'] == 1, obj
+    assert len(obj['results']) == 1, obj
 
 
 async def test_filter_contractors_skills_invalid(cli, db_conn, company):
@@ -167,37 +169,75 @@ async def test_qual_level_list(cli, db_conn, company):
     ]
 
 
-async def test_distance_filter(cli, db_conn, company):
+@pytest.mark.parametrize('params, con_distances', [
+    ({'location': 'SW1W 0EN'}, [('1-bcon-t', 3129), ('2-acon-t', 10054)]),
+    ({'location': 'SW1W 0EN', 'sort': 'name'}, [('2-acon-t', 10054), ('1-bcon-t', 3129)]),
+    ({'location': 'SW1W 0EN', 'max_distance': 4000}, [('1-bcon-t', 3129)]),
+    ({'location': 'SW1W 0ENx', 'max_distance': 4000}, [('2-acon-t', None), ('1-bcon-t', None)]),
+])
+async def test_distance_filter(cli, db_conn, company, params, con_distances):
     await db_conn.execute(
         sa_contractors
         .insert()
         .values([
-            dict(id=1, company=company.id, latitude=50, longitude=0, first_name='b_con1', last_name='t',
+            dict(id=1, company=company.id, latitude=51.5, longitude=-0.1, first_name='b_con1', last_name='t',
                  last_updated=datetime.now()),
-            dict(id=2, company=company.id, latitude=50, longitude=-0.1, first_name='a_con2', last_name='t',
+            dict(id=2, company=company.id, latitude=51.5, longitude=0, first_name='a_con2', last_name='t',
                  last_updated=datetime.now()),
         ])
     )
 
-    base_url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(base_url + '?latitude=50.1&longitude=0&sort=distance')
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url, params=params, headers={'X-Forwarded-For': '1.1.1.1'})
     assert r.status == 200, await r.text()
     obj = await r.json()
-    link_distance = list(map(itemgetter('link', 'distance'), obj))
-    assert link_distance == [('1-bcon-t', 11132), ('2-acon-t', 13229)]
+    assert list(map(itemgetter('link', 'distance'), obj['results'])) == con_distances
 
-    r = await cli.get(base_url + '?latitude=50.1&longitude=0&sort=name')
-    assert r.status == 200, await r.text()
-    obj = await r.json()
-    link_distance = list(map(itemgetter('link', 'distance'), obj))
-    assert link_distance == [('2-acon-t', 13229), ('1-bcon-t', 11132)]
-
-    r = await cli.get(base_url + '?latitude=50.1&sort=distance')
+    r = await cli.get(url, params={'sort': 'distance'})
     assert r.status == 400, await r.text()
     assert (await r.json()) == {
         'details': 'distance sorting not available if latitude and longitude are not provided',
         'status': 'invalid_argument'
     }
+
+
+async def test_geocode_cache(cli, other_server, company):
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    assert r.status == 200, await r.text()
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN')]
+    obj = await r.json()
+    assert {
+        'pretty': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
+        'lat': 51.4980603,
+        'lng': -0.14505
+    } == obj['location']
+
+    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.2'})
+    assert r.status == 200, await r.text()
+    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.3'})
+    assert r.status == 200, await r.text()
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN')]
+
+
+async def test_geocode_rate_limit(cli, other_server, company):
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    for i in range(10):
+        r = await cli.get(url, params={'location': f'SW1W {i}EN'}, headers={'X-Forwarded-For': '1.1.1.1'})
+        assert r.status == 200, await r.text()
+    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    assert r.status == 429, await r.text()
+    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    assert r.status == 429, await r.text()
+    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.2'})
+    assert r.status == 200, await r.text()
+    assert len(other_server.app['request_log']) == 11
+
+
+async def test_geocode_error(cli, other_server, company):
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url, params={'location': '500'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    assert r.status == 500, await r.text()
 
 
 async def create_labels(db_conn, company):
@@ -243,7 +283,7 @@ async def test_label_filter(cli, db_conn, company, filter_args, cons):
     r = await cli.get(url + '?sort=name&' + filter_args)
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert [c['link'] for c in obj] == cons
+    assert [c['link'] for c in obj['results']] == cons
 
 
 async def test_labels_list(cli, db_conn, company):
@@ -291,10 +331,12 @@ async def test_show_permissions(cli, db_conn, company):
     r = await cli.get(url)
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert len(obj) == 1, obj
-    assert 'labels' not in obj[0], obj[0]
-    assert 'review_rating' not in obj[0], obj[0]
-    assert 'review_duration' not in obj[0], obj[0]
+    assert obj['count'] == 1, obj
+    results = obj['results']
+    assert len(results) == 1, obj
+    assert 'labels' not in results[0], results[0]
+    assert 'review_rating' not in results[0], results[0]
+    assert 'review_duration' not in results[0], results[0]
 
     await db_conn.execute(update(sa_companies).values(options={
         'show_labels': True, 'show_stars': True, 'show_hours_reviewed': True
@@ -303,9 +345,10 @@ async def test_show_permissions(cli, db_conn, company):
     r = await cli.get(url)
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert obj[0]['labels'] == ['foo', 'bar'], obj[0]
-    assert obj[0]['review_rating'] == 3.5, obj[0]
-    assert obj[0]['review_duration'] == 1800, obj[0]
+    results = obj['results']
+    assert results[0]['labels'] == ['foo', 'bar'], results[0]
+    assert results[0]['review_rating'] == 3.5, results[0]
+    assert results[0]['review_duration'] == 1800, results[0]
 
 
 @pytest.mark.parametrize('filter_args, con_count, first_id, last_id', [
@@ -330,6 +373,8 @@ async def test_contractor_pagination(cli, db_conn, company, filter_args, con_cou
     r = await cli.get(url + '?' + filter_args)
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert len(obj) == con_count
-    assert obj[0]['id'] == first_id, obj[0]
-    assert obj[-1]['id'] == last_id, obj[-1]
+    assert obj['count'] == 110
+    results = obj['results']
+    assert len(results) == con_count, obj
+    assert results[0]['id'] == first_id, results[0]
+    assert results[-1]['id'] == last_id, results[-1]

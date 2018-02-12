@@ -56,6 +56,7 @@ services:
       APP_TC_API_ROOT: ${TC_API_ROOT}
       APP_MEDIA_URL: ${TC_MEDIA_URL}
       APP_ROOT_URL: ${ROOT_URL}
+      APP_GEOCODING_KEY: ${GEOCODING_KEY}
       BIND: 0.0.0.0:8000
       CHECK: web
       COMMIT: ${COMMIT}
@@ -86,6 +87,7 @@ services:
       APP_MEDIA_URL: ${TC_MEDIA_URL}
       APP_ROOT_URL: ${ROOT_URL}
       APP_GRECAPTCHA_SECRET: ${GRECAPTCHA_SECRET}
+      APP_GEOCODING_KEY: ${GEOCODING_KEY}
       CHECK: worker
       COMMIT: ${COMMIT}
       RAVEN_DSN: ${RAVEN_DSN}

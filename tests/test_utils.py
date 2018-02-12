@@ -3,7 +3,7 @@ from datetime import datetime
 import pytest
 
 from tcsocket.app.logs import logger, setup_logging
-from tcsocket.app.utils import to_pretty_json
+from tcsocket.app.utils import pretty_lenient_json
 
 
 def test_universal_encoder():
@@ -16,7 +16,7 @@ def test_universal_encoder():
         '  "bytes": "hello",\n'
         '  "dt": "2032-01-01T00:00:00"\n'
         '}\n'
-    ) == to_pretty_json(d)
+    ) == pretty_lenient_json(d)
 
 
 def test_universal_encoder_error():
@@ -26,7 +26,7 @@ def test_universal_encoder_error():
 
     d = {'dt': Foo()}
     with pytest.raises(TypeError):
-        to_pretty_json(d)
+        pretty_lenient_json(d)
 
 
 def test_no_logging(capsys):

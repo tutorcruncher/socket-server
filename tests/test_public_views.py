@@ -70,7 +70,7 @@ async def test_list_contractors(cli, db_conn):
             'distance': None,
             'url': 'https://socket.tutorcruncher.com/thepublickey/contractors/1',
         }
-    ] == obj
+    ] == obj['results']
 
 
 async def test_list_contractors_name(cli, db_conn, company):
@@ -81,8 +81,8 @@ async def test_list_contractors_name(cli, db_conn, company):
     )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
     assert r.status == 200, await r.text()
-    assert (await r.json())[0]['link'] == '1-fred-b'
-    assert (await r.json())[0]['name'] == 'Fred B'
+    assert (await r.json())['results'][0]['link'] == '1-fred-b'
+    assert (await r.json())['results'][0]['name'] == 'Fred B'
 
     await db_conn.execute((
         update(sa_companies)
@@ -91,8 +91,8 @@ async def test_list_contractors_name(cli, db_conn, company):
     ))
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
     assert r.status == 200, await r.text()
-    assert (await r.json())[0]['link'] == '1-fred'
-    assert (await r.json())[0]['name'] == 'Fred'
+    assert (await r.json())['results'][0]['link'] == '1-fred'
+    assert (await r.json())['results'][0]['name'] == 'Fred'
 
     await db_conn.execute((
         update(sa_companies)
@@ -101,14 +101,14 @@ async def test_list_contractors_name(cli, db_conn, company):
     ))
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
     assert r.status == 200, await r.text()
-    assert (await r.json())[0]['link'] == '1-fred-bloggs'
-    assert (await r.json())[0]['name'] == 'Fred Bloggs'
+    assert (await r.json())['results'][0]['link'] == '1-fred-bloggs'
+    assert (await r.json())['results'][0]['name'] == 'Fred Bloggs'
 
 
 @pytest.mark.parametrize('headers, newline_count', [
     ({'Accept': 'application/json'}, 0),
-    ({'Accept': '*/*'}, 14),
-    (None, 14),
+    ({'Accept': '*/*'}, 18),
+    (None, 18),
 ])
 async def test_json_encoding(cli, db_conn, company, headers, newline_count):
     await db_conn.execute(

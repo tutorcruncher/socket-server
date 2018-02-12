@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     tc_api_root = 'https://secure.tutorcruncher.com/api'
     grecaptcha_secret = 'required secret for google recaptcha'
     grecaptcha_url = 'https://www.google.com/recaptcha/api/siteverify'
+    geocoding_url = 'https://maps.googleapis.com/maps/api/geocode/json'
+    geocoding_key = 'required secret for google geocoding'
 
     @validator('media_dir')
     def check_media_dir(cls, p):

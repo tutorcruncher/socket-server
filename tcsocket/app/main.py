@@ -2,8 +2,9 @@ import os
 import re
 from html import escape
 
-from aiohttp import web
+from aiohttp import ClientSession, web
 from aiopg.sa import create_engine
+from arq import create_pool_lenient
 
 from .middleware import middleware
 from .settings import THIS_DIR, Settings
@@ -15,9 +16,12 @@ from .worker import MainActor
 
 async def startup(app: web.Application):
     settings: Settings = app['settings']
+    redis = await create_pool_lenient(settings.redis_settings, app.loop)
     app.update(
         pg_engine=await create_engine(settings.pg_dsn, loop=app.loop),
-        worker=MainActor(settings=settings),
+        redis=redis,
+        worker=MainActor(settings=settings, existing_redis=redis),
+        session=ClientSession(loop=app.loop),
     )
     await app['worker'].startup()
 
@@ -26,6 +30,7 @@ async def cleanup(app: web.Application):
     app['pg_engine'].close()
     await app['pg_engine'].wait_closed()
     await app['worker'].close(True)
+    await app['session'].close()
 
 
 def setup_routes(app):

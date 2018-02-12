@@ -14,9 +14,11 @@ from arq.utils import timestamp
 from sqlalchemy import String, cast, func, select, update
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.sql import and_, or_
+from sqlalchemy.sql import and_, distinct, or_
+from sqlalchemy.sql.functions import count as count_func
 from yarl import URL
 
+from .geo import geocode
 from .logs import logger
 from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
                      sa_subjects)
@@ -188,7 +190,7 @@ REDIS_ENQUIRY_CACHE_KEY = b'enquiry-data-%d'
 
 
 async def clear_enquiry(request):
-    redis = await request.app['worker'].get_redis()
+    redis = request.app['redis']
     v = await redis.delete(REDIS_ENQUIRY_CACHE_KEY % request['company'].id)
     return json_response(
         request,
@@ -203,9 +205,6 @@ SORT_OPTIONS = {
     'name': sa_contractors.c.first_name,
     'distance': DISTANCE_SORT,
     # TODO some configurable sort index
-}
-SORT_REVERSE = {
-    'update': True
 }
 
 
@@ -246,9 +245,8 @@ def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=
 
 
 async def contractor_list(request):  # noqa: C901 (ignore complexity)
-    sort_val = request.GET.get('sort') or 'update'
+    sort_val = request.GET.get('sort')
     sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['update'])
-    sort_reverse = SORT_REVERSE.get(sort_val, False)
     page = _get_arg(request, 'page', default=1)
     pagination = min(_get_arg(request, 'pagination', default=100), 100)
     offset = (page - 1) * pagination
@@ -291,18 +289,20 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
     if labels_exclude_filter:
         where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
 
-    lat = _get_arg(request, 'latitude', decoder=float)
-    lng = _get_arg(request, 'longitude', decoder=float)
-    max_distance = _get_arg(request, 'max_distance', default=80_000)
-
+    location = await geocode(request)
+    data = {}
     inc_distance = None
-    if lat is not None and lng is not None:
+    if location:
+        data['location'] = location
+        max_distance = _get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
-        request_loc = func.ll_to_earth(lat, lng)
+        request_loc = func.ll_to_earth(location['lat'], location['lng'])
         con_loc = func.ll_to_earth(c.latitude, c.longitude)
         distance_func = func.earth_distance(request_loc, con_loc)
         where += distance_func < max_distance,
         fields += distance_func.label('distance'),
+        if not sort_val:
+            sort_col = DISTANCE_SORT
         if sort_col == DISTANCE_SORT:
             sort_col = distance_func
     elif sort_col == DISTANCE_SORT:
@@ -311,8 +311,8 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
             details=f'distance sorting not available if latitude and longitude are not provided',
         )
 
-    sort_on = sort_col.desc() if sort_reverse else sort_col.asc()
-    q = (
+    sort_on = sort_col.desc() if sort_col == sa_contractors.c.last_updated else sort_col.asc()
+    q_iter = (
         select(fields)
         .where(and_(*where))
         .order_by(sort_on, c.id)
@@ -320,35 +320,43 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         .offset(offset)
         .limit(pagination)
     )
+    q_count = select([count_func(distinct(c.id))]).where(and_(*where))
     if select_from is not None:
-        q = q.select_from(select_from)
+        q_iter = q_iter.select_from(select_from)
+        q_count = q_count.select_from(select_from)
+
     results = []
     name_display = company.name_display
-
     conn = await request['conn_manager'].get_connection()
-    async for con in conn.execute(q):
-        name = _get_name(name_display, con)
-        data = dict(
-            id=con.id,
-            url=_route_url(request, 'contractor-get', company=company.public_key, id=con.id),
-            link='{}-{}'.format(con.id, _slugify(name)),
+    async for row in conn.execute(q_iter):
+        name = _get_name(name_display, row)
+        con = dict(
+            id=row.id,
+            url=_route_url(request, 'contractor-get', company=company.public_key, id=row.id),
+            link='{}-{}'.format(row.id, _slugify(name)),
             name=name,
-            tag_line=con.tag_line,
-            primary_description=con.primary_description,
-            town=con.town,
-            country=con.country,
-            photo=_photo_url(request, con, True),
-            distance=inc_distance and int(con.distance),
+            tag_line=row.tag_line,
+            primary_description=row.primary_description,
+            town=row.town,
+            country=row.country,
+            photo=_photo_url(request, row, True),
+            distance=inc_distance and int(row.distance),
         )
         if show_labels:
-            data['labels'] = con.labels or []
+            con['labels'] = row.labels or []
         if show_stars:
-            data['review_rating'] = con.review_rating
+            con['review_rating'] = row.review_rating
         if show_hours_reviewed:
-            data['review_duration'] = con.review_duration
+            con['review_duration'] = row.review_duration
+        results.append(con)
 
-        results.append(data)
-    return json_response(request, list_=results)
+    cur_count = await conn.execute(q_count)
+    return json_response(
+        request,
+        location=location,
+        results=results,
+        count=(await cur_count.first())[0],
+    )
 
 
 def _group_skills(skills):
@@ -450,7 +458,7 @@ async def labels_list(request):
 async def enquiry(request):
     company = dict(request['company'])
 
-    redis = await request.app['worker'].get_redis()
+    redis = request.app['redis']
     redis_key = REDIS_ENQUIRY_CACHE_KEY % company['id']
     raw_enquiry_options = await redis.get(redis_key)
     ts = timestamp()

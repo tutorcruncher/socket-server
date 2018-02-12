@@ -35,20 +35,20 @@ class UniversalEncoder(json.JSONEncoder):
         return encoder(obj)
 
 
-def to_pretty_json(data):
+def pretty_lenient_json(data):
     return json.dumps(data, indent=2, sort_keys=True, cls=UniversalEncoder) + '\n'
 
 
 JSON_CONTENT_TYPE = 'application/json'
-ACCESS_CONTROL_HEADER = 'Access-Control-Allow-Origin'
+ACCESS_CONTROL_HEADERS = {'Access-Control-Allow-Origin': '*'}
 
 
 class HTTPClientErrorJson(web.HTTPClientError):
     def __init__(self, **data):
         super().__init__(
-            body=to_pretty_json(data).encode(),
+            text=pretty_lenient_json(data),
             content_type=JSON_CONTENT_TYPE,
-            headers={ACCESS_CONTROL_HEADER: '*'},
+            headers=ACCESS_CONTROL_HEADERS,
         )
 
 
@@ -68,15 +68,23 @@ class HTTPNotFoundJson(HTTPClientErrorJson):
     status_code = 404
 
 
+class HTTPTooManyRequestsJson(HTTPClientErrorJson):
+    status_code = 429
+
+
+def pretty_json(data):
+    return json.dumps(data, indent=2) + '\n'
+
+
 def json_response(request, *, status_=200, list_=None, **data):
     if JSON_CONTENT_TYPE in request.headers.get('Accept', ''):
         to_json = json.dumps
     else:
-        to_json = to_pretty_json
+        to_json = pretty_json
 
     return Response(
         body=to_json(data if list_ is None else list_).encode(),
         status=status_,
         content_type=JSON_CONTENT_TYPE,
-        headers={ACCESS_CONTROL_HEADER: '*'}
+        headers=ACCESS_CONTROL_HEADERS,
     )
