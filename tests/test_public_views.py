@@ -107,8 +107,8 @@ async def test_list_contractors_name(cli, db_conn, company):
 
 @pytest.mark.parametrize('headers, newline_count', [
     ({'Accept': 'application/json'}, 0),
-    ({'Accept': '*/*'}, 17),
-    (None, 17),
+    ({'Accept': '*/*'}, 18),
+    (None, 18),
 ])
 async def test_json_encoding(cli, db_conn, company, headers, newline_count):
     await db_conn.execute(

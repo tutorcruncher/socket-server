@@ -312,7 +312,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         )
 
     sort_on = sort_col.desc() if sort_col == sa_contractors.c.last_updated else sort_col.asc()
-    q = (
+    q_iter = (
         select(fields)
         .where(and_(*where))
         .order_by(sort_on, c.id)
@@ -320,13 +320,15 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         .offset(offset)
         .limit(pagination)
     )
+    q_count = select([count_func(distinct(c.id))]).where(and_(*where))
     if select_from is not None:
-        q = q.select_from(select_from)
+        q_iter = q_iter.select_from(select_from)
+        q_count = q_count.select_from(select_from)
 
     results = []
     name_display = company.name_display
     conn = await request['conn_manager'].get_connection()
-    async for row in conn.execute(q):
+    async for row in conn.execute(q_iter):
         name = _get_name(name_display, row)
         con = dict(
             id=row.id,
@@ -346,18 +348,15 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
             con['review_rating'] = row.review_rating
         if show_hours_reviewed:
             con['review_duration'] = row.review_duration
-
         results.append(con)
 
-    q = select([count_func(distinct(c.id))]).where(and_(*where))
-    if select_from is not None:
-        q = q.select_from(select_from)
-    cur = await conn.execute(q)
-    data.update(
+    cur_count = await conn.execute(q_count)
+    return json_response(
+        request,
+        location=location,
         results=results,
-        count=(await cur.first())[0],
+        count=(await cur_count.first())[0],
     )
-    return json_response(request, **data)
 
 
 def _group_skills(skills):

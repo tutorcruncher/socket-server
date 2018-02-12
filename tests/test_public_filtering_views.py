@@ -15,7 +15,7 @@ async def test_list_contractors_origin(cli, company):
     r = await cli.get(url, headers={'Origin': 'http://example.com'})
     assert r.status == 200
     assert r.headers.get('Access-Control-Allow-Origin') == '*'
-    assert {'results': [], 'count': 0} == await r.json()
+    assert {'results': [], 'location': None, 'count': 0} == await r.json()
 
     r = await cli.get(url, headers={'Origin': 'http://different.com'})
     assert r.status == 403
