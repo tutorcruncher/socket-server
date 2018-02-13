@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlencode
@@ -11,7 +12,6 @@ from arq.utils import timestamp
 from PIL import Image, ImageOps
 from psycopg2 import OperationalError
 
-from .logs import logger
 from .middleware import domain_allowed
 from .processing import contractor_set
 from .settings import Settings
@@ -22,6 +22,7 @@ SIZE_LARGE = 1000, 1000
 SIZE_SMALL = 256, 256
 
 CT_JSON = 'application/json'
+logger = logging.getLogger('socket.worker')
 
 
 class MainActor(Actor):

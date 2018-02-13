@@ -1,4 +1,5 @@
 import json
+import logging
 import re
 from datetime import date, datetime
 from enum import Enum
@@ -19,7 +20,6 @@ from sqlalchemy.sql.functions import count as count_func
 from yarl import URL
 
 from .geo import geocode, get_ip
-from .logs import logger
 from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
                      sa_subjects)
 from .processing import contractor_set as _contractor_set
@@ -29,6 +29,7 @@ from .validation import CompanyCreateModal, CompanyUpdateModel, ContractorModel,
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
 VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'
+logger = logging.getLogger('socket.views')
 
 
 async def index(request):

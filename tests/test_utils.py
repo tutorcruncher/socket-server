@@ -1,8 +1,9 @@
+import logging
 from datetime import datetime
 
 import pytest
 
-from tcsocket.app.logs import logger, setup_logging
+from tcsocket.app.logs import setup_logging
 from tcsocket.app.utils import pretty_lenient_json
 
 
@@ -30,6 +31,7 @@ def test_universal_encoder_error():
 
 
 def test_no_logging(capsys):
+    logger = logging.getLogger('socket.main')
     logger.info('foobar')
     out, err = capsys.readouterr()
     assert out == ''
@@ -37,6 +39,7 @@ def test_no_logging(capsys):
 
 
 def test_setup_logging(capsys):
+    logger = logging.getLogger('socket.main')
     setup_logging()
     logger.info('foobar')
     out, err = capsys.readouterr()

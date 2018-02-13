@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from contextlib import contextmanager
 from functools import partial
@@ -12,12 +13,12 @@ from arq import RunWorkerProcess
 from gunicorn.app.base import BaseApplication
 from sqlalchemy import create_engine, update
 
-from .logs import logger
 from .main import create_app
 from .models import Base, sa_companies
 from .settings import Settings
 
 commands = []
+logger = logging.getLogger('socket.management')
 
 
 def command(func):

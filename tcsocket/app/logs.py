@@ -2,8 +2,6 @@ import logging
 import logging.config
 import os
 
-logger = logging.getLogger('socket.main')
-
 
 def setup_logging(verbose: bool=False):
     """

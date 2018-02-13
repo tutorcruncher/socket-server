@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 
 from .settings import Settings
 from .utils import HTTPTooManyRequestsJson
@@ -7,6 +8,7 @@ from .utils import HTTPTooManyRequestsJson
 ONE_HOUR = 3_600
 NINETY_DAYS = ONE_HOUR * 24 * 90
 IP_HEADER = 'X-Forwarded-For'
+logger = logging.getLogger('socket.geo')
 
 
 def get_ip(request):
@@ -20,7 +22,7 @@ async def geocode(request):
         return
 
     location_str = location_str.strip(' \t\n\r,.')
-    loc_key = 'loc:' + hashlib.md5(location_str.encode()).hexdigest()
+    loc_key = 'loc:' + hashlib.md5(location_str.lower().encode()).hexdigest()
     redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
 
@@ -29,7 +31,9 @@ async def geocode(request):
     with await redis_pool as redis:
         loc_data = await redis.get(loc_key)
         if loc_data:
-            return json.loads(loc_data.decode())
+            result = json.loads(loc_data.decode())
+            logger.info('cached geocode result "%s" > "%s"', location_str, result and result['pretty'])
+            return result
 
         ip_key = 'geoip:' + ip_address
         geo_attempts = int(await redis.incr(ip_key))
@@ -37,6 +41,7 @@ async def geocode(request):
             # set expires on the first attempt
             await redis.expire(ip_key, ONE_HOUR)
         elif geo_attempts > 10:
+            logger.warning('%d geocode attempts from "%s" in the last hour', geo_attempts, ip_address)
             raise HTTPTooManyRequestsJson(
                 status='too_many_requests',
                 details='to many geocoding requests submitted',
@@ -65,4 +70,6 @@ async def geocode(request):
         else:
             result = None
         await redis.setex(loc_key, NINETY_DAYS, json.dumps(result).encode())
+        logger.info('new geocode result "%s" > "%s" (%d from "%s")',
+                    location_str, result and result['pretty'], geo_attempts, ip_address)
         return result

@@ -1,13 +1,15 @@
+import logging
 from typing import List
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
 
-from .logs import logger
 from .models import Action, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
 from .validation import ContractorModel
+
+logger = logging.getLogger('socket.processing')
 
 
 def _distinct(iter, key):

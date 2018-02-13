@@ -1,5 +1,6 @@
 #!/usr/bin/env python3.6
 import asyncio
+import logging
 import os
 from functools import partial
 
@@ -8,11 +9,13 @@ from aiohttp import ClientSession
 from arq import RunWorkerProcess
 from gunicorn.app.base import BaseApplication
 
-from app.logs import logger, setup_logging
+from app.logs import setup_logging
 from app.main import create_app
 from app.management import prepare_database, run_patch
 from app.settings import Settings
 from app.worker import Worker
+
+logger = logging.getLogger('socket.run')
 
 
 @click.group()
