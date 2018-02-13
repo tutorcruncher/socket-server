@@ -118,7 +118,7 @@ async def pg_conn_middleware(request, handler):
 
 
 def domain_allowed(allow_domains, current_domain):
-    return any(
+    return current_domain.endswith('tutorcruncher.com') or any(
         allow_domain == current_domain or (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
         for allow_domain in allow_domains
     )

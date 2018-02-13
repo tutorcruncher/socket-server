@@ -71,13 +71,12 @@ class MainActor(Actor):
                     f.write(chunk)
             f.seek(0)
             with Image.open(f) as img:
-                if img.mode == 'RGBA':
-                    img = img.convert('RGB')
-                img_thumb = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
-                img_thumb.save(path_str + '.jpg', 'JPEG')
+                img = img.convert('RGB')
+                img_large = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
+                img_large.save(path_str + '.jpg', 'JPEG')
 
-                img_large = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
-                img_large.save(path_str + '.thumb.jpg', 'JPEG')
+                img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
+                img_thumb.save(path_str + '.thumb.jpg', 'JPEG')
         return 200
 
     def request_headers(self, company):

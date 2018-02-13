@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from time import time
 
+import pytest
 from PIL import Image
 
 from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
@@ -278,15 +279,18 @@ async def test_extra_attributes_null(cli, db_conn, company):
     assert result.primary_description is None
 
 
-async def test_photo(cli, db_conn, company, image_download_url, tmpdir):
+@pytest.mark.parametrize('image_format', ['JPEG', 'RGBA', 'P'])
+async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_server, image_format):
     r = await signed_post(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
         first_name='Fred',
-        photo=image_download_url
+        photo=f'{image_download_url}?format={image_format}'
     )
     assert r.status == 201, await r.text()
+    assert other_server.app['request_log'] == [('test_image', image_format)]
+
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
     path = Path(tmpdir / 'media' / company.public_key / '123.jpg')
     assert path.exists()

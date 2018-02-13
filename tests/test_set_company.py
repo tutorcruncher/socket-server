@@ -39,7 +39,7 @@ async def test_create(cli, db_conn):
 async def test_create_with_url_public_key(cli, db_conn):
     payload = json.dumps({
         'name': 'foobar',
-        'url': 'https://www.example.com',
+        'domains': ['www.example.com'],
         'public_key': 'X' * 20,
         '_request_time': int(time()),
     })
@@ -212,6 +212,24 @@ async def test_list_invalid_time(cli, company, payload_func, name):
     assert r.status == 403, await r.text()
 
 
+async def test_default_options(cli, db_conn, company):
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert {
+        'display_mode': 'grid',
+        'name': 'foobar',
+        'name_display': 'first_name_initial',
+        'pagination': 100,
+        'router_mode': 'hash',
+        'show_hours_reviewed': True,
+        'show_labels': True,
+        'show_location_search': True,
+        'show_stars': True,
+        'show_subject_filter': True,
+        'sort_on': 'name',
+    } == await r.json()
+
+
 async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
@@ -224,14 +242,21 @@ async def test_update_company(cli, db_conn, company, other_server):
         signing_key_='this is the master key',
         domains=['changed.com'],
         display_mode='enquiry-modal',
-        show_hours_reviewed=True,
+        show_location_search=False,
+        pagination=20,
+        sort_on='review_rating',
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {
         'details': {
             'domains': ['changed.com'],
-            'options': {'display_mode': 'enquiry-modal', 'show_hours_reviewed': True},
+            'options': {
+                'display_mode': 'enquiry-modal',
+                'show_location_search': False,
+                'pagination': 20,
+                'sort_on': 'review_rating',
+            }
         },
         'company_domains': ['changed.com'],
         'status': 'success',
@@ -241,7 +266,8 @@ async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domains == ['changed.com']
-    assert result.options == {'display_mode': 'enquiry-modal', 'show_hours_reviewed': True}
+    assert result.options == {'display_mode': 'enquiry-modal', 'pagination': 20, 'show_location_search': False,
+                              'sort_on': 'review_rating'}
 
     r = await cli.get(f'/{company.public_key}/options')
     assert r.status == 200, await r.text()
@@ -249,10 +275,14 @@ async def test_update_company(cli, db_conn, company, other_server):
         'display_mode': 'enquiry-modal',
         'name': 'foobar',
         'name_display': 'first_name_initial',
+        'pagination': 20,
         'router_mode': 'hash',
         'show_hours_reviewed': True,
-        'show_labels': False,
-        'show_stars': False,
+        'show_labels': True,
+        'show_location_search': False,
+        'show_stars': True,
+        'show_subject_filter': True,
+        'sort_on': 'review_rating',
     } == await r.json()
 
 
