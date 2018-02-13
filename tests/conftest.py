@@ -10,7 +10,7 @@ from time import time
 import pytest
 from aiohttp.web import Application, Response, json_response
 from aiopg.sa import create_engine as aio_create_engine
-from PIL import Image
+from PIL import Image, ImageDraw
 from sqlalchemy import create_engine as sa_create_engine
 from sqlalchemy import select
 from sqlalchemy.sql.functions import count as count_func
@@ -25,11 +25,21 @@ MASTER_KEY = 'this is the master key'
 
 
 async def test_image_view(request):
-    image = Image.new('RGB', (2000, 1200), (50, 100, 150))
+    image_format = request.GET.get('format')
     stream = BytesIO()
-    image.save(stream, format='JPEG', optimize=True)
-    request.app['request_log'].append('test_image')
-    return Response(body=stream.getvalue(), content_type='image/jpeg')
+    request.app['request_log'].append(('test_image', image_format))
+
+    if image_format == 'RGBA':
+        create_as, save_as = 'RGBA', 'PNG'
+    elif image_format == 'P':
+        create_as, save_as = 'RGBA', 'GIF'
+    else:
+        create_as, save_as = 'RGB', 'JPEG'
+
+    image = Image.new(create_as, (2000, 1200), (50, 100, 150))
+    ImageDraw.Draw(image).line((0, 0) + image.size, fill=128)
+    image.save(stream, format=save_as, optimize=True)
+    return Response(body=stream.getvalue(), content_type=f'image/{save_as.lower()}')
 
 
 async def contractor_list_view(request):
