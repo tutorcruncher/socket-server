@@ -171,7 +171,6 @@ async def test_qual_level_list(cli, db_conn, company):
 
 @pytest.mark.parametrize('params, con_distances', [
     ({'location': 'SW1W 0EN'}, [('1-bcon-t', 3129), ('2-acon-t', 10054)]),
-    ({'location': 'SW1W 0EN', 'sort': 'name'}, [('2-acon-t', 10054), ('1-bcon-t', 3129)]),
     ({'location': 'SW1W 0EN', 'max_distance': 4000}, [('1-bcon-t', 3129)]),
     ({'location': 'SW1W 0ENx', 'max_distance': 4000}, [('2-acon-t', None), ('1-bcon-t', None)]),
 ])
@@ -192,13 +191,6 @@ async def test_distance_filter(cli, db_conn, company, params, con_distances):
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert list(map(itemgetter('link', 'distance'), obj['results'])) == con_distances
-
-    r = await cli.get(url, params={'sort': 'distance'})
-    assert r.status == 400, await r.text()
-    assert (await r.json()) == {
-        'details': 'distance sorting not available if latitude and longitude are not provided',
-        'status': 'invalid_argument'
-    }
 
 
 async def test_geocode_cache(cli, other_server, company):

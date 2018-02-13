@@ -199,12 +199,10 @@ async def clear_enquiry(request):
     )
 
 
-DISTANCE_SORT = '__distance__'
 SORT_OPTIONS = {
-    'update': sa_contractors.c.last_updated,
+    'last_updated': sa_contractors.c.last_updated,
+    'review_rating': sa_contractors.c.review_rating,
     'name': sa_contractors.c.first_name,
-    'distance': DISTANCE_SORT,
-    # TODO some configurable sort index
 }
 
 
@@ -246,7 +244,7 @@ def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=
 
 async def contractor_list(request):  # noqa: C901 (ignore complexity)
     sort_val = request.GET.get('sort')
-    sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['update'])
+    sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['last_updated'])
     page = _get_arg(request, 'page', default=1)
     pagination = min(_get_arg(request, 'pagination', default=100), 100)
     offset = (page - 1) * pagination
@@ -301,17 +299,12 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         distance_func = func.earth_distance(request_loc, con_loc)
         where += distance_func < max_distance,
         fields += distance_func.label('distance'),
-        if not sort_val:
-            sort_col = DISTANCE_SORT
-        if sort_col == DISTANCE_SORT:
-            sort_col = distance_func
-    elif sort_col == DISTANCE_SORT:
-        raise HTTPBadRequestJson(
-            status='invalid_argument',
-            details=f'distance sorting not available if latitude and longitude are not provided',
-        )
+        sort_col = distance_func
 
-    sort_on = sort_col.desc() if sort_col == sa_contractors.c.last_updated else sort_col.asc()
+    sort_on = sort_col.asc()
+    if sort_col in {sa_contractors.c.last_updated, sa_contractors.c.review_rating}:
+        sort_on = sort_col.desc()
+
     q_iter = (
         select(fields)
         .where(and_(*where))
