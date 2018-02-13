@@ -78,7 +78,7 @@ class CompanyOptionsModel(BaseModel):
     Used for options views, this is the definitive set of defaults for company options
     """
     name: str
-    name_display: NameOptions = NameOptions.first_name_initial
+    name_display: NameOptions
 
     show_stars: bool = True
     display_mode: DisplayMode = DisplayMode.grid
