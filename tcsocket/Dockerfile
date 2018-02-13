@@ -1,6 +1,6 @@
 FROM python:3.6-alpine
 
-RUN apk --update --no-cache add gcc g++ musl-dev zlib-dev libuv libffi-dev make postgresql-dev jpeg-dev \
+RUN apk --update --no-cache add gcc g++ musl-dev zlib-dev libuv libffi-dev make postgresql-dev jpeg-dev tiff-dev \
  && rm -rf /var/cache/apk/*
 
 ADD ./requirements.txt /home/root/requirements.txt
