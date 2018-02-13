@@ -17,14 +17,13 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, distinct, or_
 from sqlalchemy.sql.functions import count as count_func
-from yarl import URL
 
 from .geo import geocode, get_ip
 from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
                      sa_subjects)
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, json_response
-from .validation import CompanyCreateModal, CompanyUpdateModel, ContractorModel, DisplayMode, RouterMode
+from .validation import CompanyCreateModal, CompanyOptionsModel, CompanyUpdateModel, ContractorModel
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
@@ -58,8 +57,7 @@ async def company_create(request):
     """
     company: CompanyCreateModal = request['model']
     existing_company = bool(company.private_key)
-    data = company.dict(exclude={'url'})
-    data['domains'] = company.url and [URL(company.url).host]  # TODO here for backwards compatibility, to be removed
+    data = company.dict()
 
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute((
@@ -91,6 +89,12 @@ async def company_create(request):
         )
 
 
+OPTIONS_FIELDS = {
+    'show_stars', 'display_mode', 'router_mode', 'show_hours_reviewed', 'show_labels', 'show_location_search',
+    'show_subject_filter', 'sort_on', 'pagination'
+}
+
+
 async def company_update(request):
     """
     Modify a company.
@@ -101,7 +105,7 @@ async def company_update(request):
     if company.domains != 'UNCHANGED':
         data['domains'] = company.domains
 
-    options = company.dict(include={'show_stars', 'display_mode', 'router_mode', 'show_hours_reviewed', 'show_labels'})
+    options = company.dict(include=OPTIONS_FIELDS)
     options = {k: v for k, v in options.items() if v is not None}
     if options:
         data['options'] = options
@@ -148,17 +152,12 @@ async def company_options(request):
     """
     Get a companies options
     """
-    options = request['company'].options or {}
-    return json_response(
-        request,
+    opts = CompanyOptionsModel(
         name=request['company'].name,
-        name_display=request['company'].name_display or NameOptions.first_name_initial,
-        show_stars=options.get('show_stars') or False,
-        display_mode=options.get('display_mode') or DisplayMode.grid,
-        router_mode=options.get('router_mode') or RouterMode.hash,
-        show_hours_reviewed=options.get('show_hours_reviewed') or False,
-        show_labels=options.get('show_labels') or False,
+        name_display=request['company'].name_display,
+        **(request['company'].options or {})
     )
+    return json_response(request, **opts.dict())
 
 
 async def contractor_set(request):

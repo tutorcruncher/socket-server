@@ -31,10 +31,17 @@ class RouterMode(str, Enum):
     history = 'history'
 
 
+@unique
+class SortOn(str, Enum):
+    name = 'name'
+    review_rating = 'review_rating'
+    last_updated = 'last_updated'
+
+
 class CompanyCreateModal(BaseModel):
     name: constr(min_length=3, max_length=63)
+    domains: Optional[List[constr(max_length=255)]] = []
     name_display: NameOptions = NameOptions.first_name_initial
-    url: NoneStr = None
     public_key: constr(min_length=18, max_length=20) = None
     private_key: constr(min_length=20, max_length=50) = None
 
@@ -53,13 +60,35 @@ class CompanyUpdateModel(BaseModel):
     private_key: constr(min_length=20, max_length=50) = None
 
     domains: Optional[List[constr(max_length=255)]] = 'UNCHANGED'
-    name_display: NameOptions = None
 
+    name_display: NameOptions = None
     show_stars: bool = None
     display_mode: DisplayMode = None
     router_mode: RouterMode = None
     show_hours_reviewed: bool = None
     show_labels: bool = None
+    show_location_search: bool = None
+    show_subject_filter: bool = None
+    sort_on: SortOn = None
+    pagination: int = None
+
+
+class CompanyOptionsModel(BaseModel):
+    """
+    Used for options views, this is the definitive set of defaults for company options
+    """
+    name: str
+    name_display: NameOptions = NameOptions.first_name_initial
+
+    show_stars: bool = True
+    display_mode: DisplayMode = DisplayMode.grid
+    router_mode: RouterMode = RouterMode.hash
+    show_hours_reviewed: bool = True
+    show_labels: bool = True
+    show_location_search: bool = True
+    show_subject_filter: bool = True
+    sort_on: SortOn = SortOn.name
+    pagination: int = 100
 
 
 class ContractorModel(BaseModel):
