@@ -20,9 +20,14 @@ from .validation import ContractorModel
 CHUNK_SIZE = int(1e4)
 SIZE_LARGE = 1000, 1000
 SIZE_SMALL = 256, 256
+REDIS_ENQUIRY_CACHE_KEY = b'enquiry-data-%d'
 
 CT_JSON = 'application/json'
 logger = logging.getLogger('socket.worker')
+
+
+async def store_enquiry_data(redis, company, data):
+    await redis.setex(REDIS_ENQUIRY_CACHE_KEY % company['id'], 86400, json.dumps(data).encode())
 
 
 class MainActor(Actor):
@@ -126,7 +131,7 @@ class MainActor(Actor):
         data = await self.get_enquiry_options(company)
         data['last_updated'] = timestamp()
         redis = await self.get_redis()
-        await redis.setex(b'enquiry-data-%d' % company['id'], 3600, json.dumps(data).encode())
+        await store_enquiry_data(redis, company, data)
 
     async def get_enquiry_options(self, company):
         async with self.session.options(self.api_enquiries, headers=self.request_headers(company)) as r:

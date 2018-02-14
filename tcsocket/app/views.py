@@ -24,6 +24,7 @@ from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contra
 from .processing import contractor_set as _contractor_set
 from .utils import HTTPBadRequestJson, json_response
 from .validation import CompanyCreateModal, CompanyOptionsModel, CompanyUpdateModel, ContractorModel
+from .worker import REDIS_ENQUIRY_CACHE_KEY, store_enquiry_data
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 MISSING = object()
@@ -184,9 +185,6 @@ async def contractor_set(request):
             status='success',
             details=f'contractor {action}',
         )
-
-
-REDIS_ENQUIRY_CACHE_KEY = b'enquiry-data-%d'
 
 
 async def clear_enquiry(request):
@@ -452,8 +450,7 @@ async def enquiry(request):
     company = dict(request['company'])
 
     redis = request.app['redis']
-    redis_key = REDIS_ENQUIRY_CACHE_KEY % company['id']
-    raw_enquiry_options = await redis.get(redis_key)
+    raw_enquiry_options = await redis.get(REDIS_ENQUIRY_CACHE_KEY % company['id'])
     ts = timestamp()
     if raw_enquiry_options:
         enquiry_options = json.loads(raw_enquiry_options.decode())
@@ -465,7 +462,7 @@ async def enquiry(request):
         # no enquiry options yet exist, we have to get them now even though it will make the request slow
         enquiry_options = await request.app['worker'].get_enquiry_options(company)
         enquiry_options['last_updated'] = ts
-        await redis.setex(redis_key, 3600, json.dumps(enquiry_options).encode())
+        await store_enquiry_data(redis, company, enquiry_options)
 
     enq_method = enquiry_post if request.method == METH_POST else enquiry_get
     return await enq_method(request, company, enquiry_options)

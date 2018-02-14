@@ -9,6 +9,7 @@ ONE_HOUR = 3_600
 NINETY_DAYS = ONE_HOUR * 24 * 90
 IP_HEADER = 'X-Forwarded-For'
 COUNTRY_HEADER = 'CF-IPCountry'
+MAX_GEOCODE_PER_HOUR = 20
 logger = logging.getLogger('socket.geo')
 
 
@@ -28,7 +29,8 @@ async def geocode(request):
         # https://en.wikipedia.org/wiki/Country_code_top-level_domain#ASCII_ccTLDs_not_in_ISO_3166-1
         region = 'uk'
 
-    loc_key = 'loc:' + hashlib.md5(f'{location_str.lower()}|{region}'.encode()).hexdigest()
+    loc_ref = f'{location_str.lower()}|{region}'
+    loc_key = f'loc:{hashlib.md5(loc_ref.encode()).hexdigest()[:8]}:{loc_ref[:50]}'
     redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
 
@@ -46,7 +48,7 @@ async def geocode(request):
         if geo_attempts == 1:
             # set expires on the first attempt
             await redis.expire(ip_key, ONE_HOUR)
-        elif geo_attempts > 10:
+        elif geo_attempts > MAX_GEOCODE_PER_HOUR:
             logger.warning('%d geocode attempts from "%s" in the last hour', geo_attempts, ip_address)
             raise HTTPTooManyRequestsJson(
                 status='too_many_requests',
