@@ -219,13 +219,17 @@ async def test_geocode_rate_limit(cli, other_server, company):
     for i in range(5):
         r = await cli.get(url, params={'location': f'SW1W {i}EN'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
         assert r.status == 200, await r.text()
+    # 9 = 1 + 4 * 2 - address "SW1W 0EN" works on first request, rest fail on both
+    assert len(other_server.app['request_log']) == 9
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 429, await r.text()
+    assert len(other_server.app['request_log']) == 10  # one more request before limit is hit
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 429, await r.text()
+    assert len(other_server.app['request_log']) == 10  # no requests, rate limited
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.2', **country})
     assert r.status == 200, await r.text()
-    assert len(other_server.app['request_log']) == 11
+    assert len(other_server.app['request_log']) == 11  # one more request as "SW1W 1ENx" result is cached
 
 
 async def test_geocode_error(cli, other_server, company):

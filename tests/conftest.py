@@ -272,7 +272,7 @@ async def geocoding_view(request):
             ],
             'status': 'OK',
         }
-    if address == 'New York' and components != 'country:GB':
+    elif address == 'New York' and components != 'country:GB':
         loc = {
             'results': [
                 {
