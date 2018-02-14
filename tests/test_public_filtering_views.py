@@ -187,7 +187,7 @@ async def test_distance_filter(cli, db_conn, company, params, con_distances):
     )
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(url, params=params, headers={'X-Forwarded-For': '1.1.1.1'})
+    r = await cli.get(url, params=params, headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'GB'})
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert list(map(itemgetter('link', 'distance'), obj['results'])) == con_distances
@@ -195,9 +195,10 @@ async def test_distance_filter(cli, db_conn, company, params, con_distances):
 
 async def test_geocode_cache(cli, other_server, company):
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    country = {'CF-IPCountry': 'GB'}
+    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 200, await r.text()
-    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN')]
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|uk')]
     obj = await r.json()
     assert {
         'pretty': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
@@ -205,31 +206,51 @@ async def test_geocode_cache(cli, other_server, company):
         'lng': -0.14505
     } == obj['location']
 
-    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.2'})
+    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.2', **country})
     assert r.status == 200, await r.text()
-    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.3'})
+    r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.3', **country})
     assert r.status == 200, await r.text()
-    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN')]
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|uk')]
 
 
 async def test_geocode_rate_limit(cli, other_server, company):
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    country = {'CF-IPCountry': 'GB'}
     for i in range(10):
-        r = await cli.get(url, params={'location': f'SW1W {i}EN'}, headers={'X-Forwarded-For': '1.1.1.1'})
+        r = await cli.get(url, params={'location': f'SW1W {i}EN'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
         assert r.status == 200, await r.text()
-    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    assert len(other_server.app['request_log']) == 10
+    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 429, await r.text()
-    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    assert len(other_server.app['request_log']) == 10
+    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 429, await r.text()
-    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.2'})
+    assert len(other_server.app['request_log']) == 10
+    r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.2', **country})
     assert r.status == 200, await r.text()
     assert len(other_server.app['request_log']) == 11
 
 
 async def test_geocode_error(cli, other_server, company):
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
-    r = await cli.get(url, params={'location': '500'}, headers={'X-Forwarded-For': '1.1.1.1'})
+    r = await cli.get(url, params={'location': '500'}, headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'GB'})
     assert r.status == 500, await r.text()
+
+
+async def test_geocode_other_country(cli, other_server, company):
+    r = await cli.get(
+        cli.server.app.router['contractor-list'].url_for(company=company.public_key),
+        params={'location': 'SW1W 0EN'},
+        headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'US'}
+    )
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert {
+        'pretty': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
+        'lat': 51.4980603,
+        'lng': -0.14505,
+    } == obj['location']
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|us')]
 
 
 async def create_labels(db_conn, company):

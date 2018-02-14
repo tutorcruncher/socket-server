@@ -9,3 +9,4 @@ sandbox/
 nginx/prod/keys/
 activate.prod.*
 activate.beta.*
+.pytest_cache/

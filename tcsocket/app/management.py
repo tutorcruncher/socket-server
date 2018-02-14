@@ -321,3 +321,11 @@ def add_review_fields(conn):
     """
     conn.execute('ALTER TABLE contractors ADD review_rating DOUBLE PRECISION')
     conn.execute('ALTER TABLE contractors ADD review_duration INTEGER NOT NULL DEFAULT 0')
+
+
+@patch
+def resize_tag_line(conn):
+    """
+    resize the tag_line field on contractors to 255 chars
+    """
+    conn.execute('ALTER TABLE contractors ALTER COLUMN tag_line TYPE VARCHAR(255)')

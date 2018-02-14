@@ -8,6 +8,7 @@ from .utils import HTTPTooManyRequestsJson
 ONE_HOUR = 3_600
 NINETY_DAYS = ONE_HOUR * 24 * 90
 IP_HEADER = 'X-Forwarded-For'
+COUNTRY_HEADER = 'CF-IPCountry'
 logger = logging.getLogger('socket.geo')
 
 
@@ -22,7 +23,12 @@ async def geocode(request):
         return
 
     location_str = location_str.strip(' \t\n\r,.')
-    loc_key = 'loc:' + hashlib.md5(location_str.lower().encode()).hexdigest()
+    region = request.headers[COUNTRY_HEADER].lower()
+    if region == 'gb':
+        # https://en.wikipedia.org/wiki/Country_code_top-level_domain#ASCII_ccTLDs_not_in_ISO_3166-1
+        region = 'uk'
+
+    loc_key = 'loc:' + hashlib.md5(f'{location_str.lower()}|{region}'.encode()).hexdigest()
     redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
 
@@ -32,7 +38,7 @@ async def geocode(request):
         loc_data = await redis.get(loc_key)
         if loc_data:
             result = json.loads(loc_data.decode())
-            logger.info('cached geocode result "%s" > "%s"', location_str, result and result['pretty'])
+            logger.info('cached geocode result "%s|%s" > "%s"', location_str, region, result and result['pretty'])
             return result
 
         ip_key = 'geoip:' + ip_address
@@ -48,6 +54,7 @@ async def geocode(request):
             )
         params = {
             'address': location_str,
+            'region': region,
             'key': settings.geocoding_key,
         }
         data = None
@@ -70,6 +77,6 @@ async def geocode(request):
         else:
             result = None
         await redis.setex(loc_key, NINETY_DAYS, json.dumps(result).encode())
-        logger.info('new geocode result "%s" > "%s" (%d from "%s")',
-                    location_str, result and result['pretty'], geo_attempts, ip_address)
+        logger.info('new geocode result "%s|%s" > "%s" (%d from "%s")',
+                    location_str, region, result and result['pretty'], geo_attempts, ip_address)
         return result

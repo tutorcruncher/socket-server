@@ -249,7 +249,8 @@ async def grecaptcha_post_view(request):
 
 async def geocoding_view(request):
     address = request.GET.get('address')
-    request.app['request_log'].append(('geocode', address))
+    region = request.GET.get('region')
+    request.app['request_log'].append(('geocode', f'{address}|{region}'))
     status = 200
     if address == 'SW1W 0EN':
         loc = {
