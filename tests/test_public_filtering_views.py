@@ -198,7 +198,7 @@ async def test_geocode_cache(cli, other_server, company):
     country = {'CF-IPCountry': 'GB'}
     r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 200, await r.text()
-    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN')]
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|country:GB')]
     obj = await r.json()
     assert {
         'pretty': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
@@ -210,7 +210,7 @@ async def test_geocode_cache(cli, other_server, company):
     assert r.status == 200, await r.text()
     r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.3', **country})
     assert r.status == 200, await r.text()
-    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN')]
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|country:GB')]
 
 
 async def test_geocode_rate_limit(cli, other_server, company):
@@ -232,6 +232,22 @@ async def test_geocode_error(cli, other_server, company):
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
     r = await cli.get(url, params={'location': '500'}, headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'GB'})
     assert r.status == 500, await r.text()
+
+
+async def test_geocode_with_without_country(cli, other_server, company):
+    r = await cli.get(
+        cli.server.app.router['contractor-list'].url_for(company=company.public_key),
+        params={'location': 'New York'},
+        headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'GB'}
+    )
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert {
+        'pretty': 'New York, NY, USA',
+        'lat': 40.7127753,
+        'lng': -74.0059728,
+    } == obj['location']
+    assert other_server.app['request_log'] == [('geocode', 'New York|country:GB'), ('geocode', 'New York|None')]
 
 
 async def create_labels(db_conn, company):

@@ -249,7 +249,8 @@ async def grecaptcha_post_view(request):
 
 async def geocoding_view(request):
     address = request.GET.get('address')
-    request.app['request_log'].append(('geocode', address))
+    components = request.GET.get('components')
+    request.app['request_log'].append(('geocode', f'{address}|{components}'))
     status = 200
     if address == 'SW1W 0EN':
         loc = {
@@ -267,6 +268,26 @@ async def geocoding_view(request):
                         'viewport': None,
                     },
                     'types': ['postal_code'],
+                },
+            ],
+            'status': 'OK',
+        }
+    if address == 'New York' and components != 'country:GB':
+        loc = {
+            'results': [
+                {
+                    'address_components': None,
+                    'formatted_address': 'New York, NY, USA',
+                    'geometry': {
+                        'bounds': None,
+                        'location': {
+                            'lat': 40.7127753,
+                            'lng': -74.0059728,
+                        },
+                        'location_type': 'APPROXIMATE',
+                        'viewport': None,
+                    },
+                    'types': ['locality', 'political'],
                 },
             ],
             'status': 'OK',
