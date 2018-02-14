@@ -23,19 +23,12 @@ async def geocode(request):
         return
 
     location_str = location_str.strip(' \t\n\r,.')
-    attempts = [
-        {'address': location_str, 'components': f'country:{request.headers[COUNTRY_HEADER]}'},
-        {'address': location_str},
-    ]
-    for params in attempts:
-        r = await _geocode(request, params)
-        if r:
-            return r
+    region = request.headers[COUNTRY_HEADER].lower()
+    if region == 'gb':
+        # https://en.wikipedia.org/wiki/Country_code_top-level_domain#ASCII_ccTLDs_not_in_ISO_3166-1
+        region = 'uk'
 
-
-async def _geocode(request, params):
-    cache_ref = json.dumps(params, sort_keys=True).encode()
-    loc_key = 'loc:' + hashlib.md5(cache_ref).hexdigest()
+    loc_key = 'loc:' + hashlib.md5(f'{location_str.lower()}|{region}'.encode()).hexdigest()
     redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
 
@@ -45,7 +38,7 @@ async def _geocode(request, params):
         loc_data = await redis.get(loc_key)
         if loc_data:
             result = json.loads(loc_data.decode())
-            logger.info('cached geocode result "%s" > "%s"', params, result and result['pretty'])
+            logger.info('cached geocode result "%s|%s" > "%s"', location_str, region, result and result['pretty'])
             return result
 
         ip_key = 'geoip:' + ip_address
@@ -59,9 +52,13 @@ async def _geocode(request, params):
                 status='too_many_requests',
                 details='to many geocoding requests submitted',
             )
-        get_params = dict(**params, key=settings.geocoding_key)
+        params = {
+            'address': location_str,
+            'region': region,
+            'key': settings.geocoding_key,
+        }
         data = None
-        async with request.app['session'].get(settings.geocoding_url, params=get_params) as r:
+        async with request.app['session'].get(settings.geocoding_url, params=params) as r:
             try:
                 # 400 if the address is invalid
                 assert r.status in {200, 400}
@@ -80,6 +77,6 @@ async def _geocode(request, params):
         else:
             result = None
         await redis.setex(loc_key, NINETY_DAYS, json.dumps(result).encode())
-        logger.info('new geocode result "%s" > "%s" (%d from "%s")',
-                    params, result and result['pretty'], geo_attempts, ip_address)
+        logger.info('new geocode result "%s|%s" > "%s" (%d from "%s")',
+                    location_str, region, result and result['pretty'], geo_attempts, ip_address)
         return result

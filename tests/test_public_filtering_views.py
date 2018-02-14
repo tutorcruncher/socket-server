@@ -198,7 +198,7 @@ async def test_geocode_cache(cli, other_server, company):
     country = {'CF-IPCountry': 'GB'}
     r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 200, await r.text()
-    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|country:GB')]
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|uk')]
     obj = await r.json()
     assert {
         'pretty': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
@@ -210,48 +210,31 @@ async def test_geocode_cache(cli, other_server, company):
     assert r.status == 200, await r.text()
     r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.3', **country})
     assert r.status == 200, await r.text()
-    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|country:GB')]
+    assert other_server.app['request_log'] == [('geocode', 'SW1W 0EN|uk')]
 
 
 async def test_geocode_rate_limit(cli, other_server, company):
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
     country = {'CF-IPCountry': 'GB'}
-    for i in range(5):
+    for i in range(10):
         r = await cli.get(url, params={'location': f'SW1W {i}EN'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
         assert r.status == 200, await r.text()
-    # 9 = 1 + 4 * 2 - address "SW1W 0EN" works on first request, rest fail on both
-    assert len(other_server.app['request_log']) == 9
+    assert len(other_server.app['request_log']) == 10
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 429, await r.text()
-    assert len(other_server.app['request_log']) == 10  # one more request before limit is hit
+    assert len(other_server.app['request_log']) == 10
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
     assert r.status == 429, await r.text()
-    assert len(other_server.app['request_log']) == 10  # no requests, rate limited
+    assert len(other_server.app['request_log']) == 10
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.2', **country})
     assert r.status == 200, await r.text()
-    assert len(other_server.app['request_log']) == 11  # one more request as "SW1W 1ENx" result is cached
+    assert len(other_server.app['request_log']) == 11
 
 
 async def test_geocode_error(cli, other_server, company):
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
     r = await cli.get(url, params={'location': '500'}, headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'GB'})
     assert r.status == 500, await r.text()
-
-
-async def test_geocode_with_without_country(cli, other_server, company):
-    r = await cli.get(
-        cli.server.app.router['contractor-list'].url_for(company=company.public_key),
-        params={'location': 'New York'},
-        headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'GB'}
-    )
-    assert r.status == 200, await r.text()
-    obj = await r.json()
-    assert {
-        'pretty': 'New York, NY, USA',
-        'lat': 40.7127753,
-        'lng': -74.0059728,
-    } == obj['location']
-    assert other_server.app['request_log'] == [('geocode', 'New York|country:GB'), ('geocode', 'New York|None')]
 
 
 async def create_labels(db_conn, company):
