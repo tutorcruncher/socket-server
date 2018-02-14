@@ -54,7 +54,7 @@ class Contractor(Base):
     latitude = Column(Float)
     longitude = Column(Float)
 
-    tag_line = Column(String(63))
+    tag_line = Column(String(255))
     primary_description = Column(Text())
 
     extra_attributes = Column(JSONB)

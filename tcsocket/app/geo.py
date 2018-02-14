@@ -8,6 +8,7 @@ from .utils import HTTPTooManyRequestsJson
 ONE_HOUR = 3_600
 NINETY_DAYS = ONE_HOUR * 24 * 90
 IP_HEADER = 'X-Forwarded-For'
+COUNTRY_HEADER = 'CF-IPCountry'
 logger = logging.getLogger('socket.geo')
 
 
@@ -22,7 +23,19 @@ async def geocode(request):
         return
 
     location_str = location_str.strip(' \t\n\r,.')
-    loc_key = 'loc:' + hashlib.md5(location_str.lower().encode()).hexdigest()
+    attempts = [
+        {'address': location_str, 'components': f'country:{request.headers[COUNTRY_HEADER]}'},
+        {'address': location_str},
+    ]
+    for params in attempts:
+        r = await _geocode(request, params)
+        if r:
+            return r
+
+
+async def _geocode(request, params):
+    cache_ref = json.dumps(params, sort_keys=True).encode()
+    loc_key = 'loc:' + hashlib.md5(cache_ref).hexdigest()
     redis_pool = request.app['redis']
     settings: Settings = request.app['settings']
 
@@ -32,7 +45,7 @@ async def geocode(request):
         loc_data = await redis.get(loc_key)
         if loc_data:
             result = json.loads(loc_data.decode())
-            logger.info('cached geocode result "%s" > "%s"', location_str, result and result['pretty'])
+            logger.info('cached geocode result "%s" > "%s"', params, result and result['pretty'])
             return result
 
         ip_key = 'geoip:' + ip_address
@@ -46,12 +59,9 @@ async def geocode(request):
                 status='too_many_requests',
                 details='to many geocoding requests submitted',
             )
-        params = {
-            'address': location_str,
-            'key': settings.geocoding_key,
-        }
+        get_params = dict(**params, key=settings.geocoding_key)
         data = None
-        async with request.app['session'].get(settings.geocoding_url, params=params) as r:
+        async with request.app['session'].get(settings.geocoding_url, params=get_params) as r:
             try:
                 # 400 if the address is invalid
                 assert r.status in {200, 400}
@@ -71,5 +81,5 @@ async def geocode(request):
             result = None
         await redis.setex(loc_key, NINETY_DAYS, json.dumps(result).encode())
         logger.info('new geocode result "%s" > "%s" (%d from "%s")',
-                    location_str, result and result['pretty'], geo_attempts, ip_address)
+                    params, result and result['pretty'], geo_attempts, ip_address)
         return result
