@@ -3,7 +3,6 @@ import json
 import logging
 
 from .settings import Settings
-from .utils import HTTPTooManyRequestsJson
 
 ONE_HOUR = 3_600
 NINETY_DAYS = ONE_HOUR * 24 * 90
@@ -40,7 +39,8 @@ async def geocode(request):
         loc_data = await redis.get(loc_key)
         if loc_data:
             result = json.loads(loc_data.decode())
-            logger.info('cached geocode result "%s|%s" > "%s"', location_str, region, result and result['pretty'])
+            logger.info('cached geocode result "%s|%s" > "%s"', location_str, region,
+                        result.get('error') or result['pretty'])
             return result
 
         ip_key = 'geoip:' + ip_address
@@ -50,10 +50,7 @@ async def geocode(request):
             await redis.expire(ip_key, ONE_HOUR)
         elif geo_attempts > MAX_GEOCODE_PER_HOUR:
             logger.warning('%d geocode attempts from "%s" in the last hour', geo_attempts, ip_address)
-            raise HTTPTooManyRequestsJson(
-                status='too_many_requests',
-                details='to many geocoding requests submitted',
-            )
+            return {'error': 'rate_limited'}
         params = {
             'address': location_str,
             'region': region,
@@ -77,8 +74,8 @@ async def geocode(request):
                 'lng': results[0]['geometry']['location']['lng'],
             }
         else:
-            result = None
+            result = {'error': 'no_results'}
         await redis.setex(loc_key, NINETY_DAYS, json.dumps(result).encode())
         logger.info('new geocode result "%s|%s" > "%s" (%d from "%s")',
-                    location_str, region, result and result['pretty'], geo_attempts, ip_address)
+                    location_str, region, result.get('error') or result['pretty'], geo_attempts, ip_address)
         return result

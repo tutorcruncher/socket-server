@@ -286,10 +286,15 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
 
     location = await geocode(request)
-    data = {}
     inc_distance = None
     if location:
-        data['location'] = location
+        if location.get('error'):
+            return json_response(
+                request,
+                location=location,
+                results=[],
+                count=0,
+            )
         max_distance = _get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
         request_loc = func.ll_to_earth(location['lat'], location['lng'])

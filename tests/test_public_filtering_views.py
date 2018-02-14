@@ -172,7 +172,7 @@ async def test_qual_level_list(cli, db_conn, company):
 @pytest.mark.parametrize('params, con_distances', [
     ({'location': 'SW1W 0EN'}, [('1-bcon-t', 3129), ('2-acon-t', 10054)]),
     ({'location': 'SW1W 0EN', 'max_distance': 4000}, [('1-bcon-t', 3129)]),
-    ({'location': 'SW1W 0ENx', 'max_distance': 4000}, [('2-acon-t', None), ('1-bcon-t', None)]),
+    ({'location': 'SW1W 0ENx', 'max_distance': 4000}, []),
 ])
 async def test_distance_filter(cli, db_conn, company, params, con_distances):
     await db_conn.execute(
@@ -219,14 +219,18 @@ async def test_geocode_rate_limit(cli, other_server, company):
     for i in range(20):
         r = await cli.get(url, params={'location': f'SW1W {i}EN'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
         assert r.status == 200, await r.text()
+        assert 'rate_limited' not in await r.text()
     assert len(other_server.app['request_log']) == 20
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
-    assert r.status == 429, await r.text()
+    assert r.status == 200, await r.text()
+    assert 'rate_limited' in await r.text()
     assert len(other_server.app['request_log']) == 20
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.1', **country})
-    assert r.status == 429, await r.text()
+    assert r.status == 200, await r.text()
+    assert 'rate_limited' in await r.text()
     assert len(other_server.app['request_log']) == 20
     r = await cli.get(url, params={'location': 'SW1W 1ENx'}, headers={'X-Forwarded-For': '1.1.1.2', **country})
+    assert 'rate_limited' not in await r.text()
     assert r.status == 200, await r.text()
     assert len(other_server.app['request_log']) == 21
 

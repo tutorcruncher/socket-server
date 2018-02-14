@@ -68,10 +68,6 @@ class HTTPNotFoundJson(HTTPClientErrorJson):
     status_code = 404
 
 
-class HTTPTooManyRequestsJson(HTTPClientErrorJson):
-    status_code = 429
-
-
 def pretty_json(data):
     return json.dumps(data, indent=2) + '\n'
 
