@@ -13,4 +13,4 @@ uvloop==0.9.1
 ipython==6.2.1
 pgcli==1.8.2
 ipython-sql==0.3.8
-yarl==1.1.0
+yarl==1.1.1
