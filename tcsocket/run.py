@@ -54,6 +54,7 @@ def check_app():
     loop = asyncio.get_event_loop()
     logger.info("initialising aiohttp app to check it's working...")
     app = create_app(loop)
+    app.freeze()
     loop.run_until_complete(app.startup())
     loop.run_until_complete(app.cleanup())
     del app
