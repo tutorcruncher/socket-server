@@ -150,7 +150,7 @@ async def test_get_contractor(cli, db_conn):
     con_id = (await v.first()).id
     await create_con_skills(db_conn, con_id)
 
-    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=con_id, slug='x'))
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=str(con_id), slug='x'))
     assert r.status == 200
     obj = await r.json()
     assert {
@@ -218,7 +218,7 @@ async def test_view_labels(cli, db_conn, company):
         .insert()
         .values(dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now()))
     )
-    url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x')
+    url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='1', slug='x')
     r = await cli.get(url)
     assert r.status == 200
     assert (await r.json())['labels'] == []
@@ -244,7 +244,7 @@ async def test_review_display(cli, db_conn, company):
         .values(dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now(),
                      review_rating=4.249, review_duration=7200))
     )
-    url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id=1, slug='x')
+    url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='1', slug='x')
     r = await cli.get(url)
     assert r.status == 200
     obj = await r.json()

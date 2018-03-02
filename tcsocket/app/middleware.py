@@ -7,6 +7,7 @@ from time import time
 from aiohttp.hdrs import METH_GET, METH_POST
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
 from aiohttp.web_middlewares import middleware
+from aiohttp.web_urldispatcher import SystemRoute
 from pydantic import ValidationError
 from sqlalchemy import select
 from yarl import URL
@@ -215,6 +216,8 @@ async def authenticate(request, api_key=None):
 @middleware
 async def auth_middleware(request, handler):
     # status check avoids messing with requests which have already been processed, eg. 404
+    if isinstance(request.match_info.route, SystemRoute):
+        return await handler(request)
     route_name = request.match_info.route.name
     route_name = route_name and route_name.replace('-head', '')
     if route_name not in PUBLIC_VIEWS:

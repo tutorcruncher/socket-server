@@ -18,7 +18,7 @@ def get_ip(request):
 
 
 async def geocode(request):
-    location_str = request.GET.get('location')
+    location_str = request.query.get('location')
     if not location_str:
         return
 
