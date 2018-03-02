@@ -197,6 +197,10 @@ async def clear_enquiry(request):
     )
 
 
+async def appointment_webhook(request):
+    return json_response(request, status='TODO')
+
+
 SORT_OPTIONS = {
     'last_updated': sa_contractors.c.last_updated,
     'review_rating': sa_contractors.c.review_rating,
