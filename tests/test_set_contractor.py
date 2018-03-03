@@ -313,6 +313,34 @@ async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
 
 
+async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=123,
+        first_name='Fred',
+    )
+    assert r.status == 201, await r.text()
+
+    cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
+    assert cons == [('Fred', '-')]
+
+    r = await signed_post(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=124,
+        first_name='George',
+        photo=f'{image_download_url}?format=JPEG'
+    )
+    assert r.status == 201, await r.text()
+
+    path = Path(tmpdir / 'media' / company.public_key / '124.thumb.jpg')
+    assert path.exists()
+
+    cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
+    assert cons == [('Fred', '-'), ('George', hashlib.md5(path.read_bytes()).hexdigest())]
+
+
 async def test_delete(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_contractors)
     r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')

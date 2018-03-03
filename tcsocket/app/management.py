@@ -329,3 +329,11 @@ def resize_tag_line(conn):
     resize the tag_line field on contractors to 255 chars
     """
     conn.execute('ALTER TABLE contractors ALTER COLUMN tag_line TYPE VARCHAR(255)')
+
+
+@patch
+def add_photo_hash(conn):
+    """
+    add photo_hash to contractors
+    """
+    conn.execute("ALTER TABLE contractors ADD photo_hash VARCHAR(50) DEFAULT '-'")
