@@ -25,7 +25,7 @@ MASTER_KEY = 'this is the master key'
 
 
 async def test_image_view(request):
-    image_format = request.GET.get('format')
+    image_format = request.query.get('format')
     stream = BytesIO()
     request.app['request_log'].append(('test_image', image_format))
 
@@ -43,7 +43,7 @@ async def test_image_view(request):
 
 
 async def contractor_list_view(request):
-    request.app['request_log'].append(('contractor_list', request.GET.get('page')))
+    request.app['request_log'].append(('contractor_list', request.query.get('page')))
     data = {
         1: {
             'count': 2,
@@ -71,7 +71,7 @@ async def contractor_list_view(request):
             ]
         },
     }
-    page = int(request.GET.get('page', 1))
+    page = int(request.query.get('page', 1))
     return json_response(data[page])
 
 
@@ -248,8 +248,8 @@ async def grecaptcha_post_view(request):
 
 
 async def geocoding_view(request):
-    address = request.GET.get('address')
-    region = request.GET.get('region')
+    address = request.query.get('address')
+    region = request.query.get('region')
     request.app['request_log'].append(('geocode', f'{address}|{region}'))
     status = 200
     if address == 'SW1W 0EN':

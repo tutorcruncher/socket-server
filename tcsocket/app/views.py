@@ -225,12 +225,12 @@ def _photo_url(request, con, thumb):
 
 
 def _route_url(request, view_name, **kwargs):
-    uri = request.app.router[view_name].url_for(**kwargs)
+    uri = request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()})
     return '{}{}'.format(request.app['settings'].root_url, uri)
 
 
 def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):
-    v = request.GET.get(field, default)
+    v = request.query.get(field, default)
     try:
         return None if v is None else decoder(v)
     except ValueError:
@@ -241,7 +241,7 @@ def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=
 
 
 async def contractor_list(request):  # noqa: C901 (ignore complexity)
-    sort_val = request.GET.get('sort')
+    sort_val = request.query.get('sort')
     sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['last_updated'])
     page = _get_arg(request, 'page', default=1)
     pagination = min(_get_arg(request, 'pagination', default=100), 100)
@@ -278,8 +278,8 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
             select_from = select_from.join(sa_qual_levels)
             where += sa_qual_levels.c.id == qual_level_filter,
 
-    labels_filter = request.GET.getall('label', [])
-    labels_exclude_filter = request.GET.getall('label_exclude', [])
+    labels_filter = request.query.getall('label', [])
+    labels_exclude_filter = request.query.getall('label_exclude', [])
     if labels_filter:
         where += c.labels.contains(cast(labels_filter, ARRAY(String(255)))),
     if labels_exclude_filter:
