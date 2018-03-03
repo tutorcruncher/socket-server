@@ -303,15 +303,20 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         fields += distance_func.label('distance'),
         sort_col = distance_func
 
-    sort_on = sort_col.asc()
-    if sort_col in {sa_contractors.c.last_updated, sa_contractors.c.review_rating}:
-        sort_on = sort_col.desc()
+    distinct_cols = sort_col, c.id
+    if sort_col == c.review_rating:
+        sort_on = c.review_rating.desc(), c.review_duration.desc(), c.id
+        distinct_cols = c.review_rating, c.review_duration, c.id
+    elif sort_col == c.last_updated:
+        sort_on = sort_col.desc(), c.id
+    else:
+        sort_on = sort_col.asc(), c.id
 
     q_iter = (
         select(fields)
         .where(and_(*where))
-        .order_by(sort_on, c.id)
-        .distinct(sort_col, c.id)
+        .order_by(*sort_on)
+        .distinct(*distinct_cols)
         .offset(offset)
         .limit(pagination)
     )

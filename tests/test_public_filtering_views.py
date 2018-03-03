@@ -395,3 +395,37 @@ async def test_contractor_pagination(cli, db_conn, company, filter_args, con_cou
     assert len(results) == con_count, obj
     assert results[0]['id'] == first_id, results[0]
     assert results[-1]['id'] == last_id, results[-1]
+
+
+@pytest.mark.parametrize('sort, cons', [
+    ('name', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x']),
+    ('review_rating', ['3-charlie-x', '2-ben-x', '1-anne-x', '4-dave-x']),
+    ('last_updated', ['4-dave-x', '3-charlie-x', '2-ben-x', '1-anne-x']),
+])
+async def test_sorting(cli, db_conn, company, sort, cons):
+    await db_conn.execute(
+        sa_contractors
+        .insert()
+        .values([
+            dict(id=1, company=company.id, first_name='Anne', last_name='x',
+                 last_updated=datetime(2032, 1, 1), review_rating=4, review_duration=1000),
+            dict(id=2, company=company.id, first_name='Ben', last_name='x',
+                 last_updated=datetime(2032, 1, 2), review_rating=4.5, review_duration=50),
+            dict(id=3, company=company.id, first_name='Charlie', last_name='x',
+                 last_updated=datetime(2032, 1, 3), review_rating=4.5, review_duration=100),
+            dict(id=4, company=company.id, first_name='Dave', last_name='x',
+                 last_updated=datetime(2032, 1, 4), review_rating=0, review_duration=0),
+        ])
+    )
+    await create_labels(db_conn, company)
+
+    await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
+                          .where(sa_contractors.c.id == 1))
+    await db_conn.execute(update(sa_contractors).values(labels=['apple']).where(sa_contractors.c.id == 2))
+    await db_conn.execute(update(sa_contractors).values(labels=['banana', 'carrot']).where(sa_contractors.c.id == 3))
+
+    url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
+    r = await cli.get(url + '?sort=' + sort)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert [c['link'] for c in obj['results']] == cons
