@@ -115,11 +115,11 @@ async def company_update(request):
     public_key = request['company'].public_key
     c = sa_companies.c
     if data:
-        await conn.execute((
+        await conn.execute(
             update(sa_companies)
             .values(**data)
             .where(c.public_key == public_key)
-        ))
+        )
         logger.info('company "%s" updated, %s', public_key, data)
 
     select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domains
@@ -221,12 +221,11 @@ def _get_name(name_display, row):
 
 def _photo_url(request, con, thumb):
     ext = '.thumb.jpg' if thumb else '.jpg'
-    return request.app['settings'].media_url + '/' + request['company'].public_key + '/' + str(con.id) + ext
+    return f'{request.app["settings"].media_url}/{request["company"].public_key}/{con.id}{ext}?h={con.photo_hash}'
 
 
 def _route_url(request, view_name, **kwargs):
-    uri = request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()})
-    return '{}{}'.format(request.app['settings'].root_url, uri)
+    return str(request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()}))
 
 
 def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):
@@ -250,7 +249,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
     company = request['company']
     options = company.options or {}
     c = sa_contractors.c
-    fields = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country
+    fields = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country, c.photo_hash,
     show_labels = options.get('show_labels')
     if show_labels:
         fields += c.labels,
@@ -382,7 +381,7 @@ async def contractor_get(request):
     c = sa_contractors.c
     cols = (
         c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
-        c.country, c.labels, c.review_rating, c.review_duration
+        c.country, c.labels, c.review_rating, c.review_duration, c.photo_hash,
     )
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()

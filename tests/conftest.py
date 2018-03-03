@@ -318,8 +318,6 @@ def settings(tmpdir, other_server):
         master_key=MASTER_KEY,
         grecaptcha_secret='X' * 30,
         media_dir=str(tmpdir / 'media'),
-        root_url='https://socket.tutorcruncher.com',
-        media_url='https://socket.tutorcruncher.com/media',
         grecaptcha_url=f'http://localhost:{other_server.port}/grecaptcha',
         tc_api_root=f'http://localhost:{other_server.port}/api',
         geocoding_url=f'http://localhost:{other_server.port}/geocode',

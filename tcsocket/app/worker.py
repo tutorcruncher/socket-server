@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import json
 import logging
 from pathlib import Path
@@ -11,8 +12,10 @@ from arq import Actor, BaseWorker, concurrent
 from arq.utils import timestamp
 from PIL import Image, ImageOps
 from psycopg2 import OperationalError
+from sqlalchemy import update
 
 from .middleware import domain_allowed
+from .models import sa_contractors
 from .processing import contractor_set
 from .settings import Settings
 from .validation import ContractorModel
@@ -62,7 +65,8 @@ class MainActor(Actor):
     async def get_image(self, company, contractor_id, url):
         save_dir = self.media / company
         save_dir.mkdir(exist_ok=True)
-        path_str = str(save_dir / str(contractor_id))
+        image_path_main = save_dir / f'{contractor_id}.jpg'
+        image_path_thumb = save_dir / f'{contractor_id}.thumb.jpg'
         with TemporaryFile() as f:
             async with self.session.get(url) as r:
                 if r.status != 200:
@@ -78,10 +82,18 @@ class MainActor(Actor):
             with Image.open(f) as img:
                 img = img.convert('RGB')
                 img_large = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
-                img_large.save(path_str + '.jpg', 'JPEG')
+                img_large.save(image_path_main, 'JPEG')
 
                 img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
-                img_thumb.save(path_str + '.thumb.jpg', 'JPEG')
+                img_thumb.save(image_path_thumb, 'JPEG')
+
+        image_hash = hashlib.md5(image_path_thumb.read_bytes()).hexdigest()
+        async with self.pg_engine.acquire() as conn:
+            await conn.execute(
+                update(sa_contractors)
+                .values(photo_hash=image_hash[:6])
+                .where(sa_contractors.c.id == contractor_id)
+            )
         return 200
 
     def request_headers(self, company):

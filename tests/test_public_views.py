@@ -48,7 +48,8 @@ async def test_list_contractors(cli, db_conn):
     await db_conn.execute(
         sa_contractors
         .insert()
-        .values(id=1, company=company_id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+        .values(id=1, company=company_id, first_name='Fred', last_name='Bloggs',
+                last_updated=datetime.now(), photo_hash='abc')
     )
     headers = {
         'HOST': 'www.example.com',
@@ -62,13 +63,13 @@ async def test_list_contractors(cli, db_conn):
             'id': 1,
             'link': '1-fred-b',
             'name': 'Fred B',
-            'photo': 'https://socket.tutorcruncher.com/media/thepublickey/1.thumb.jpg',
+            'photo': '/media/thepublickey/1.thumb.jpg?h=abc',
             'tag_line': None,
             'primary_description': None,
             'town': None,
             'country': None,
             'distance': None,
-            'url': 'https://socket.tutorcruncher.com/thepublickey/contractors/1',
+            'url': '/thepublickey/contractors/1',
         }
     ] == obj['results']
 
@@ -165,7 +166,7 @@ async def test_get_contractor(cli, db_conn):
         ],
         'labels': [],
         'tag_line': None,
-        'photo': 'https://socket.tutorcruncher.com/media/thepublickey/1.jpg',
+        'photo': '/media/thepublickey/1.jpg?h=-',
         'primary_description': None,
         'review_duration': None,
         'review_rating': None,
