@@ -91,7 +91,7 @@ class MainActor(Actor):
         async with self.pg_engine.acquire() as conn:
             await conn.execute(
                 update(sa_contractors)
-                .values(photo_hash=image_hash)
+                .values(photo_hash=image_hash[:6])
                 .where(sa_contractors.c.id == contractor_id)
             )
         return 200

@@ -23,7 +23,6 @@ class Settings(BaseSettings):
 
     master_key = b'this is a secret'
 
-    root_url = 'https://socket.tutorcruncher.com'
     media_dir = Path('./media')
     media_url = '/media'
     tc_api_root = 'https://secure.tutorcruncher.com/api'

@@ -336,4 +336,4 @@ def add_photo_hash(conn):
     """
     add photo_hash to contractors
     """
-    conn.execute("ALTER TABLE contractors ADD photo_hash VARCHAR(50) DEFAULT '-'")
+    conn.execute("ALTER TABLE contractors ADD photo_hash VARCHAR(6) DEFAULT '-'")

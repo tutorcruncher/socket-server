@@ -65,7 +65,7 @@ class Contractor(Base):
 
     review_rating = Column(Float)
     review_duration = Column(Integer, nullable=False, server_default='0')
-    photo_hash = Column(String(50), nullable=False, server_default='-')
+    photo_hash = Column(String(6), nullable=False, server_default='-')
 
 
 sa_contractors = Contractor.__table__

@@ -221,12 +221,11 @@ def _get_name(name_display, row):
 
 def _photo_url(request, con, thumb):
     ext = '.thumb.jpg' if thumb else '.jpg'
-    return f"{request.app['settings'].media_url}/{request['company'].public_key}/{con.id}{ext}?h={con.photo_hash}"
+    return f'{request.app["settings"].media_url}/{request["company"].public_key}/{con.id}{ext}?h={con.photo_hash}'
 
 
 def _route_url(request, view_name, **kwargs):
-    uri = request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()})
-    return '{}{}'.format(request.app['settings'].root_url, uri)
+    return str(request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()}))
 
 
 def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):

@@ -69,7 +69,7 @@ async def test_list_contractors(cli, db_conn):
             'town': None,
             'country': None,
             'distance': None,
-            'url': 'https://socket.tutorcruncher.com/thepublickey/contractors/1',
+            'url': '/thepublickey/contractors/1',
         }
     ] == obj['results']
 

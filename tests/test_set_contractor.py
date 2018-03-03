@@ -338,7 +338,7 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
     assert path.exists()
 
     cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
-    assert cons == [('Fred', '-'), ('George', hashlib.md5(path.read_bytes()).hexdigest())]
+    assert cons == [('Fred', '-'), ('George', hashlib.md5(path.read_bytes()).hexdigest()[:6])]
 
 
 async def test_delete(cli, db_conn, company):
