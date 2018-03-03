@@ -19,11 +19,11 @@ from sqlalchemy.sql import and_, distinct, or_
 from sqlalchemy.sql.functions import count as count_func
 
 from .geo import geocode, get_ip
-from .models import (Action, NameOptions, sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels,
-                     sa_subjects)
+from .models import (Action, NameOptions, sa_appointments, sa_companies, sa_con_skills, sa_contractors, sa_labels,
+                     sa_qual_levels, sa_service, sa_subjects)
 from .processing import contractor_set as _contractor_set
-from .utils import HTTPBadRequestJson, json_response
-from .validation import CompanyCreateModal, CompanyOptionsModel, CompanyUpdateModel, ContractorModel
+from .utils import HTTPBadRequestJson, HTTPConflictJson, json_response
+from .validation import AppointmentModel, CompanyCreateModal, CompanyOptionsModel, CompanyUpdateModel, ContractorModel
 from .worker import REDIS_ENQUIRY_CACHE_KEY, store_enquiry_data
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
@@ -61,15 +61,15 @@ async def company_create(request):
     data = company.dict()
 
     conn = await request['conn_manager'].get_connection()
-    v = await conn.execute((
+    v = await conn.execute(
         pg_insert(sa_companies)
         .values(**data)
         .on_conflict_do_nothing()
         .returning(sa_companies.c.id, sa_companies.c.public_key, sa_companies.c.private_key, sa_companies.c.name)
-    ))
+    )
     new_company = await v.first()
     if new_company is None:
-        raise HTTPBadRequestJson(
+        raise HTTPConflictJson(
             status='duplicate',
             details='the supplied data conflicts with an existing company',
         )
@@ -198,7 +198,78 @@ async def clear_enquiry(request):
 
 
 async def appointment_webhook(request):
-    return json_response(request, status='TODO')
+    apt_id = request.match_info['id']
+    appointment: AppointmentModel = request['model']
+
+    conn = await request['conn_manager'].get_connection()
+    v = await conn.execute(
+        select([sa_service.c.company])
+        .where(sa_service.c.id == appointment.service_id)
+    )
+    r = await v.first()
+    if r and r.company != request['company'].id:
+        raise HTTPConflictJson(
+            status='service conflict',
+            details=f'service {appointment.service_id} already exists and is associated with another company',
+        )
+
+    service_insert_update = dict(
+        name=appointment.service_name,
+        colour=appointment.colour,
+        extra_attributes=[ea.dict() for ea in appointment.extra_attributes],
+    )
+
+    await conn.execute(
+        pg_insert(sa_service)
+        .values(id=appointment.service_id, company=request['company'].id, **service_insert_update)
+        .on_conflict_do_update(
+            index_elements=[sa_service.c.id],
+            where=sa_service.c.id == appointment.service_id,
+            set_=service_insert_update,
+        )
+    )
+    apt_insert_update = appointment.dict(include={
+        'appointment_topic', 'attendees_max', 'attendees_count',
+        'attendees_current_ids', 'start', 'finish', 'price', 'location'
+    })
+
+    await conn.execute(
+        pg_insert(sa_appointments)
+        .values(id=apt_id, service=appointment.service_id, **apt_insert_update)
+        .on_conflict_do_update(
+            index_elements=[sa_appointments.c.id],
+            where=sa_appointments.c.id == apt_id,
+            set_=apt_insert_update,
+        )
+    )
+    return json_response(request, status='success')
+
+
+async def appointment_webhook_delete(request):
+    apt_id = request.match_info['id']
+    conn = await request['conn_manager'].get_connection()
+    v = await conn.execute(
+        select([sa_appointments.c.service])
+        .where(and_(sa_appointments.c.id == apt_id, sa_service.c.company == request['company'].id))
+    )
+    r = await v.first()
+    if not r:
+        return json_response(request, status='appointment not found', status_=404)
+    service_id = r.service
+
+    await conn.execute(
+        sa_appointments.delete()
+        .where(and_(sa_appointments.c.id == apt_id, sa_service.c.company == request['company'].id))
+    )
+    cur = await conn.execute(select([sa_appointments.c.id]).where(sa_appointments.c.service == service_id))
+    service_apts = await cur.first()
+    service_deleted = service_apts is None
+    if service_deleted:
+        await conn.execute(
+            sa_service.delete()
+            .where(and_(sa_service.c.id == service_id, sa_service.c.company == request['company'].id))
+        )
+    return json_response(request, status='success', service_deleted=service_deleted)
 
 
 SORT_OPTIONS = {

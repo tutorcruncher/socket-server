@@ -135,7 +135,7 @@ async def test_create_bad_body_time(cli, request_time):
 
 async def test_create_duplicate_name(cli, company):
     r = await signed_post(cli, '/companies/create', name='foobar')
-    assert r.status == 400
+    assert r.status == 409, await r.text()
     response_data = await r.json()
     assert response_data == {'details': 'the supplied data conflicts with an existing company', 'status': 'duplicate'}
 
@@ -162,7 +162,7 @@ async def test_create_duplicate_public_key(cli, db_conn):
         'Content-Type': 'application/json',
     }
     r = await cli.post('/companies/create', data=payload, headers=headers)
-    assert r.status == 400
+    assert r.status == 409, await r.text()
     response_data = await r.json()
     assert response_data == {'details': 'the supplied data conflicts with an existing company', 'status': 'duplicate'}
 

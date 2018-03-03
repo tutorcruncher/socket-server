@@ -415,7 +415,7 @@ def company(loop, db_conn):
     return Company(public_key, private_key, company_id)
 
 
-async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, **data):
+async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, method_='POST', **data):
     data.setdefault('_request_time', int(time()))
     payload = json.dumps(data)
     b_payload = payload.encode()
@@ -424,7 +424,7 @@ async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, **data):
         'Webhook-Signature': m.hexdigest(),
         'Content-Type': 'application/json',
     }
-    return await cli.post(url_, data=payload, headers=headers)
+    return await cli.request(method_, url_, data=payload, headers=headers)
 
 
 async def count(db_conn, sa_table):

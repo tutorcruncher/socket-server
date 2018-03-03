@@ -129,6 +129,8 @@ class Service(Base):
     __tablename__ = 'services'
 
     id = Column(Integer, primary_key=True, nullable=False)
+    company = Column(Integer, ForeignKey('companies.id'), nullable=False)
+
     name = Column(String(255), nullable=False)
     colour = Column(String(20), nullable=False)
     extra_attributes = Column(JSONB)
@@ -141,12 +143,12 @@ class Appointment(Base):
     __tablename__ = 'appointments'
 
     id = Column(Integer, primary_key=True, nullable=False)
-    service = Column(Integer, ForeignKey('services.id', ondelete='CASCADE'), nullable=False)
+    service = Column(Integer, ForeignKey('services.id', ondelete='RESTRICT'), nullable=False)
 
     appointment_topic = Column(String(255), nullable=False)
     attendees_max = Column(Integer)
     attendees_count = Column(Integer, nullable=False)
-    attendees_current_ids = Column(Integer, nullable=False)
+    attendees_current_ids = Column(ARRAY(Integer), nullable=False)
 
     # index so it can be used to delete old appointments
     start = Column(DateTime, nullable=False, index=True)
