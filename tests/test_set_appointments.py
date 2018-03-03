@@ -63,7 +63,6 @@ async def test_delete(cli, db_conn, company):
 
     r = await signed_post(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
-    assert {'status': 'success', 'service_deleted': True} == await r.json()
 
     assert 0 == await count(db_conn, sa_appointments)
     assert 0 == await count(db_conn, sa_service)
@@ -89,7 +88,6 @@ async def test_delete_keep_service(cli, db_conn, company):
 
     r = await signed_post(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
-    assert {'status': 'success', 'service_deleted': False} == await r.json()
 
     assert 1 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_service)

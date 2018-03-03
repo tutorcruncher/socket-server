@@ -21,6 +21,26 @@ commands = []
 logger = logging.getLogger('socket.management')
 
 
+SQL_PREPARE = """
+CREATE EXTENSION IF NOT EXISTS cube;
+CREATE EXTENSION IF NOT EXISTS earthdistance;
+
+CREATE OR REPLACE FUNCTION delete_services() RETURNS trigger AS $$
+  BEGIN
+    -- if there are not appointments with the old appointments service_id, delete tha service
+    PERFORM * FROM appointments WHERE service=OLD.service;
+    IF NOT FOUND THEN
+        DELETE FROM services WHERE id=OLD.service;
+    END IF;
+    RETURN NULL;
+  END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS service_delete on appointments;
+CREATE TRIGGER service_delete AFTER DELETE ON appointments FOR EACH ROW EXECUTE PROCEDURE delete_services();
+"""
+
+
 def command(func):
     commands.append(func)
     return func
@@ -56,12 +76,11 @@ def psycopg2_cursor(settings):
 
 
 def populate_db(engine):
-    engine.execute('CREATE EXTENSION IF NOT EXISTS cube')
-    engine.execute('CREATE EXTENSION IF NOT EXISTS earthdistance')
     Base.metadata.create_all(engine)
+    engine.execute(SQL_PREPARE)
 
 
-DROP_CONNECTIONS = """\
+DROP_CONNECTIONS = """
 SELECT pg_terminate_backend(pg_stat_activity.pid)
 FROM pg_stat_activity
 WHERE pg_stat_activity.datname = %s AND pid <> pg_backend_pid();
@@ -337,3 +356,11 @@ def add_photo_hash(conn):
     add photo_hash to contractors
     """
     conn.execute("ALTER TABLE contractors ADD photo_hash VARCHAR(6) DEFAULT '-'")
+
+
+@patch
+def run_sql_prepare(conn):
+    """
+    run SQL_PREPARE code to (re)create procedures and triggers
+    """
+    conn.execute(SQL_PREPARE)

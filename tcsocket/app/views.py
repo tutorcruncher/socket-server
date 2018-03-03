@@ -249,27 +249,13 @@ async def appointment_webhook_delete(request):
     apt_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute(
-        select([sa_appointments.c.service])
-        .where(and_(sa_appointments.c.id == apt_id, sa_service.c.company == request['company'].id))
-    )
-    r = await v.first()
-    if not r:
-        return json_response(request, status='appointment not found', status_=404)
-    service_id = r.service
-
-    await conn.execute(
         sa_appointments.delete()
         .where(and_(sa_appointments.c.id == apt_id, sa_service.c.company == request['company'].id))
     )
-    cur = await conn.execute(select([sa_appointments.c.id]).where(sa_appointments.c.service == service_id))
-    service_apts = await cur.first()
-    service_deleted = service_apts is None
-    if service_deleted:
-        await conn.execute(
-            sa_service.delete()
-            .where(and_(sa_service.c.id == service_id, sa_service.c.company == request['company'].id))
-        )
-    return json_response(request, status='success', service_deleted=service_deleted)
+    if v.rowcount:
+        return json_response(request, status='success')
+    else:
+        return json_response(request, status='appointment not found', status_=404)
 
 
 SORT_OPTIONS = {
