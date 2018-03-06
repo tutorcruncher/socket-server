@@ -8,7 +8,7 @@ import pytest
 
 from tcsocket.app.models import sa_companies, sa_contractors
 
-from .conftest import signed_post
+from .conftest import signed_request
 
 
 async def test_create(cli, db_conn):
@@ -134,8 +134,8 @@ async def test_create_bad_body_time(cli, request_time):
 
 
 async def test_create_duplicate_name(cli, company):
-    r = await signed_post(cli, '/companies/create', name='foobar')
-    assert r.status == 400
+    r = await signed_request(cli, '/companies/create', name='foobar')
+    assert r.status == 409, await r.text()
     response_data = await r.json()
     assert response_data == {'details': 'the supplied data conflicts with an existing company', 'status': 'duplicate'}
 
@@ -162,7 +162,7 @@ async def test_create_duplicate_public_key(cli, db_conn):
         'Content-Type': 'application/json',
     }
     r = await cli.post('/companies/create', data=payload, headers=headers)
-    assert r.status == 400
+    assert r.status == 409, await r.text()
     response_data = await r.json()
     assert response_data == {'details': 'the supplied data conflicts with an existing company', 'status': 'duplicate'}
 
@@ -236,7 +236,7 @@ async def test_update_company(cli, db_conn, company, other_server):
     assert result.domains == ['example.com']
     assert other_server.app['request_log'] == []
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',
@@ -292,7 +292,7 @@ async def test_update_company_clear_domain(cli, db_conn, company, other_server):
     assert result.domains == ['example.com']
     assert other_server.app['request_log'] == []
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',
@@ -313,7 +313,7 @@ async def test_update_company_no_data(cli, db_conn, company, other_server):
     assert result.domains == ['example.com']
     assert other_server.app['request_log'] == []
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',

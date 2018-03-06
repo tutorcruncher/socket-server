@@ -6,7 +6,7 @@ from sqlalchemy import update
 
 from tcsocket.app.models import sa_companies, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 
-from .conftest import create_con_skills, signed_post
+from .conftest import create_con_skills, signed_request
 
 
 async def test_list_contractors_origin(cli, company):
@@ -35,7 +35,7 @@ async def test_list_contractors_origin(cli, company):
     (['localhost'], 'http://localhost:8000', 200),
 ])
 async def test_list_contractors_domains(cli, company, domains, origin, response):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/options',
         signing_key_='this is the master key',

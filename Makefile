@@ -24,4 +24,3 @@ testcov: test
 
 .PHONY: all
 all: testcov lint
-

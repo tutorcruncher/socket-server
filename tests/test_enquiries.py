@@ -1,6 +1,6 @@
 import json
 
-from tests.conftest import signed_post
+from tests.conftest import signed_request
 
 
 async def test_get_enquiry(cli, company, other_server):
@@ -325,7 +325,7 @@ async def test_clear_enquiry_options(cli, company, other_server):
 
     assert None is not await redis.get(b'enquiry-data-%d' % company.id)
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         cli.server.app.router['webhook-clear-enquiry'].url_for(company=company.public_key),
         signing_key_='this is the master key',
@@ -340,7 +340,7 @@ async def test_clear_enquiry_options_no_data(cli, company):
     redis = await cli.server.app['worker'].get_redis()
     assert None is await redis.get(b'enquiry-data-%d' % company.id)
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         cli.server.app.router['webhook-clear-enquiry'].url_for(company=company.public_key),
         signing_key_=company.private_key,
@@ -361,7 +361,7 @@ async def test_clear_enquiry_options_invalid(cli, company, other_server):
 
     assert None is not await redis.get(b'enquiry-data-%d' % company.id)
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         cli.server.app.router['webhook-clear-enquiry'].url_for(company=company.public_key),
         signing_key_='this is wrong',

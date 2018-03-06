@@ -164,9 +164,44 @@ class EnquiryModal(BaseModel):
         return v[:1023]
 
 
+class ExtraAttributeTypes(str, Enum):
+    checkbox = 'checkbox'
+    text_short = 'text_short'
+    text_extended = 'text_extended'
+    integer = 'integer'
+    stars = 'stars'
+    dropdown = 'dropdown'
+    datetime = 'datetime'
+    date = 'date'
+
+
+class ExtraAttributeModel(BaseModel):
+    name: str
+    type: ExtraAttributeTypes
+    machine_name: str
+    value: Any
+    sort_index: int
+
+
+class AppointmentModel(BaseModel):
+    service_id: int
+    service_name: str
+    extra_attributes: List[ExtraAttributeModel]
+    colour: str
+    appointment_topic: str
+    attendees_max: Optional[int]
+    attendees_count: int
+    attendees_current_ids: List[int]
+    start: datetime
+    finish: datetime
+    price: float
+    location: Optional[str]
+
+
 VIEW_MODELS = {
     'company-create': CompanyCreateModal,
     'company-update': CompanyUpdateModel,
     'webhook-contractor': ContractorModel,
     'enquiry': EnquiryModal,
+    'webhook-appointment': AppointmentModel,
 }

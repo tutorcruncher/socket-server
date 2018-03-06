@@ -4,7 +4,7 @@ import logging
 from asyncio import CancelledError
 from time import time
 
-from aiohttp.hdrs import METH_GET, METH_POST
+from aiohttp.hdrs import METH_GET, METH_HEAD
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPException, HTTPInternalServerError, HTTPMovedPermanently
 from aiohttp.web_middlewares import middleware
 from aiohttp.web_urldispatcher import SystemRoute
@@ -158,7 +158,7 @@ async def company_middleware(request, handler):
 
 @middleware
 async def json_request_middleware(request, handler):
-    if request.method == METH_POST and request.match_info.route.name:
+    if request.method not in {METH_GET, METH_HEAD} and request.match_info.route.name:
         error_details = None
         try:
             data = await request.json()
@@ -215,8 +215,8 @@ async def authenticate(request, api_key=None):
 
 @middleware
 async def auth_middleware(request, handler):
-    # status check avoids messing with requests which have already been processed, eg. 404
     if isinstance(request.match_info.route, SystemRoute):
+        # eg. 404
         return await handler(request)
     route_name = request.match_info.route.name
     route_name = route_name and route_name.replace('-head', '')

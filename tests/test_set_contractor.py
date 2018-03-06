@@ -9,11 +9,11 @@ from PIL import Image
 
 from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 
-from .conftest import count, get, select_set, signed_post
+from .conftest import count, get, select_set, signed_request
 
 
 async def test_create_master_key(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         signing_key_='this is the master key',
@@ -33,7 +33,7 @@ async def test_create_master_key(cli, db_conn, company):
 
 
 async def test_create_company_key(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         signing_key_=company.private_key,
@@ -73,7 +73,7 @@ async def test_create_bad_auth(cli, company):
 
 
 async def test_create_skills(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -104,7 +104,7 @@ async def test_create_skills(cli, db_conn, company):
 
 
 async def test_modify_skills(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -130,7 +130,7 @@ async def test_modify_skills(cli, db_conn, company):
     con_skills = await select_set(db_conn, *fields)
     assert con_skills == {(123, 100, 200), (123, 101, 200)}
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -171,7 +171,7 @@ async def test_extra_attributes(cli, db_conn, company):
             'sort_index': 0.123
         }
     ]
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -232,7 +232,7 @@ async def test_extra_attributes_special(cli, db_conn, company):
             'sort_index': 2
         }
     ]
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -261,7 +261,7 @@ async def test_extra_attributes_null(cli, db_conn, company):
             'sort_index': 0
         }
     ]
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -281,7 +281,7 @@ async def test_extra_attributes_null(cli, db_conn, company):
 
 @pytest.mark.parametrize('image_format', ['JPEG', 'RGBA', 'P'])
 async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_server, image_format):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -304,17 +304,17 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_se
 
 async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == []
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
     assert r.status == 201
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
 
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='George')
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='George')
     assert r.status == 200
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
 
 
 async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -325,7 +325,7 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
     cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
     assert cons == [('Fred', '-')]
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=124,
@@ -343,22 +343,22 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
 
 async def test_delete(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_contractors)
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
     assert r.status == 201
     assert 1 == await count(db_conn, sa_contractors)
 
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
     assert r.status == 200
     assert 0 == await count(db_conn, sa_contractors)
 
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
     assert r.status == 404
     assert 0 == await count(db_conn, sa_contractors)
 
 
 async def test_delete_all_fields(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_contractors)
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
     assert r.status == 201
     assert 1 == await count(db_conn, sa_contractors)
 
@@ -379,17 +379,17 @@ async def test_delete_all_fields(cli, db_conn, company):
         'town': None
     }
 
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', **data)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', **data)
     assert r.status == 200, await r.text()
     assert 0 == await count(db_conn, sa_contractors)
 
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
     assert r.status == 404
     assert 0 == await count(db_conn, sa_contractors)
 
 
 async def test_delete_skills(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -409,7 +409,7 @@ async def test_delete_skills(cli, db_conn, company):
     assert 1 == await count(db_conn, sa_subjects)
     assert 1 == await count(db_conn, sa_qual_levels)
 
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=True)
     assert r.status == 200
     assert 0 == await count(db_conn, sa_contractors)
     assert 0 == await count(db_conn, sa_con_skills)
@@ -436,7 +436,7 @@ async def test_invalid_json(cli, company):
 
 
 async def test_invalid_schema(cli, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id='not an int',
@@ -456,7 +456,7 @@ async def test_invalid_schema(cli, company):
 
 
 async def test_missing_company(cli, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/not-{company.public_key}/webhook/contractor',
         id=123,
@@ -470,7 +470,7 @@ async def test_missing_company(cli, company):
 
 
 async def test_invalid_input(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -491,7 +491,7 @@ async def test_invalid_input(cli, db_conn, company):
 
 
 async def test_create_labels(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -516,7 +516,7 @@ async def test_create_labels(cli, db_conn, company):
 
 
 async def test_delete_all_labels(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -533,7 +533,7 @@ async def test_delete_all_labels(cli, db_conn, company):
     con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
     assert con['labels'] == ['foobar']
 
-    r = await signed_post(cli, f'/{company.public_key}/webhook/contractor', id=123)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123)
     assert r.status == 200
     assert 1 == await count(db_conn, sa_contractors)
     assert 1 == await count(db_conn, sa_labels)
@@ -542,7 +542,7 @@ async def test_delete_all_labels(cli, db_conn, company):
 
 
 async def test_delete_some_labels(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -559,7 +559,7 @@ async def test_delete_some_labels(cli, db_conn, company):
     con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
     assert con['labels'] == ['foobar']
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -579,7 +579,7 @@ async def test_delete_some_labels(cli, db_conn, company):
 
 
 async def test_labels_conflict(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -598,7 +598,7 @@ async def test_labels_conflict(cli, db_conn, company):
     con = await get(db_conn, sa_contractors, sa_contractors.c.id == 123)
     assert con['labels'] == ['foobar']
 
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
@@ -621,7 +621,7 @@ async def test_labels_conflict(cli, db_conn, company):
 
 
 async def test_add_review_info(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         signing_key_='this is the master key',
@@ -640,7 +640,7 @@ async def test_add_review_info(cli, db_conn, company):
 
 
 async def test_add_location(cli, db_conn, company):
-    r = await signed_post(
+    r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
         signing_key_='this is the master key',
