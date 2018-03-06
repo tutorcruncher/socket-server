@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from tcsocket.app.models import sa_appointments, sa_service
+from tcsocket.app.models import sa_appointments, sa_services
 
 from .conftest import count, create_company, signed_request
 
@@ -32,7 +32,7 @@ async def test_create(cli, db_conn, company):
     r = await create_apt(cli, company)
     assert r.status == 200, await r.text()
 
-    curr = await db_conn.execute(sa_service.select())
+    curr = await db_conn.execute(sa_services.select())
     result = await curr.first()
     assert result.id == 123
     assert result.company == company.id
@@ -43,7 +43,7 @@ async def test_create(cli, db_conn, company):
     curr = await db_conn.execute(sa_appointments.select())
     result = await curr.first()
     assert result.service == 123
-    assert result.appointment_topic == 'testing appointment'
+    assert result.topic == 'testing appointment'
     assert result.attendees_max == 42
     assert result.attendees_count == 4
     assert result.attendees_current_ids == [1, 2, 3]
@@ -59,14 +59,14 @@ async def test_delete(cli, db_conn, company):
     assert r.status == 200, await r.text()
 
     assert 1 == await count(db_conn, sa_appointments)
-    assert 1 == await count(db_conn, sa_service)
+    assert 1 == await count(db_conn, sa_services)
 
     r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
     assert {'status': 'success'} == await r.json()
 
     assert 0 == await count(db_conn, sa_appointments)
-    assert 0 == await count(db_conn, sa_service)
+    assert 0 == await count(db_conn, sa_services)
 
     # should do nothing
     r = await signed_request(cli, url, method_='DELETE')
@@ -74,7 +74,7 @@ async def test_delete(cli, db_conn, company):
     assert {'status': 'appointment not found'} == await r.json()
 
     assert 0 == await count(db_conn, sa_appointments)
-    assert 0 == await count(db_conn, sa_service)
+    assert 0 == await count(db_conn, sa_services)
 
 
 async def test_delete_keep_service(cli, db_conn, company):
@@ -86,14 +86,14 @@ async def test_delete_keep_service(cli, db_conn, company):
     assert r.status == 200, await r.text()
 
     assert 2 == await count(db_conn, sa_appointments)
-    assert 1 == await count(db_conn, sa_service)
+    assert 1 == await count(db_conn, sa_services)
 
     r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
     assert {'status': 'success'} == await r.json()
 
     assert 1 == await count(db_conn, sa_appointments)
-    assert 1 == await count(db_conn, sa_service)
+    assert 1 == await count(db_conn, sa_services)
 
 
 async def test_delete_wrong_company(cli, db_conn, company):
@@ -128,6 +128,7 @@ async def test_create_conflict(cli, db_conn, company):
 async def test_extra_attrs(cli, db_conn, company):
     extra_attrs = [
         {
+            'id': 123,
             'name': 'Foobar',
             'type': 'checkbox',
             'machine_name': 'foobar',
@@ -135,6 +136,7 @@ async def test_extra_attrs(cli, db_conn, company):
             'sort_index': 123,
         },
         {
+            'id': 456,
             'name': 'Smash',
             'type': 'text_short',
             'machine_name': 'smash',
@@ -148,7 +150,7 @@ async def test_extra_attrs(cli, db_conn, company):
         extra_attributes=extra_attrs)
     assert r.status == 200, await r.text()
 
-    curr = await db_conn.execute(sa_service.select())
+    curr = await db_conn.execute(sa_services.select())
     result = await curr.first()
     assert result.name == 'testing service'
     assert result.extra_attributes == extra_attrs

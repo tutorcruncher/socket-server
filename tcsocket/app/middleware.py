@@ -29,6 +29,7 @@ PUBLIC_VIEWS = {
     'subject-list',
     'qual-level-list',
     'labels',
+    'appointment-list',
 }
 
 

@@ -7,7 +7,7 @@ from sqlalchemy.sql import and_
 
 from .models import Action, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
-from .validation import ContractorModel
+from .validation import ContractorModel, ExtraAttributeModel
 
 logger = logging.getLogger('socket.processing')
 
@@ -93,7 +93,7 @@ async def _set_labels(conn, company_id, labels):
         )
 
 
-def _get_special_extra_attr(extra_attributes: List[ContractorModel.ExtraAttributeModel], machine_name, attr_type):
+def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine_name, attr_type):
     """
     Find special extra attributes suitable for tag_line and primary_description.
     """

@@ -169,6 +169,14 @@ async def test_extra_attributes(cli, db_conn, company):
             'value': 123,
             'id': 196,
             'sort_index': 0.123
+        },
+        {
+            'machine_name': 'date',
+            'type': 'date',
+            'name': 'The Date',
+            'value': '2032-06-01',
+            'id': 123,
+            'sort_index': 0.123
         }
     ]
     r = await signed_request(
@@ -187,6 +195,13 @@ async def test_extra_attributes(cli, db_conn, company):
     assert result.extra_attributes == eas
     assert result.tag_line is None
     assert result.primary_description is None
+
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='123', slug='x'))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['id'] == 123
+    assert len(obj['extra_attributes']) == 3
+    assert obj['extra_attributes'][2]['value'] == '2032-06-01'
 
 
 async def test_extra_attributes_special(cli, db_conn, company):

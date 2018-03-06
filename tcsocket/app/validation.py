@@ -91,6 +91,25 @@ class CompanyOptionsModel(BaseModel):
     pagination: int = 100
 
 
+class ExtraAttributeModel(BaseModel):
+    machine_name: NoneStr
+    name: str
+    id: int
+    value: Any
+    sort_index: float
+
+    class EATypeEnum(str, Enum):
+        checkbox = 'checkbox'
+        text_short = 'text_short'
+        text_extended = 'text_extended'
+        integer = 'integer'
+        stars = 'stars'
+        dropdown = 'dropdown'
+        datetime = 'datetime'
+        date = 'date'
+    type: EATypeEnum
+
+
 class ContractorModel(BaseModel):
     id: int
     deleted: bool = False
@@ -111,24 +130,6 @@ class ContractorModel(BaseModel):
         latitude: Optional[float] = None
         longitude: Optional[float] = None
     location: LatitudeModel = None
-
-    class ExtraAttributeModel(BaseModel):
-        machine_name: NoneStr
-        name: str
-        value: Any
-        id: int
-        sort_index: float
-
-        class EATypeEnum(str, Enum):
-            checkbox = 'checkbox'
-            text_short = 'text_short'
-            text_extended = 'text_extended'
-            integer = 'integer'
-            stars = 'stars'
-            dropdown = 'dropdown'
-            datetime = 'datetime'
-            date = 'date'
-        type: EATypeEnum
     extra_attributes: List[ExtraAttributeModel] = []
 
     class SkillModel(BaseModel):
@@ -162,25 +163,6 @@ class EnquiryModal(BaseModel):
     @validator('upstream_http_referrer')
     def val_upstream_http_referrer(cls, v):
         return v[:1023]
-
-
-class ExtraAttributeTypes(str, Enum):
-    checkbox = 'checkbox'
-    text_short = 'text_short'
-    text_extended = 'text_extended'
-    integer = 'integer'
-    stars = 'stars'
-    dropdown = 'dropdown'
-    datetime = 'datetime'
-    date = 'date'
-
-
-class ExtraAttributeModel(BaseModel):
-    name: str
-    type: ExtraAttributeTypes
-    machine_name: str
-    value: Any
-    sort_index: int
 
 
 class AppointmentModel(BaseModel):
