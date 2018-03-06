@@ -252,10 +252,7 @@ async def appointment_webhook_delete(request):
         sa_appointments.delete()
         .where(and_(sa_appointments.c.id == apt_id, sa_service.c.company == request['company'].id))
     )
-    if v.rowcount:
-        return json_response(request, status='success')
-    else:
-        return json_response(request, status='appointment not found', status_=404)
+    return json_response(request, status='success' if v.rowcount else 'appointment not found')
 
 
 SORT_OPTIONS = {

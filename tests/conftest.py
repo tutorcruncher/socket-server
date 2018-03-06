@@ -399,20 +399,21 @@ def cli(loop, test_client, db_conn, settings):
     return loop.run_until_complete(test_client(app))
 
 
-@pytest.fixture
-def company(loop, db_conn):
-    public_key = 'thepublickey'
-    private_key = 'theprivatekey'
-    coro = db_conn.execute(
+async def create_company(db_conn, public_key, private_key, name='foobar', domains=['example.com']):
+    v = await db_conn.execute(
         sa_companies
         .insert()
-        .values(name='foobar', public_key=public_key, private_key=private_key, domains=['example.com'])
+        .values(name=name, public_key=public_key, private_key=private_key, domains=domains)
         .returning(sa_companies.c.id)
     )
-    v = loop.run_until_complete(coro)
-    company_id = loop.run_until_complete(v.first()).id
+    r = await v.first()
     Company = namedtuple('Company', ['public_key', 'private_key', 'id'])
-    return Company(public_key, private_key, company_id)
+    return Company(public_key, private_key, r.id)
+
+
+@pytest.fixture
+def company(loop, db_conn):
+    return loop.run_until_complete(create_company(db_conn, 'thepublickey', 'theprivatekey'))
 
 
 async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, method_='POST', **data):

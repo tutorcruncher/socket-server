@@ -2,10 +2,10 @@ from datetime import datetime
 
 from tcsocket.app.models import sa_appointments, sa_service
 
-from .conftest import count, signed_post
+from .conftest import count, create_company, signed_post
 
 
-async def create_api(cli, company, url=None, **kwargs):
+async def create_apt(cli, company, url=None, **kwargs):
     data = dict(
         service_id=123,
         service_name='testing service',
@@ -29,7 +29,7 @@ async def create_api(cli, company, url=None, **kwargs):
 
 
 async def test_create(cli, db_conn, company):
-    r = await create_api(cli, company)
+    r = await create_apt(cli, company)
     assert r.status == 200, await r.text()
 
     curr = await db_conn.execute(sa_service.select())
@@ -55,7 +55,7 @@ async def test_create(cli, db_conn, company):
 
 async def test_delete(cli, db_conn, company):
     url = f'/{company.public_key}/webhook/appointments/231'
-    r = await create_api(cli, company, url)
+    r = await create_apt(cli, company, url)
     assert r.status == 200, await r.text()
 
     assert 1 == await count(db_conn, sa_appointments)
@@ -63,24 +63,26 @@ async def test_delete(cli, db_conn, company):
 
     r = await signed_post(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
+    assert {'status': 'success'} == await r.json()
 
     assert 0 == await count(db_conn, sa_appointments)
     assert 0 == await count(db_conn, sa_service)
 
     # should do nothing
     r = await signed_post(cli, url, method_='DELETE')
-    assert r.status == 404, await r.text()
+    assert r.status == 200, await r.text()
+    assert {'status': 'appointment not found'} == await r.json()
 
     assert 0 == await count(db_conn, sa_appointments)
     assert 0 == await count(db_conn, sa_service)
 
 
 async def test_delete_keep_service(cli, db_conn, company):
-    r = await create_api(cli, company)
+    r = await create_apt(cli, company)
     assert r.status == 200, await r.text()
 
     url = f'/{company.public_key}/webhook/appointments/124'
-    r = await create_api(cli, company, url)
+    r = await create_apt(cli, company, url)
     assert r.status == 200, await r.text()
 
     assert 2 == await count(db_conn, sa_appointments)
@@ -88,6 +90,65 @@ async def test_delete_keep_service(cli, db_conn, company):
 
     r = await signed_post(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
+    assert {'status': 'success'} == await r.json()
 
     assert 1 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_service)
+
+
+async def test_delete_wrong_company(cli, db_conn, company):
+    company2 = await create_company(db_conn, 'compan2_public', 'compan2_private', name='company2')
+    r = await create_apt(cli, company2)
+    assert r.status == 200, await r.text()
+
+    url = f'/{company.public_key}/webhook/appointments/123'
+    r = await signed_post(cli, url, method_='DELETE')
+    assert r.status == 200, await r.text()
+    assert {'status': 'appointment not found'} == await r.json()
+
+    assert 1 == await count(db_conn, sa_appointments)
+
+    url = f'/{company2.public_key}/webhook/appointments/123'
+    r = await signed_post(cli, url, method_='DELETE')
+    assert r.status == 200, await r.text()
+    assert {'status': 'success'} == await r.json()
+
+    assert 0 == await count(db_conn, sa_appointments)
+
+
+async def test_create_conflict(cli, db_conn, company):
+    r = await create_apt(cli, company)
+    assert r.status == 200, await r.text()
+
+    company2 = await create_company(db_conn, 'compan2_public', 'compan2_private', name='company2')
+    r = await create_apt(cli, company2)
+    assert r.status == 409, await r.text()
+
+
+async def test_extra_attrs(cli, db_conn, company):
+    extra_attrs = [
+        {
+            'name': 'Foobar',
+            'type': 'checkbox',
+            'machine_name': 'foobar',
+            'value': False,
+            'sort_index': 123,
+        },
+        {
+            'name': 'Smash',
+            'type': 'text_short',
+            'machine_name': 'smash',
+            'value': 'I love to party',
+            'sort_index': 124,
+        },
+    ]
+    r = await create_apt(
+        cli,
+        company,
+        extra_attributes=extra_attrs)
+    assert r.status == 200, await r.text()
+
+    curr = await db_conn.execute(sa_service.select())
+    result = await curr.first()
+    assert result.name == 'testing service'
+    assert result.extra_attributes == extra_attrs

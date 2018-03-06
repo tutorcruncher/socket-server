@@ -176,7 +176,6 @@ class ExtraAttributeTypes(str, Enum):
 
 
 class ExtraAttributeModel(BaseModel):
-    id: int
     name: str
     type: ExtraAttributeTypes
     machine_name: str

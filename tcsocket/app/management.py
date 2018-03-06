@@ -18,7 +18,7 @@ CREATE EXTENSION IF NOT EXISTS earthdistance;
 
 CREATE OR REPLACE FUNCTION delete_services() RETURNS trigger AS $$
   BEGIN
-    -- if there are not appointments with the old appointments service_id, delete tha service
+    -- if there are no appointments on the old appointments service delete it
     PERFORM * FROM appointments WHERE service=OLD.service;
     IF NOT FOUND THEN
         DELETE FROM services WHERE id=OLD.service;
