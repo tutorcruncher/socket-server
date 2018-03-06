@@ -42,6 +42,7 @@ class MainActor(Actor):
         self.api_contractors = self.api_root + '/contractors/'
         self.api_enquiries = self.api_root + '/enquiry/'
         self.session = self.media = self.pg_engine = None
+        self.retry_sleep = 1
 
     async def startup(self, retries=5):
         if self.session and self.media and self.pg_engine:
@@ -52,7 +53,7 @@ class MainActor(Actor):
         except OperationalError:
             if retries > 0:
                 logger.info('create_engine failed, %d retries remaining, retrying...', retries)
-                await asyncio.sleep(1, loop=self.loop)
+                await asyncio.sleep(self.retry_sleep, loop=self.loop)
                 return await self.startup(retries=retries - 1)
             else:
                 raise
