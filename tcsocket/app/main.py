@@ -8,9 +8,11 @@ from arq import create_pool_lenient
 
 from .middleware import middleware
 from .settings import THIS_DIR, Settings
-from .views import (appointment_webhook, appointment_webhook_delete, clear_enquiry, company_create, company_list,
-                    company_options, company_update, contractor_get, contractor_list, contractor_set, enquiry, favicon,
-                    index, labels_list, qual_level_list, robots_txt, subject_list)
+from .views import favicon, index, labels_list, qual_level_list, robots_txt, subject_list
+from .views.appointments import appointment_webhook, appointment_webhook_delete
+from .views.company import company_create, company_list, company_options, company_update
+from .views.contractor import contractor_get, contractor_list, contractor_set
+from .views.enquiry import clear_enquiry, enquiry
 from .worker import MainActor
 
 

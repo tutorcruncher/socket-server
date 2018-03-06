@@ -1,5 +1,6 @@
 import datetime as datetime
 import json
+import re
 from decimal import Decimal
 from types import GeneratorType
 from uuid import UUID
@@ -88,3 +89,8 @@ def json_response(request, *, status_=200, list_=None, **data):
         content_type=JSON_CONTENT_TYPE,
         headers=ACCESS_CONTROL_HEADERS,
     )
+
+
+def slugify(name):
+    name = (name or '').replace(' ', '-').lower()
+    return re.sub('[^a-z\-]', '', name)
