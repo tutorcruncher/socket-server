@@ -2,7 +2,7 @@ from datetime import datetime
 
 from tcsocket.app.models import sa_appointments, sa_service
 
-from .conftest import count, create_company, signed_post
+from .conftest import count, create_company, signed_request
 
 
 async def create_apt(cli, company, url=None, **kwargs):
@@ -21,7 +21,7 @@ async def create_apt(cli, company, url=None, **kwargs):
         location='Whatever',
     )
     data.update(kwargs)
-    return await signed_post(
+    return await signed_request(
         cli,
         url or f'/{company.public_key}/webhook/appointments/123',
         **data
@@ -61,7 +61,7 @@ async def test_delete(cli, db_conn, company):
     assert 1 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_service)
 
-    r = await signed_post(cli, url, method_='DELETE')
+    r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
     assert {'status': 'success'} == await r.json()
 
@@ -69,7 +69,7 @@ async def test_delete(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_service)
 
     # should do nothing
-    r = await signed_post(cli, url, method_='DELETE')
+    r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
     assert {'status': 'appointment not found'} == await r.json()
 
@@ -88,7 +88,7 @@ async def test_delete_keep_service(cli, db_conn, company):
     assert 2 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_service)
 
-    r = await signed_post(cli, url, method_='DELETE')
+    r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
     assert {'status': 'success'} == await r.json()
 
@@ -102,14 +102,14 @@ async def test_delete_wrong_company(cli, db_conn, company):
     assert r.status == 200, await r.text()
 
     url = f'/{company.public_key}/webhook/appointments/123'
-    r = await signed_post(cli, url, method_='DELETE')
+    r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
     assert {'status': 'appointment not found'} == await r.json()
 
     assert 1 == await count(db_conn, sa_appointments)
 
     url = f'/{company2.public_key}/webhook/appointments/123'
-    r = await signed_post(cli, url, method_='DELETE')
+    r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200, await r.text()
     assert {'status': 'success'} == await r.json()
 

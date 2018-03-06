@@ -416,7 +416,7 @@ def company(loop, db_conn):
     return loop.run_until_complete(create_company(db_conn, 'thepublickey', 'theprivatekey'))
 
 
-async def signed_post(cli, url_, *, signing_key_=MASTER_KEY, method_='POST', **data):
+async def signed_request(cli, url_, *, signing_key_=MASTER_KEY, method_='POST', **data):
     data.setdefault('_request_time', int(time()))
     payload = json.dumps(data)
     b_payload = payload.encode()
