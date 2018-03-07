@@ -84,19 +84,14 @@ APT_LIST_FIELDS = (
 async def appointment_list(request):
     company = request['company']
     where = ser_c.company == company.id,
-    # TODO: service filter
+    service_id = get_arg(request, 'service')
+    if service_id:
+        where += apt_c.service == service_id,
 
     page = get_arg(request, 'page', default=1)
     pagination = min(get_arg(request, 'pagination', default=30), 50)
     offset = (page - 1) * pagination
-    q_iter = (
-        select(APT_LIST_FIELDS, use_labels=True)
-        .select_from(sa_appointments.join(sa_services))
-        .where(and_(*where))
-        .order_by(apt_c.start)
-        .offset(offset)
-        .limit(pagination)
-    )
+
     conn = await request['conn_manager'].get_connection()
     results = [dict(
         link=f'{row.appointments_id}-{slugify(row.appointments_topic)}',
@@ -111,9 +106,16 @@ async def appointment_list(request):
         service_name=row.services_name,
         service_colour=row.services_colour,
         service_extra_attributes=row.services_extra_attributes,
-    ) async for row in conn.execute(q_iter)]
+    ) async for row in conn.execute(
+        select(APT_LIST_FIELDS, use_labels=True)
+        .select_from(sa_appointments.join(sa_services))
+        .where(and_(*where))
+        .order_by(apt_c.start)
+        .offset(offset)
+        .limit(pagination)
+    )]
 
-    q_count = select([count_func(apt_c.id)]).where(and_(*where))
+    q_count = select([count_func()]).select_from(sa_appointments.join(sa_services)).where(and_(*where))
     cur_count = await conn.execute(q_count)
 
     return json_response(

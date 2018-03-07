@@ -1,3 +1,8 @@
+from datetime import datetime, timedelta
+
+from tcsocket.app.models import sa_appointments, sa_services
+
+from .conftest import count, create_appointment, create_company
 
 
 async def test_list_appointments(cli, company, appointment):
@@ -15,7 +20,7 @@ async def test_list_appointments(cli, company, appointment):
                 'finish': '2032-01-01T13:00:00',
                 'price': 123.45,
                 'location': 'Whatever',
-                'service_id': 123,
+                'service_id': 1,
                 'service_name': 'testing service',
                 'service_colour': '#abc',
                 'service_extra_attributes': [
@@ -30,3 +35,65 @@ async def test_list_appointments(cli, company, appointment):
         ],
         'count': 1,
     }
+
+
+async def test_many_apts(cli, db_conn, company):
+    await create_appointment(db_conn, company, appointment_extra={'id': 1})
+    for i in range(55):
+        await create_appointment(db_conn, company, create_service=False, appointment_extra=dict(
+            id=i + 2,
+            start=datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1),
+            finish=datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1),
+        ))
+
+    assert 56 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
+
+    url = cli.server.app.router['appointment-list'].url_for(company='thepublickey')
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['count'] == 56
+    assert len(obj['results']) == 30
+    assert obj['results'][0]['start'] == '2032-01-01T12:00:00'
+    assert obj['results'][-1]['start'] == '2032-01-30T12:00:00'
+
+    r = await cli.get(url.with_query({'page': '2'}))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['count'] == 56
+    assert len(obj['results']) == 26
+    assert obj['results'][0]['start'] == '2032-01-31T12:00:00'
+    assert obj['results'][-1]['start'] == '2032-02-25T12:00:00'
+
+    r = await cli.get(url.with_query({'pagination': '45'}))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert len(obj['results']) == 45
+
+    r = await cli.get(url.with_query({'pagination': '100'}))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert len(obj['results']) == 50
+
+
+async def test_service_filter(cli, db_conn, company):
+    await create_appointment(db_conn, company, appointment_extra={'id': 1})
+    await create_appointment(db_conn, company, appointment_extra={'id': 2}, create_service=False)
+    await create_appointment(db_conn, company, appointment_extra={'id': 3}, service_extra={'id': 2})
+
+    company2 = await create_company(db_conn, 'compan2_public', 'compan2_private', name='company2')
+    await create_appointment(db_conn, company2, appointment_extra={'id': 4}, service_extra={'id': 3})
+
+    url = cli.server.app.router['appointment-list'].url_for(company='thepublickey')
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['count'] == 3
+    assert {int(r['link'].split('-', 1)[0]) for r in obj['results']} == {1, 2, 3}
+
+    r = await cli.get(url.with_query({'service': '1'}))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['count'] == 2
+    assert {int(r['link'].split('-', 1)[0]) for r in obj['results']} == {1, 2}

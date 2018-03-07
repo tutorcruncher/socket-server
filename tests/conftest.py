@@ -482,7 +482,7 @@ async def create_con_skills(db_conn, *con_ids):
 
 async def create_appointment(db_conn, company, create_service=True, service_extra=None, appointment_extra=None):
     service_kwargs = dict(
-        id=123,
+        id=1,
         company=company.id,
         name='testing service',
         extra_attributes=[
@@ -507,8 +507,8 @@ async def create_appointment(db_conn, company, create_service=True, service_extr
         attendees_max=42,
         attendees_count=4,
         attendees_current_ids=[1, 2, 3],
-        start='2032-01-01T12:00:00',
-        finish='2032-01-01T13:00:00',
+        start=datetime(2032, 1, 1, 12, 0, 0),
+        finish=datetime(2032, 1, 1, 13, 0, 0),
         price=123.45,
         location='Whatever',
     )
