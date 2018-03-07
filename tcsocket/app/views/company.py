@@ -52,7 +52,7 @@ async def company_create(request):
 
 OPTIONS_FIELDS = {
     'show_stars', 'display_mode', 'router_mode', 'show_hours_reviewed', 'show_labels', 'show_location_search',
-    'show_subject_filter', 'sort_on', 'pagination'
+    'show_subject_filter', 'sort_on', 'pagination', 'auth_url'
 }
 
 

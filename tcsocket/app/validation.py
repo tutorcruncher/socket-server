@@ -71,6 +71,7 @@ class CompanyUpdateModel(BaseModel):
     show_subject_filter: bool = None
     sort_on: SortOn = None
     pagination: int = None
+    auth_url: str = None
 
 
 class CompanyOptionsModel(BaseModel):
@@ -89,6 +90,7 @@ class CompanyOptionsModel(BaseModel):
     show_subject_filter: bool = True
     sort_on: SortOn = SortOn.name
     pagination: int = 100
+    auth_url: str = None
 
 
 class ExtraAttributeModel(BaseModel):

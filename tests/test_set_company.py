@@ -215,7 +215,7 @@ async def test_list_invalid_time(cli, company, payload_func, name):
 async def test_default_options(cli, db_conn, company):
     r = await cli.get(f'/{company.public_key}/options')
     assert r.status == 200, await r.text()
-    assert {
+    expected = {
         'display_mode': 'grid',
         'name': 'foobar',
         'name_display': 'first_name_initial',
@@ -227,7 +227,16 @@ async def test_default_options(cli, db_conn, company):
         'show_stars': True,
         'show_subject_filter': True,
         'sort_on': 'name',
-    } == await r.json()
+        'auth_url': None,
+    }
+    assert expected == await r.json()
+    assert (await r.text()).count('\n') > 5
+
+    # with both json encoders
+    r = await cli.get(f'/{company.public_key}/options', headers={'Accept': 'application/json'})
+    assert r.status == 200, await r.text()
+    assert expected == await r.json()
+    assert (await r.text()).count('\n') == 0
 
 
 async def test_update_company(cli, db_conn, company, other_server):
@@ -245,6 +254,7 @@ async def test_update_company(cli, db_conn, company, other_server):
         show_location_search=False,
         pagination=20,
         sort_on='review_rating',
+        auth_url='https://foobar.com/whatever',
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
@@ -256,6 +266,7 @@ async def test_update_company(cli, db_conn, company, other_server):
                 'show_location_search': False,
                 'pagination': 20,
                 'sort_on': 'review_rating',
+                'auth_url': 'https://foobar.com/whatever',
             }
         },
         'company_domains': ['changed.com'],
@@ -266,8 +277,13 @@ async def test_update_company(cli, db_conn, company, other_server):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domains == ['changed.com']
-    assert result.options == {'display_mode': 'enquiry-modal', 'pagination': 20, 'show_location_search': False,
-                              'sort_on': 'review_rating'}
+    assert result.options == {
+        'display_mode': 'enquiry-modal',
+        'pagination': 20,
+        'show_location_search': False,
+        'sort_on': 'review_rating',
+        'auth_url': 'https://foobar.com/whatever',
+    }
 
     r = await cli.get(f'/{company.public_key}/options')
     assert r.status == 200, await r.text()
@@ -283,6 +299,7 @@ async def test_update_company(cli, db_conn, company, other_server):
         'show_stars': True,
         'show_subject_filter': True,
         'sort_on': 'review_rating',
+        'auth_url': 'https://foobar.com/whatever',
     } == await r.json()
 
 
