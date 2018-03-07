@@ -155,19 +155,24 @@ async def test_modify_skills(cli, db_conn, company):
 async def test_extra_attributes(cli, db_conn, company):
     eas = [
         {
-            'machine_name': None,
+            'machine_name': 'terms',
             'type': 'checkbox',
             'name': 'Terms and Conditions agreement',
             'value': True,
-            'id': 381,
             'sort_index': 0
         },
         {
-            'machine_name': 'Bio',
+            'machine_name': 'bio',
             'type': 'integer',
             'name': 'Teaching Experience',
             'value': 123,
-            'id': 196,
+            'sort_index': 0.123
+        },
+        {
+            'machine_name': 'date',
+            'type': 'date',
+            'name': 'The Date',
+            'value': '2032-06-01',
             'sort_index': 0.123
         }
     ]
@@ -184,27 +189,32 @@ async def test_extra_attributes(cli, db_conn, company):
     result = await curr.first()
     assert result.id == 123
     assert result.first_name == 'Fred'
-    assert result.extra_attributes == eas
+    assert result.extra_attributes == [{k: v for k, v in ea_.items() if k != 'sort_index'} for ea_ in eas]
     assert result.tag_line is None
     assert result.primary_description is None
+
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='123', slug='x'))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['id'] == 123
+    assert len(obj['extra_attributes']) == 3
+    assert obj['extra_attributes'][2]['value'] == '2032-06-01'
 
 
 async def test_extra_attributes_special(cli, db_conn, company):
     eas = [
         {
-            'machine_name': 'tag_line',
+            'machine_name': 'tag_line_a',
             'type': 'checkbox',
             'name': 'Should be missed',
             'value': True,
-            'id': 1,
             'sort_index': 0
         },
         {
-            'machine_name': None,
+            'machine_name': 'whatever',
             'type': 'text_short',
             'name': 'Should be missed',
             'value': 'whatever',
-            'id': 2,
             'sort_index': 0
         },
         {
@@ -212,23 +222,20 @@ async def test_extra_attributes_special(cli, db_conn, company):
             'type': 'text_short',
             'name': 'Should be used',
             'value': 'this is the tag line',
-            'id': 3,
             'sort_index': 10
         },
         {
-            'machine_name': None,
+            'machine_name': 'foobar',
             'type': 'text_extended',
             'name': 'Primary Description',
             'value': 'Should be used as primary description',
-            'id': 4,
             'sort_index': 1
         },
         {
-            'machine_name': None,
+            'machine_name': 'no_primary',
             'type': 'text_extended',
             'name': 'Not Primary Description',
             'value': 'Should not be used as primary description because it has a higher sort index than above',
-            'id': 5,
             'sort_index': 2
         }
     ]
@@ -247,13 +254,13 @@ async def test_extra_attributes_special(cli, db_conn, company):
     assert result.first_name == 'Fred'
     assert result.tag_line == 'this is the tag line'
     assert result.primary_description == 'Should be used as primary description'
-    assert [ea['id'] for ea in result.extra_attributes] == [1, 2, 5]
+    assert [ea['machine_name'] for ea in result.extra_attributes] == ['tag_line_a', 'whatever', 'no_primary']
 
 
 async def test_extra_attributes_null(cli, db_conn, company):
     eas = [
         {
-            'machine_name': None,
+            'machine_name': 'terms',
             'type': 'checkbox',
             'name': 'Terms and Conditions agreement',
             'value': None,

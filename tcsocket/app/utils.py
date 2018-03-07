@@ -3,6 +3,7 @@ import json
 import re
 from decimal import Decimal
 from types import GeneratorType
+from typing import Any, Callable
 from uuid import UUID
 
 from aiohttp import web
@@ -94,3 +95,25 @@ def json_response(request, *, status_=200, list_=None, **data):
 def slugify(name):
     name = (name or '').replace(' ', '-').lower()
     return re.sub('[^a-z\-]', '', name)
+
+
+def route_url(request, view_name, **kwargs):
+    return str(request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()}))
+
+
+def get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):
+    v = request.query.get(field, default)
+    try:
+        return None if v is None else decoder(v)
+    except ValueError:
+        raise HTTPBadRequestJson(
+            status='invalid_argument',
+            details=f'"{field}" had an invalid value "{v}"',
+        )
+
+
+def get_pagination(request, pag_default=30, pag_max=50):
+    page = get_arg(request, 'page', default=1)
+    pagination = min(get_arg(request, 'pagination', default=pag_default), pag_max)
+    offset = (page - 1) * pagination
+    return pagination, offset

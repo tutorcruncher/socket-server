@@ -136,7 +136,7 @@ class Service(Base):
     extra_attributes = Column(JSONB)
 
 
-sa_service = Service.__table__
+sa_services = Service.__table__
 
 
 class Appointment(Base):
@@ -145,7 +145,7 @@ class Appointment(Base):
     id = Column(Integer, primary_key=True, nullable=False)
     service = Column(Integer, ForeignKey('services.id', ondelete='RESTRICT'), nullable=False)
 
-    appointment_topic = Column(String(255), nullable=False)
+    topic = Column(String(255), nullable=False)
     attendees_max = Column(Integer)
     attendees_count = Column(Integer, nullable=False)
     attendees_current_ids = Column(ARRAY(Integer), nullable=False)

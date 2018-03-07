@@ -17,7 +17,7 @@ from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.main import create_app
 from tcsocket.app.management import populate_db, psycopg2_cursor
-from tcsocket.app.models import sa_companies, sa_con_skills, sa_qual_levels, sa_subjects
+from tcsocket.app.models import sa_appointments, sa_companies, sa_con_skills, sa_qual_levels, sa_services, sa_subjects
 from tcsocket.app.settings import Settings
 
 DB_NAME = 'socket_test'
@@ -478,3 +478,47 @@ async def create_con_skills(db_conn, *con_ids):
             [{'contractor': con_id, 'subject': s[0], 'qual_level': s[1]} for con_id, s in product(con_ids, skill_ids)]
         )
     )
+
+
+async def create_appointment(db_conn, company, create_service=True, service_extra=None, appointment_extra=None):
+    service_kwargs = dict(
+        id=1,
+        company=company.id,
+        name='testing service',
+        extra_attributes=[
+            {
+                'name': 'Foobar',
+                'type': 'text_short',
+                'machine_name': 'foobar',
+                'value': 'this is the value of foobar',
+            }
+        ],
+        colour='#abc',
+    )
+    if service_extra:
+        service_kwargs.update(service_extra)
+    if create_service:
+        await db_conn.execute(sa_services.insert().values(**service_kwargs))
+
+    apt_kwargs = dict(
+        id=456,
+        service=service_kwargs['id'],
+        topic='testing appointment',
+        attendees_max=42,
+        attendees_count=4,
+        attendees_current_ids=[1, 2, 3],
+        start=datetime(2032, 1, 1, 12, 0, 0),
+        finish=datetime(2032, 1, 1, 13, 0, 0),
+        price=123.45,
+        location='Whatever',
+    )
+    if appointment_extra:
+        apt_kwargs.update(appointment_extra)
+    await db_conn.execute(sa_appointments.insert().values(**apt_kwargs))
+
+    return {'appointment': apt_kwargs, 'service': service_kwargs}
+
+
+@pytest.fixture
+def appointment(loop, db_conn, company):
+    return loop.run_until_complete(create_appointment(db_conn, company))

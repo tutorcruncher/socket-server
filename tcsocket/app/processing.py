@@ -1,4 +1,5 @@
 import logging
+from operator import attrgetter
 from typing import List
 
 from sqlalchemy import select
@@ -7,7 +8,7 @@ from sqlalchemy.sql import and_
 
 from .models import Action, sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
-from .validation import ContractorModel
+from .validation import ContractorModel, ExtraAttributeModel
 
 logger = logging.getLogger('socket.processing')
 
@@ -93,7 +94,7 @@ async def _set_labels(conn, company_id, labels):
         )
 
 
-def _get_special_extra_attr(extra_attributes: List[ContractorModel.ExtraAttributeModel], machine_name, attr_type):
+def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine_name, attr_type):
     """
     Find special extra attributes suitable for tag_line and primary_description.
     """
@@ -101,7 +102,7 @@ def _get_special_extra_attr(extra_attributes: List[ContractorModel.ExtraAttribut
     if eas:
         eas.sort(key=lambda ea: (ea.machine_name != machine_name, ea.sort_index))
         ea = eas[0]
-        return ea.value, [ea_ for ea_ in extra_attributes if ea_.id != ea.id]
+        return ea.value, [ea_ for ea_ in extra_attributes if ea_.machine_name != ea.machine_name]
     else:
         return None, extra_attributes
 
@@ -152,7 +153,7 @@ async def contractor_set(*, conn, company, worker, contractor: ContractorModel, 
     tag_line, ex_attrs = _get_special_extra_attr(ex_attrs, 'tag_line', 'text_short')
     primary_description, ex_attrs = _get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
     data.update(
-        extra_attributes=[ea_.dict() for ea_ in ex_attrs],
+        extra_attributes=[ea_.dict(exclude={'sort_index'}) for ea_ in sorted(ex_attrs, key=attrgetter('sort_index'))],
         tag_line=tag_line,
         primary_description=primary_description,
     )

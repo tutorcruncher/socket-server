@@ -9,7 +9,7 @@ from arq import create_pool_lenient
 from .middleware import middleware
 from .settings import THIS_DIR, Settings
 from .views import favicon, index, labels_list, qual_level_list, robots_txt, subject_list
-from .views.appointments import appointment_webhook, appointment_webhook_delete
+from .views.appointments import appointment_list, appointment_webhook, appointment_webhook_delete, service_list
 from .views.company import company_create, company_list, company_options, company_update
 from .views.contractor import contractor_get, contractor_list, contractor_set
 from .views.enquiry import clear_enquiry, enquiry
@@ -58,6 +58,9 @@ def setup_routes(app):
     app.router.add_get('/{company}/subjects', subject_list, name='subject-list')
     app.router.add_get('/{company}/qual-levels', qual_level_list, name='qual-level-list')
     app.router.add_get('/{company}/labels', labels_list, name='labels')
+
+    app.router.add_get('/{company}/appointments', appointment_list, name='appointment-list')
+    app.router.add_get('/{company}/services', service_list, name='service-list')
 
 
 def create_app(loop, *, settings: Settings=None):

@@ -1,7 +1,6 @@
 import logging
 from itertools import groupby
 from operator import attrgetter
-from typing import Any, Callable
 
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.dialects.postgresql import ARRAY
@@ -11,7 +10,7 @@ from sqlalchemy.sql.functions import count as count_func
 from ..geo import geocode
 from ..models import Action, NameOptions, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from ..processing import contractor_set as _contractor_set
-from ..utils import HTTPBadRequestJson, json_response, slugify
+from ..utils import get_arg, get_pagination, json_response, route_url, slugify
 from ..validation import ContractorModel
 
 logger = logging.getLogger('socket.views')
@@ -43,10 +42,11 @@ async def contractor_set(request):
         )
 
 
+c = sa_contractors.c
 SORT_OPTIONS = {
-    'last_updated': sa_contractors.c.last_updated,
-    'review_rating': sa_contractors.c.review_rating,
-    'name': sa_contractors.c.first_name,
+    'last_updated': c.last_updated,
+    'review_rating': c.review_rating,
+    'name': c.first_name,
 }
 
 
@@ -65,31 +65,14 @@ def _photo_url(request, con, thumb):
     return f'{request.app["settings"].media_url}/{request["company"].public_key}/{con.id}{ext}?h={con.photo_hash}'
 
 
-def _route_url(request, view_name, **kwargs):
-    return str(request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()}))
-
-
-def _get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):
-    v = request.query.get(field, default)
-    try:
-        return None if v is None else decoder(v)
-    except ValueError:
-        raise HTTPBadRequestJson(
-            status='invalid_argument',
-            details=f'"{field}" had an invalid value "{v}"',
-        )
-
-
 async def contractor_list(request):  # noqa: C901 (ignore complexity)
     sort_val = request.query.get('sort')
     sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['last_updated'])
-    page = _get_arg(request, 'page', default=1)
-    pagination = min(_get_arg(request, 'pagination', default=100), 100)
-    offset = (page - 1) * pagination
+
+    pagination, offset = get_pagination(request, 100, 100)
 
     company = request['company']
     options = company.options or {}
-    c = sa_contractors.c
     fields = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country, c.photo_hash,
     show_labels = options.get('show_labels')
     if show_labels:
@@ -105,8 +88,8 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
 
     where = c.company == company.id,
 
-    subject_filter = _get_arg(request, 'subject')
-    qual_level_filter = _get_arg(request, 'qual_level')
+    subject_filter = get_arg(request, 'subject')
+    qual_level_filter = get_arg(request, 'qual_level')
 
     select_from = None
     if subject_filter or qual_level_filter:
@@ -135,7 +118,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
                 results=[],
                 count=0,
             )
-        max_distance = _get_arg(request, 'max_distance', default=80_000)
+        max_distance = get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
         request_loc = func.ll_to_earth(location['lat'], location['lng'])
         con_loc = func.ll_to_earth(c.latitude, c.longitude)
@@ -173,8 +156,8 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         name = _get_name(name_display, row)
         con = dict(
             id=row.id,
-            url=_route_url(request, 'contractor-get', company=company.public_key, id=row.id),
-            link='{}-{}'.format(row.id, slugify(name)),
+            url=route_url(request, 'contractor-get', company=company.public_key, id=row.id),
+            link=f'{row.id}-{slugify(name)}',
             name=name,
             tag_line=row.tag_line,
             primary_description=row.primary_description,
@@ -224,7 +207,6 @@ async def _get_skills(conn, con_id):
 
 
 async def contractor_get(request):
-    c = sa_contractors.c
     cols = (
         c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
         c.country, c.labels, c.review_rating, c.review_duration, c.photo_hash,
