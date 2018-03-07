@@ -2,20 +2,21 @@ import asyncio
 import hashlib
 import json
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryFile
 from urllib.parse import urlencode
 
 from aiohttp import ClientSession
 from aiopg.sa import create_engine
-from arq import Actor, BaseWorker, concurrent
+from arq import Actor, BaseWorker, concurrent, cron
 from arq.utils import timestamp
 from PIL import Image, ImageOps
 from psycopg2 import OperationalError
 from sqlalchemy import update
 
 from .middleware import domain_allowed
-from .models import sa_contractors
+from .models import sa_appointments, sa_contractors
 from .processing import contractor_set
 from .settings import Settings
 from .validation import ContractorModel
@@ -202,7 +203,7 @@ class MainActor(Actor):
         if r.status not in (200, 201):
             logger.error('%d response forwarding enquiry to %s', r.status, self.api_enquiries, extra={
                 'data': {
-                    'status': r.headers,
+                    'headers': dict(r.headers),
                     'company': company,
                     'request': data,
                     'response': response_data,
@@ -210,6 +211,16 @@ class MainActor(Actor):
             })
             await self.update_enquiry_options(company)
         return r.status
+
+    @cron(hour=3, minute=0)
+    async def delete_old_appointments(self):
+        async with self.pg_engine.acquire() as conn:
+            old = datetime.utcnow() - timedelta(days=7)
+            v = await conn.execute(
+                sa_appointments.delete()
+                .where(sa_appointments.c.start < old)
+            )
+            logger.info('%d old appointments deleted', v.rowcount)
 
     async def shutdown(self):
         if self.pg_engine:
@@ -222,6 +233,6 @@ class MainActor(Actor):
 class Worker(BaseWorker):
     shadows = [MainActor]
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs):  # pragma: no cover
         kwargs['redis_settings'] = Settings().redis_settings
         super().__init__(**kwargs)

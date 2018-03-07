@@ -1,10 +1,11 @@
 import logging
+from datetime import datetime
 from operator import attrgetter
 
-from sqlalchemy import select
+from sqlalchemy import distinct, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
-from sqlalchemy.sql.functions import count as count_func
+from sqlalchemy.sql import functions as sql_f
 
 from ..models import sa_appointments, sa_services
 from ..utils import HTTPConflictJson, get_arg, get_pagination, json_response, slugify
@@ -85,7 +86,7 @@ async def appointment_list(request):
     company = request['company']
     pagination, offset = get_pagination(request)
 
-    where = ser_c.company == company.id,
+    where = ser_c.company == company.id, apt_c.start < datetime.utcnow()
     service_id = get_arg(request, 'service')
     if service_id:
         where += apt_c.service == service_id,
@@ -113,7 +114,7 @@ async def appointment_list(request):
         .limit(pagination)
     )]
 
-    q_count = select([count_func()]).select_from(sa_appointments.join(sa_services)).where(and_(*where))
+    q_count = select([sql_f.count()]).select_from(sa_appointments.join(sa_services)).where(and_(*where))
     cur_count = await conn.execute(q_count)
 
     return json_response(
@@ -127,18 +128,29 @@ async def service_list(request):
     company = request['company']
     pagination, offset = get_pagination(request)
 
-    where = ser_c.company == company.id,
+    where = ser_c.company == company.id, apt_c.start < datetime.utcnow()
+    q1 = (
+        select([ser_c.id, ser_c.name, ser_c.colour, ser_c.extra_attributes, sql_f.min(apt_c.start).label('min_start')])
+        .select_from(sa_appointments.join(sa_services))
+        .where(and_(*where))
+        .group_by(ser_c.id)
+        .alias('q1')
+    )
+
     conn = await request['conn_manager'].get_connection()
     results = [dict(row) async for row in conn.execute(
-        select([ser_c.id, ser_c.name, ser_c.colour, ser_c.extra_attributes])
-        .where(and_(*where))
-        .order_by(ser_c.id)
+        select([q1.c.id, q1.c.name, q1.c.colour, q1.c.extra_attributes])
+        .select_from(q1)
+        .order_by(q1.c.min_start)
         .offset(offset)
         .limit(pagination)
     )]
 
-    q_count = select([count_func()]).select_from(sa_services).where(and_(*where))
-    cur_count = await conn.execute(q_count)
+    cur_count = await conn.execute(
+        select([sql_f.count(distinct(ser_c.id))])
+        .select_from(sa_appointments.join(sa_services))
+        .where(and_(*where))
+    )
 
     return json_response(
         request,

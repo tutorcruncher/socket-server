@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from tcsocket.app.models import sa_appointments, sa_services
+from tcsocket.app.worker import MainActor
 
-from .conftest import count, create_company, signed_request
+from .conftest import MockEngine, count, create_appointment, create_company, select_set, signed_request
 
 
 async def create_apt(cli, company, url=None, **kwargs):
@@ -15,8 +16,8 @@ async def create_apt(cli, company, url=None, **kwargs):
         attendees_max=42,
         attendees_count=4,
         attendees_current_ids=[1, 2, 3],
-        start='2032-01-01T12:00:00',
-        finish='2032-01-01T13:00:00',
+        start='1986-01-01T12:00:00',
+        finish='1986-01-01T13:00:00',
         price=123.45,
         location='Whatever',
     )
@@ -47,8 +48,8 @@ async def test_create(cli, db_conn, company):
     assert result.attendees_max == 42
     assert result.attendees_count == 4
     assert result.attendees_current_ids == [1, 2, 3]
-    assert result.start == datetime(2032, 1, 1, 12, 0)
-    assert result.finish == datetime(2032, 1, 1, 13, 0)
+    assert result.start == datetime(1986, 1, 1, 12, 0)
+    assert result.finish == datetime(1986, 1, 1, 13, 0)
     assert result.price == 123.45
     assert result.location == 'Whatever'
 
@@ -154,3 +155,30 @@ async def test_extra_attrs(cli, db_conn, company):
     # remove sort_index and reverse so they're ordered by sort_index
     eas = list(reversed([{k: v for k, v in ea_.items() if k != 'sort_index'} for ea_ in extra_attrs]))
     assert result.extra_attributes == eas
+
+
+async def test_delete_old_appointments(db_conn, company, settings):
+    n = datetime.utcnow()
+    await create_appointment(db_conn, company, appointment_extra={'id': 1, 'start': n},
+                             service_extra={'id': 1})
+
+    await create_appointment(db_conn, company, appointment_extra={'id': 2, 'start': n - timedelta(days=8)},
+                             service_extra={'id': 2})
+
+    await create_appointment(db_conn, company, appointment_extra={'id': 3, 'start': n - timedelta(days=6)},
+                             service_extra={'id': 3})  # not old enough
+    await create_appointment(db_conn, company, appointment_extra={'id': 4, 'start': n - timedelta(days=365)},
+                             service_extra={'id': 3}, create_service=False)
+
+    actor = MainActor(settings=settings)
+    actor._concurrency_enabled = False
+    actor.pg_engine = MockEngine(db_conn)
+
+    assert {(1, 1), (2, 2), (3, 3), (4, 3)} == await select_set(db_conn, sa_appointments.c.id,
+                                                                sa_appointments.c.service)
+    assert {(1,), (2,), (3,)} == await select_set(db_conn, sa_services.c.id)
+
+    await actor.delete_old_appointments()
+
+    assert {(1, 1), (3, 3)} == await select_set(db_conn, sa_appointments.c.id, sa_appointments.c.service)
+    assert {(1,), (3,)} == await select_set(db_conn, sa_services.c.id)

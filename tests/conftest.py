@@ -351,7 +351,7 @@ def db_conn(loop, db, settings):
     loop.run_until_complete(engine.wait_closed())
 
 
-class TestEngine:
+class MockEngine:
     def __init__(self, conn):
         self._conn = conn
 
@@ -387,7 +387,7 @@ def cli(loop, test_client, db_conn, settings):
     """
 
     async def modify_startup(app):
-        app['pg_engine'] = TestEngine(db_conn)
+        app['pg_engine'] = MockEngine(db_conn)
         app['worker']._concurrency_enabled = False
         await app['worker'].startup()
         app['worker'].pg_engine = app['pg_engine']
@@ -507,8 +507,8 @@ async def create_appointment(db_conn, company, create_service=True, service_extr
         attendees_max=42,
         attendees_count=4,
         attendees_current_ids=[1, 2, 3],
-        start=datetime(2032, 1, 1, 12, 0, 0),
-        finish=datetime(2032, 1, 1, 13, 0, 0),
+        start=datetime(1986, 1, 1, 12, 0, 0),
+        finish=datetime(1986, 1, 1, 13, 0, 0),
         price=123.45,
         location='Whatever',
     )
