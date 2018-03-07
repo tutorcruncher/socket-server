@@ -92,9 +92,8 @@ class CompanyOptionsModel(BaseModel):
 
 
 class ExtraAttributeModel(BaseModel):
-    machine_name: NoneStr
+    machine_name: str
     name: str
-    id: int
     value: Any
     sort_index: float
 

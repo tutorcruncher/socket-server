@@ -485,7 +485,14 @@ async def create_appointment(db_conn, company, create_service=True, service_extr
         id=123,
         company=company.id,
         name='testing service',
-        extra_attributes=[],
+        extra_attributes=[
+            {
+                'name': 'Foobar',
+                'type': 'text_short',
+                'machine_name': 'foobar',
+                'value': 'this is the value of foobar',
+            }
+        ],
         colour='#abc',
     )
     if service_extra:

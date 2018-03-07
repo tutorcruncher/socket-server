@@ -42,10 +42,11 @@ async def contractor_set(request):
         )
 
 
+c = sa_contractors.c
 SORT_OPTIONS = {
-    'last_updated': sa_contractors.c.last_updated,
-    'review_rating': sa_contractors.c.review_rating,
-    'name': sa_contractors.c.first_name,
+    'last_updated': c.last_updated,
+    'review_rating': c.review_rating,
+    'name': c.first_name,
 }
 
 
@@ -73,7 +74,6 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
 
     company = request['company']
     options = company.options or {}
-    c = sa_contractors.c
     fields = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country, c.photo_hash,
     show_labels = options.get('show_labels')
     if show_labels:
@@ -158,7 +158,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         con = dict(
             id=row.id,
             url=route_url(request, 'contractor-get', company=company.public_key, id=row.id),
-            link='{}-{}'.format(row.id, slugify(name)),
+            link=f'{row.id}-{slugify(name)}',
             name=name,
             tag_line=row.tag_line,
             primary_description=row.primary_description,
@@ -208,7 +208,6 @@ async def _get_skills(conn, con_id):
 
 
 async def contractor_get(request):
-    c = sa_contractors.c
     cols = (
         c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
         c.country, c.labels, c.review_rating, c.review_duration, c.photo_hash,

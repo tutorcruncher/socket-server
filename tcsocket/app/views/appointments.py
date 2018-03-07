@@ -1,4 +1,5 @@
 import logging
+from operator import attrgetter
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -10,6 +11,8 @@ from ..utils import HTTPConflictJson, get_arg, json_response, slugify
 from ..validation import AppointmentModel
 
 logger = logging.getLogger('socket.views')
+apt_c = sa_appointments.c
+ser_c = sa_services.c
 
 
 async def appointment_webhook(request):
@@ -18,8 +21,8 @@ async def appointment_webhook(request):
 
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute(
-        select([sa_services.c.company])
-        .where(sa_services.c.id == appointment.service_id)
+        select([ser_c.company])
+        .where(ser_c.id == appointment.service_id)
     )
     r = await v.first()
     if r and r.company != request['company'].id:
@@ -31,15 +34,16 @@ async def appointment_webhook(request):
     service_insert_update = dict(
         name=appointment.service_name,
         colour=appointment.colour,
-        extra_attributes=[ea.dict() for ea in appointment.extra_attributes],
+        extra_attributes=[ea.dict(exclude={'sort_index'})
+                          for ea in sorted(appointment.extra_attributes, key=attrgetter('sort_index'))],
     )
 
     await conn.execute(
         pg_insert(sa_services)
         .values(id=appointment.service_id, company=request['company'].id, **service_insert_update)
         .on_conflict_do_update(
-            index_elements=[sa_services.c.id],
-            where=sa_services.c.id == appointment.service_id,
+            index_elements=[ser_c.id],
+            where=ser_c.id == appointment.service_id,
             set_=service_insert_update,
         )
     )
@@ -52,8 +56,8 @@ async def appointment_webhook(request):
         pg_insert(sa_appointments)
         .values(id=apt_id, service=appointment.service_id, **apt_insert_update)
         .on_conflict_do_update(
-            index_elements=[sa_appointments.c.id],
-            where=sa_appointments.c.id == apt_id,
+            index_elements=[apt_c.id],
+            where=apt_c.id == apt_id,
             set_=apt_insert_update,
         )
     )
@@ -65,49 +69,51 @@ async def appointment_webhook_delete(request):
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute(
         sa_appointments.delete()
-        .where(and_(sa_appointments.c.id == apt_id, sa_services.c.company == request['company'].id))
+        .where(and_(apt_c.id == apt_id, ser_c.company == request['company'].id))
     )
     return json_response(request, status='success' if v.rowcount else 'appointment not found')
 
 
+APT_LIST_FIELDS = (
+    apt_c.id, apt_c.topic, apt_c.attendees_max, apt_c.attendees_count, apt_c.start, apt_c.finish,
+    apt_c.price, apt_c.location,
+    ser_c.id, ser_c.name, ser_c.colour, ser_c.extra_attributes
+)
+
+
 async def appointment_list(request):
     company = request['company']
-    where = sa_services.c.company == company.id,
+    where = ser_c.company == company.id,
     # TODO: service filter
 
     page = get_arg(request, 'page', default=1)
     pagination = min(get_arg(request, 'pagination', default=30), 50)
     offset = (page - 1) * pagination
-    c = sa_appointments.c
-    fields = (
-        c.id, c.service, c.topic, c.attendees_max, c.attendees_count, c.attendees_current_ids, c.start, c.finish,
-        c.price, c.location, sa_services.c.name, sa_services.c.colour
-    )
     q_iter = (
-        select(fields)
+        select(APT_LIST_FIELDS, use_labels=True)
         .select_from(sa_appointments.join(sa_services))
         .where(and_(*where))
-        .order_by(sa_appointments.c.start)
+        .order_by(apt_c.start)
         .offset(offset)
         .limit(pagination)
     )
     conn = await request['conn_manager'].get_connection()
-    results = []
-    async for row in conn.execute(q_iter):
-        results.append(dict(
-            # url=route_url(request, 'appointment-get', company=company.public_key, id=row.id),
-            link='{}-{}'.format(row.id, slugify(row.topic)),
-            topic=row.topic,
-            attendees_max=row.attendees_max,
-            attendees_count=row.attendees_count,
-            attendees_current_ids=row.attendees_current_ids,
-            start=row.start.isoformat(),
-            finish=row.finish.isoformat(),
-            price=row.price,
-            location=row.location,
-        ))
+    results = [dict(
+        link=f'{row.appointments_id}-{slugify(row.appointments_topic)}',
+        topic=row.appointments_topic,
+        attendees_max=row.appointments_attendees_max,
+        attendees_count=row.appointments_attendees_count,
+        start=row.appointments_start.isoformat(),
+        finish=row.appointments_finish.isoformat(),
+        price=row.appointments_price,
+        location=row.appointments_location,
+        service_id=row.services_id,
+        service_name=row.services_name,
+        service_colour=row.services_colour,
+        service_extra_attributes=row.services_extra_attributes,
+    ) async for row in conn.execute(q_iter)]
 
-    q_count = select([count_func(sa_appointments.c.id)]).where(and_(*where))
+    q_count = select([count_func(apt_c.id)]).where(and_(*where))
     cur_count = await conn.execute(q_count)
 
     return json_response(

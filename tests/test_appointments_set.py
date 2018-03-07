@@ -128,20 +128,18 @@ async def test_create_conflict(cli, db_conn, company):
 async def test_extra_attrs(cli, db_conn, company):
     extra_attrs = [
         {
-            'id': 123,
             'name': 'Foobar',
             'type': 'checkbox',
             'machine_name': 'foobar',
             'value': False,
-            'sort_index': 123,
+            'sort_index': 124,
         },
         {
-            'id': 456,
             'name': 'Smash',
             'type': 'text_short',
             'machine_name': 'smash',
             'value': 'I love to party',
-            'sort_index': 124,
+            'sort_index': 123
         },
     ]
     r = await create_apt(
@@ -153,4 +151,6 @@ async def test_extra_attrs(cli, db_conn, company):
     curr = await db_conn.execute(sa_services.select())
     result = await curr.first()
     assert result.name == 'testing service'
-    assert result.extra_attributes == extra_attrs
+    # remove sort_index and reverse so they're ordered by sort_index
+    eas = list(reversed([{k: v for k, v in ea_.items() if k != 'sort_index'} for ea_ in extra_attrs]))
+    assert result.extra_attributes == eas

@@ -11,11 +11,21 @@ async def test_list_appointments(cli, company, appointment):
                 'topic': 'testing appointment',
                 'attendees_max': 42,
                 'attendees_count': 4,
-                'attendees_current_ids': [1, 2, 3],
                 'start': '2032-01-01T12:00:00',
                 'finish': '2032-01-01T13:00:00',
                 'price': 123.45,
                 'location': 'Whatever',
+                'service_id': 123,
+                'service_name': 'testing service',
+                'service_colour': '#abc',
+                'service_extra_attributes': [
+                    {
+                        'name': 'Foobar',
+                        'type': 'text_short',
+                        'machine_name': 'foobar',
+                        'value': 'this is the value of foobar',
+                    }
+                ]
             },
         ],
         'count': 1,
