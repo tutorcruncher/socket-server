@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import pytest
-from aiohttp.web import Application
 from sqlalchemy import update
 
 from tcsocket.app import middleware
@@ -197,20 +196,6 @@ async def test_url_trailing_slash(cli, company):
     r = await cli.get(f'{url}/', allow_redirects=False)
     assert r.status == 301, await r.text()
     assert r.headers['location'] == str(url)
-
-
-async def snap(request):
-    raise RuntimeError('snap')
-
-
-async def test_500_error(test_client, caplog):
-    app = Application(middlewares=[middleware.error_middleware])
-    app.router.add_get('/', snap)
-    client = await test_client(app)
-    r = await client.get('/')
-    assert r.status == 500
-    assert '500: Internal Server Error' == await r.text()
-    assert 'socket.request ERROR: RuntimeError: snap' in caplog
 
 
 async def test_view_labels(cli, db_conn, company):

@@ -40,10 +40,10 @@ async def log_extra(request, response=None):
         request_method=request.method,
         request_host=request.host,
         request_headers=dict(request.headers),
-        request_text=response and await request.text(),
-        response_status=response and response.status,
-        response_headers=response and dict(response.headers),
-        response_text=response and response.text,
+        request_text=await request.text(),
+        response_status=getattr(response, 'status', None),
+        response_headers=dict(getattr(response, 'headers', {})),
+        response_text=getattr(response, 'text', None)
     )}
 
 
@@ -121,9 +121,16 @@ async def pg_conn_middleware(request, handler):
 
 
 def domain_allowed(allow_domains, current_domain):
-    return current_domain.endswith('tutorcruncher.com') or any(
-        allow_domain == current_domain or (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
-        for allow_domain in allow_domains
+    return (
+        current_domain and
+        (
+            current_domain.endswith('tutorcruncher.com') or
+            any(
+                allow_domain == current_domain or
+                (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
+                for allow_domain in allow_domains
+            )
+        )
     )
 
 

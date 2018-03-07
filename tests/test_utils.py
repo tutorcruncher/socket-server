@@ -3,10 +3,12 @@ from asyncio import Future
 from datetime import datetime
 
 import pytest
+from aiohttp.web import Application, Response
 from psycopg2 import OperationalError
 
+from tcsocket.app import middleware
 from tcsocket.app.logs import setup_logging
-from tcsocket.app.utils import pretty_lenient_json
+from tcsocket.app.utils import HTTPBadRequestJson, pretty_lenient_json
 from tcsocket.app.worker import MainActor
 
 
@@ -77,3 +79,50 @@ async def test_setup_worker_fails_then_works(settings, mocker, caplog):
     assert 'socket.worker INFO: create_engine failed, 5 retries remaining, retrying...' in caplog
     assert 'socket.worker INFO: create_engine failed, 3 retries remaining, retrying...' not in caplog
     assert 'socket.worker INFO: create_engine failed, 1 retries remaining, retrying...' not in caplog
+
+
+async def snap(request):
+    raise RuntimeError('snap')
+
+
+async def test_500_error(test_client, caplog):
+    app = Application(middlewares=[middleware.error_middleware])
+    app.router.add_get('/', snap)
+    client = await test_client(app)
+    r = await client.get('/')
+    assert r.status == 500
+    assert '500: Internal Server Error' == await r.text()
+    assert 'socket.request ERROR: RuntimeError: snap' in caplog
+
+
+async def test_401_return_error(test_client, mocker):
+    mocker.spy(middleware.request_logger, 'warning')
+    app = Application(middlewares=[middleware.error_middleware])
+    app.router.add_get('/', lambda request: Response(text='foobar', status=401))
+    client = await test_client(app)
+    r = await client.get('/')
+    assert r.status == 401
+    assert middleware.request_logger.warning.call_count == 1
+    call_data = middleware.request_logger.warning.call_args[1]['extra']['data']['data']
+    assert call_data['response_status'] == 401
+    assert call_data['response_text'] == 'foobar'
+
+
+async def raise_400(request):
+    raise HTTPBadRequestJson(status='foobar')
+
+
+async def test_400_raise_error(test_client, mocker):
+    mocker.spy(middleware.request_logger, 'warning')
+    app = Application(middlewares=[middleware.error_middleware])
+    app.router.add_route('*', '/', raise_400)
+    # app.on_response_prepare.append(on_prepare)
+    client = await test_client(app)
+    r = await client.post('/', data='foobar')
+    assert r.status == 400
+    assert middleware.request_logger.warning.call_count == 1
+    call_data = middleware.request_logger.warning.call_args[1]['extra']['data']['data']
+    assert call_data['request_text'] == 'foobar'
+    assert call_data['response_status'] == 400
+    assert call_data['response_text'] == '{\n  "status": "foobar"\n}\n'
+    assert call_data['response_headers']['Access-Control-Allow-Origin'] == '*'
