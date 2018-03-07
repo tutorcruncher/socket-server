@@ -203,7 +203,7 @@ class MainActor(Actor):
         if r.status not in (200, 201):
             logger.error('%d response forwarding enquiry to %s', r.status, self.api_enquiries, extra={
                 'data': {
-                    'status': r.headers,
+                    'headers': dict(r.headers),
                     'company': company,
                     'request': data,
                     'response': response_data,
@@ -233,6 +233,6 @@ class MainActor(Actor):
 class Worker(BaseWorker):
     shadows = [MainActor]
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs):  # pragma: no cover
         kwargs['redis_settings'] = Settings().redis_settings
         super().__init__(**kwargs)

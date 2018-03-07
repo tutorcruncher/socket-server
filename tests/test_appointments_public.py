@@ -102,10 +102,15 @@ async def test_service_filter(cli, db_conn, company):
 
 
 async def test_service_list(cli, db_conn, company):
-    await create_appointment(db_conn, company, appointment_extra={'id': 1})
+    await create_appointment(db_conn, company, appointment_extra={'id': 1, 'start': datetime(1987, 1, 1)})
     await create_appointment(db_conn, company, appointment_extra={'id': 2}, create_service=False)
-    await create_appointment(db_conn, company, appointment_extra={'id': 3},
+    await create_appointment(db_conn, company, appointment_extra={'id': 3, 'start': datetime(2032, 1, 1)},
+                             create_service=False)
+    await create_appointment(db_conn, company, appointment_extra={'id': 4, 'start': datetime(1986, 1, 1)},
                              service_extra={'id': 2, 'extra_attributes': [], 'colour': '#cba'})
+
+    await create_appointment(db_conn, company, appointment_extra={'id': 5, 'start': datetime(2032, 1, 1)},
+                             service_extra={'id': 3})
 
     url = cli.server.app.router['service-list'].url_for(company='thepublickey')
     r = await cli.get(url)
@@ -113,6 +118,12 @@ async def test_service_list(cli, db_conn, company):
     obj = await r.json()
     assert obj == {
         'results': [
+            {
+                'id': 2,
+                'name': 'testing service',
+                'colour': '#cba',
+                'extra_attributes': [],
+            },
             {
                 'id': 1,
                 'name': 'testing service',
@@ -125,12 +136,6 @@ async def test_service_list(cli, db_conn, company):
                         'machine_name': 'foobar',
                     },
                 ],
-            },
-            {
-                'id': 2,
-                'name': 'testing service',
-                'colour': '#cba',
-                'extra_attributes': [],
             },
         ],
         'count': 2,

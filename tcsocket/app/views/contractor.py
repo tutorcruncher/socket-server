@@ -4,8 +4,9 @@ from operator import attrgetter
 
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.sql import and_, distinct, or_
-from sqlalchemy.sql.functions import count as count_func
+from sqlalchemy.sql import and_, distinct
+from sqlalchemy.sql import functions as sql_f
+from sqlalchemy.sql import or_
 
 from ..geo import geocode
 from ..models import Action, NameOptions, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
@@ -144,7 +145,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         .offset(offset)
         .limit(pagination)
     )
-    q_count = select([count_func(distinct(c.id))]).where(and_(*where))
+    q_count = select([sql_f.count(distinct(c.id))]).where(and_(*where))
     if select_from is not None:
         q_iter = q_iter.select_from(select_from)
         q_count = q_count.select_from(select_from)
