@@ -53,7 +53,7 @@ async def company_list(**kwargs):
 @command
 async def company_create(*, public_key=None, data=None, **kwargs):
     post_data = {
-        'name': f'company {datetime.now():%y-%m-%d %H:%M:%S}',
+        'name': f'company {datetime.utcnow():%y-%m-%d %H:%M:%S}',
         'public_key': public_key,
         '_request_time': int(time()),
     }

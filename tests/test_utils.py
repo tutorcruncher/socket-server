@@ -116,7 +116,6 @@ async def test_400_raise_error(test_client, mocker):
     mocker.spy(middleware.request_logger, 'warning')
     app = Application(middlewares=[middleware.error_middleware])
     app.router.add_route('*', '/', raise_400)
-    # app.on_response_prepare.append(on_prepare)
     client = await test_client(app)
     r = await client.post('/', data='foobar')
     assert r.status == 400

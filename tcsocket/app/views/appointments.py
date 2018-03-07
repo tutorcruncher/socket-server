@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from operator import attrgetter
 
 from sqlalchemy import select
@@ -85,7 +86,7 @@ async def appointment_list(request):
     company = request['company']
     pagination, offset = get_pagination(request)
 
-    where = ser_c.company == company.id,
+    where = ser_c.company == company.id, apt_c.start < datetime.utcnow()
     service_id = get_arg(request, 'service')
     if service_id:
         where += apt_c.service == service_id,
