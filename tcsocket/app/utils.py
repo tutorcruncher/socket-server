@@ -110,3 +110,10 @@ def get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=N
             status='invalid_argument',
             details=f'"{field}" had an invalid value "{v}"',
         )
+
+
+def get_pagination(request, pag_default=30, pag_max=50):
+    page = get_arg(request, 'page', default=1)
+    pagination = min(get_arg(request, 'pagination', default=pag_default), pag_max)
+    offset = (page - 1) * pagination
+    return pagination, offset

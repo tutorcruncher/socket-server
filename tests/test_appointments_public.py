@@ -97,3 +97,39 @@ async def test_service_filter(cli, db_conn, company):
     obj = await r.json()
     assert obj['count'] == 2
     assert {int(r['link'].split('-', 1)[0]) for r in obj['results']} == {1, 2}
+
+
+async def test_service_list(cli, db_conn, company):
+    await create_appointment(db_conn, company, appointment_extra={'id': 1})
+    await create_appointment(db_conn, company, appointment_extra={'id': 2}, create_service=False)
+    await create_appointment(db_conn, company, appointment_extra={'id': 3},
+                             service_extra={'id': 2, 'extra_attributes': [], 'colour': '#cba'})
+
+    url = cli.server.app.router['service-list'].url_for(company='thepublickey')
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj == {
+        'results': [
+            {
+                'id': 1,
+                'name': 'testing service',
+                'colour': '#abc',
+                'extra_attributes': [
+                    {
+                        'name': 'Foobar',
+                        'type': 'text_short',
+                        'value': 'this is the value of foobar',
+                        'machine_name': 'foobar',
+                    },
+                ],
+            },
+            {
+                'id': 2,
+                'name': 'testing service',
+                'colour': '#cba',
+                'extra_attributes': [],
+            },
+        ],
+        'count': 2,
+    }

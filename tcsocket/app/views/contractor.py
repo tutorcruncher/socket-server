@@ -10,7 +10,7 @@ from sqlalchemy.sql.functions import count as count_func
 from ..geo import geocode
 from ..models import Action, NameOptions, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
 from ..processing import contractor_set as _contractor_set
-from ..utils import get_arg, json_response, route_url, slugify
+from ..utils import get_arg, get_pagination, json_response, route_url, slugify
 from ..validation import ContractorModel
 
 logger = logging.getLogger('socket.views')
@@ -68,9 +68,8 @@ def _photo_url(request, con, thumb):
 async def contractor_list(request):  # noqa: C901 (ignore complexity)
     sort_val = request.query.get('sort')
     sort_col = SORT_OPTIONS.get(sort_val, SORT_OPTIONS['last_updated'])
-    page = get_arg(request, 'page', default=1)
-    pagination = min(get_arg(request, 'pagination', default=100), 100)
-    offset = (page - 1) * pagination
+
+    pagination, offset = get_pagination(request, 100, 100)
 
     company = request['company']
     options = company.options or {}

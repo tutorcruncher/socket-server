@@ -30,6 +30,7 @@ PUBLIC_VIEWS = {
     'qual-level-list',
     'labels',
     'appointment-list',
+    'service-list',
 }
 
 

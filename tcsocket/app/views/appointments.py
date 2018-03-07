@@ -7,7 +7,7 @@ from sqlalchemy.sql import and_
 from sqlalchemy.sql.functions import count as count_func
 
 from ..models import sa_appointments, sa_services
-from ..utils import HTTPConflictJson, get_arg, json_response, slugify
+from ..utils import HTTPConflictJson, get_arg, get_pagination, json_response, slugify
 from ..validation import AppointmentModel
 
 logger = logging.getLogger('socket.views')
@@ -83,14 +83,12 @@ APT_LIST_FIELDS = (
 
 async def appointment_list(request):
     company = request['company']
+    pagination, offset = get_pagination(request)
+
     where = ser_c.company == company.id,
     service_id = get_arg(request, 'service')
     if service_id:
         where += apt_c.service == service_id,
-
-    page = get_arg(request, 'page', default=1)
-    pagination = min(get_arg(request, 'pagination', default=30), 50)
-    offset = (page - 1) * pagination
 
     conn = await request['conn_manager'].get_connection()
     results = [dict(
@@ -116,6 +114,30 @@ async def appointment_list(request):
     )]
 
     q_count = select([count_func()]).select_from(sa_appointments.join(sa_services)).where(and_(*where))
+    cur_count = await conn.execute(q_count)
+
+    return json_response(
+        request,
+        results=results,
+        count=(await cur_count.first())[0],
+    )
+
+
+async def service_list(request):
+    company = request['company']
+    pagination, offset = get_pagination(request)
+
+    where = ser_c.company == company.id,
+    conn = await request['conn_manager'].get_connection()
+    results = [dict(row) async for row in conn.execute(
+        select([ser_c.id, ser_c.name, ser_c.colour, ser_c.extra_attributes])
+        .where(and_(*where))
+        .order_by(ser_c.id)
+        .offset(offset)
+        .limit(pagination)
+    )]
+
+    q_count = select([count_func()]).select_from(sa_services).where(and_(*where))
     cur_count = await conn.execute(q_count)
 
     return json_response(
