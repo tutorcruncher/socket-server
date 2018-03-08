@@ -514,8 +514,8 @@ async def create_appointment(db_conn, company, create_service=True, service_extr
         attendees_max=42,
         attendees_count=4,
         attendees_current_ids=[1, 2, 3],
-        start=datetime(1986, 1, 1, 12, 0, 0),
-        finish=datetime(1986, 1, 1, 13, 0, 0),
+        start=datetime(2032, 1, 1, 12, 0, 0),
+        finish=datetime(2032, 1, 1, 13, 0, 0),
         price=123.45,
         location='Whatever',
     )
