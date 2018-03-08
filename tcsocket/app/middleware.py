@@ -31,6 +31,7 @@ PUBLIC_VIEWS = {
     'labels',
     'appointment-list',
     'service-list',
+    'check-client',
 }
 
 

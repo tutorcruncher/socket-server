@@ -1,14 +1,19 @@
+import hashlib
+import hmac
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from operator import attrgetter
+from secrets import compare_digest
+from typing import Dict
 
+from pydantic import BaseModel, Protocol, validator
 from sqlalchemy import distinct, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
 from sqlalchemy.sql import functions as sql_f
 
 from ..models import sa_appointments, sa_services
-from ..utils import HTTPConflictJson, get_arg, get_pagination, json_response, slugify
+from ..utils import HTTPConflictJson, HTTPForbiddenJson, get_arg, get_pagination, json_response, slugify
 from ..validation import AppointmentModel
 
 logger = logging.getLogger('socket.views')
@@ -156,4 +161,62 @@ async def service_list(request):
         request,
         results=results,
         count=(await cur_count.first())[0],
+    )
+
+
+class SSOData(BaseModel):
+    role_type: str
+    name: str
+    students: Dict[int, str]
+    expires: datetime
+    key: str
+
+    @validator('role_type')
+    def check_role_type(cls, v):
+        if v != 'Client':
+            raise ValueError('must be "Client"')
+
+    @validator('expires')
+    def check_expires(cls, v):
+        if v < datetime.now().replace(tzinfo=timezone.utc):
+            raise ValueError('session expired')
+
+    class Config:
+        fields = {
+            'role_type': 'rt',
+            'name': 'nm',
+            'students': 'srs',
+            'expires': 'exp',
+        }
+
+
+def _get_sso_data(request, company) -> SSOData:
+    sso_data = request.query.get('sso_data', '-')
+    expected_sig = hmac.new(company.private_key.encode(), sso_data.encode(), hashlib.sha1).hexdigest()
+    if not compare_digest(expected_sig, request.query.get('signature', '-')):
+        raise HTTPForbiddenJson(status='invalid signature')
+
+    return SSOData.parse_raw(sso_data, proto=Protocol.json)
+
+
+async def check_client(request):
+    company = request['company']
+    sso_data = _get_sso_data(request, company)
+
+    where = and_(
+        ser_c.company == company.id,
+        apt_c.start < datetime.utcnow(),
+        apt_c.attendees_current_ids.overlap(list(sso_data.students.keys()))
+    )
+
+    conn = await request['conn_manager'].get_connection()
+    return json_response(
+        request,
+        status='ok',
+        appointment_ids=[r.id async for r in conn.execute(
+            select([apt_c.id])
+            .select_from(sa_appointments.join(sa_services))
+            .where(where)
+            .limit(100)
+        )]
     )

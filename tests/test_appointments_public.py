@@ -1,4 +1,8 @@
+import hashlib
+import hmac
+import json
 from datetime import datetime, timedelta
+from time import time
 
 from tcsocket.app.models import sa_appointments, sa_services
 
@@ -140,3 +144,39 @@ async def test_service_list(cli, db_conn, company):
         ],
         'count': 2,
     }
+
+
+async def test_check_client_data(cli, company, db_conn):
+    await create_appointment(db_conn, company, appointment_extra={'attendees_current_ids': [384924]})
+    await create_appointment(db_conn, company, appointment_extra={'id': 987654, 'attendees_current_ids': [384924]},
+                             service_extra={'id': 2})
+
+    expires = int(time()) + 10
+    sso_data = json.dumps({
+        'rt': 'Client',
+        'nm': 'Testing Client',
+        'srs': {
+            '384924': 'Frank Foobar'
+        },
+        'id': 364576,
+        'tz': 'Europe/London',
+        'br_id': 3492,
+        'br_nm': 'DinoTutors: Dino Centre',
+        'exp': expires,
+        'key': f'384854-{expires}-66cba424ae7783bcacfc5a75482a48c00b5e25fa'
+    })
+
+    url = (
+        cli.server.app.router['check-client']
+        .url_for(company='thepublickey')
+        .with_query({
+            'signature': hmac.new(company.private_key.encode(), sso_data.encode(), hashlib.sha1).hexdigest(),
+            'sso_data': sso_data
+        })
+    )
+    r = await cli.get(url)
+
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['status'] == 'ok'
+    assert sorted(obj['appointment_ids']) == [456, 987654]
