@@ -13,8 +13,9 @@ from sqlalchemy.sql import and_
 from sqlalchemy.sql import functions as sql_f
 
 from ..models import sa_appointments, sa_services
-from ..utils import HTTPConflictJson, HTTPForbiddenJson, get_arg, get_pagination, json_response, slugify
-from ..validation import AppointmentModel
+from ..utils import (HTTPBadRequestJson, HTTPConflictJson, HTTPForbiddenJson, get_arg, get_pagination, json_response,
+                     slugify)
+from ..validation import AppointmentModel, BookingModel
 
 logger = logging.getLogger('socket.views')
 apt_c = sa_appointments.c
@@ -199,24 +200,48 @@ def _get_sso_data(request, company) -> SSOData:
     return SSOData.parse_raw(sso_data, proto=Protocol.json)
 
 
+async def _get_appointment_ids(conn, sso_data, company):
+    return {r.id async for r in conn.execute(
+        select([apt_c.id])
+        .select_from(sa_appointments.join(sa_services))
+        .where(and_(
+            ser_c.company == company.id,
+            apt_c.start < datetime.utcnow(),
+            apt_c.attendees_current_ids.overlap(list(sso_data.students.keys()))
+        ))
+        .limit(100)
+    )}
+
+
 async def check_client(request):
     company = request['company']
     sso_data = _get_sso_data(request, company)
-
-    where = and_(
-        ser_c.company == company.id,
-        apt_c.start < datetime.utcnow(),
-        apt_c.attendees_current_ids.overlap(list(sso_data.students.keys()))
-    )
 
     conn = await request['conn_manager'].get_connection()
     return json_response(
         request,
         status='ok',
-        appointment_ids=[r.id async for r in conn.execute(
-            select([apt_c.id])
-            .select_from(sa_appointments.join(sa_services))
-            .where(where)
-            .limit(100)
-        )]
+        appointment_ids=list(await _get_appointment_ids(conn, sso_data, company))
     )
+
+
+async def book_appointment(request):
+    company = request['company']
+    sso_data = _get_sso_data(request, company)
+
+    booking: BookingModel = request['model']
+    if booking.student not in sso_data.students:
+        raise HTTPBadRequestJson(status=f'student {booking.student} not associated with this client')
+
+    conn = await request['conn_manager'].get_connection()
+    appointment_ids = await _get_appointment_ids(conn, sso_data, company)
+    if booking.appointment not in appointment_ids:
+        raise HTTPBadRequestJson(status=f'appointment {booking.appointment} not associated with this client')
+
+    data = {
+        'client_key': sso_data.key,
+        'service_recipient': booking.student,
+        'appointment': booking.appointment,
+    }
+    await request.app['worker'].submit_booking(dict(company), data)
+    return json_response(request, status='ok')

@@ -181,10 +181,16 @@ class AppointmentModel(BaseModel):
     location: Optional[str]
 
 
+class BookingModel(BaseModel):
+    appointment: int
+    student: int
+
+
 VIEW_MODELS = {
     'company-create': CompanyCreateModal,
     'company-update': CompanyUpdateModel,
     'webhook-contractor': ContractorModel,
     'enquiry': EnquiryModal,
     'webhook-appointment': AppointmentModel,
+    'book-appointment': BookingModel,
 }

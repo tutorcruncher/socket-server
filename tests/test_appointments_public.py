@@ -146,37 +146,103 @@ async def test_service_list(cli, db_conn, company):
     }
 
 
-async def test_check_client_data(cli, company, db_conn):
-    await create_appointment(db_conn, company, appointment_extra={'attendees_current_ids': [384924]})
-    await create_appointment(db_conn, company, appointment_extra={'id': 987654, 'attendees_current_ids': [384924]},
-                             service_extra={'id': 2})
-
+def sig_sso_data(company, **kwargs):
     expires = int(time()) + 10
-    sso_data = json.dumps({
+    data = {
         'rt': 'Client',
         'nm': 'Testing Client',
-        'srs': {
-            '384924': 'Frank Foobar'
-        },
+        'srs': {'3': 'Frank Foobar'},
         'id': 364576,
         'tz': 'Europe/London',
         'br_id': 3492,
         'br_nm': 'DinoTutors: Dino Centre',
         'exp': expires,
         'key': f'384854-{expires}-66cba424ae7783bcacfc5a75482a48c00b5e25fa'
-    })
+    }
+    data.update(kwargs)
+    sso_data = json.dumps(data)
+    return {
+        'signature': hmac.new(company.private_key.encode(), sso_data.encode(), hashlib.sha1).hexdigest(),
+        'sso_data': sso_data,
+    }
+
+
+async def test_check_client_data(cli, company, db_conn):
+    await create_appointment(db_conn, company, appointment_extra={'attendees_current_ids': [384924]})
+    await create_appointment(db_conn, company, appointment_extra={'id': 987654, 'attendees_current_ids': [384924]},
+                             service_extra={'id': 2})
+
+    sso_args = sig_sso_data(company, srs={'384924': 'Frank Foobar'})
 
     url = (
         cli.server.app.router['check-client']
         .url_for(company='thepublickey')
-        .with_query({
-            'signature': hmac.new(company.private_key.encode(), sso_data.encode(), hashlib.sha1).hexdigest(),
-            'sso_data': sso_data
-        })
+        .with_query(sso_args)
     )
     r = await cli.get(url)
-
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert obj['status'] == 'ok'
     assert sorted(obj['appointment_ids']) == [456, 987654]
+
+
+async def test_submit_appointment(cli, company, appointment, other_server):
+    url = (
+        cli.server.app.router['book-appointment']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company))
+    )
+    assert len(other_server.app['request_log']) == 0
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
+    assert r.status == 200, await r.text()
+    assert len(other_server.app['request_log']) == 1
+    assert other_server.app['request_log'][0][0] == 'booking_post'
+
+
+async def test_submit_appointment_wrong_student(cli, company, appointment, other_server):
+    url = (
+        cli.server.app.router['book-appointment']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company))
+    )
+    assert len(other_server.app['request_log']) == 0
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '15'}))
+    assert r.status == 400, await r.text()
+    assert {'status': 'student 15 not associated with this client'} == await r.json()
+    assert len(other_server.app['request_log']) == 0
+
+
+async def test_submit_appointment_wrong_appointment(cli, company, appointment, other_server):
+    url = (
+        cli.server.app.router['book-appointment']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company))
+    )
+    assert len(other_server.app['request_log']) == 0
+    r = await cli.post(url, data=json.dumps({'appointment': 987, 'student': '3'}))
+    assert r.status == 400, await r.text()
+    assert {'status': 'appointment 987 not associated with this client'} == await r.json()
+    assert len(other_server.app['request_log']) == 0
+
+
+async def test_submit_appointment_no_signature(cli, company, appointment, other_server):
+    url = (
+        cli.server.app.router['book-appointment']
+        .url_for(company='thepublickey')
+    )
+    assert len(other_server.app['request_log']) == 0
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
+    assert r.status == 403, await r.text()
+
+
+async def test_submit_appointment_invalid_signature(cli, company, appointment, other_server):
+    sig_args = sig_sso_data(company)
+    sig_args['signature'] += 'x'
+    url = (
+        cli.server.app.router['book-appointment']
+        .url_for(company='thepublickey')
+        .with_query(sig_args)
+    )
+    assert len(other_server.app['request_log']) == 0
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
+    assert r.status == 403, await r.text()

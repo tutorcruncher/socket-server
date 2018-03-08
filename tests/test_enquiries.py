@@ -253,7 +253,7 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
         ),
         'enquiry_options',
     ]
-    assert '400 response forwarding enquiry to http://localhost:' in caplog
+    assert '400 response posting to http://localhost:' in caplog
 
 
 async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
@@ -291,9 +291,8 @@ async def test_post_enquiry_500(cli, company, other_server, caplog):
     headers = {'Referer': 'http://snap.com', 'Origin': 'http://example.com'}
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers=headers)
-    # because jobs are being executed directly
-    assert r.status == 500, await r.text()
-    assert 'Bad response from http://localhost:' in caplog
+    assert r.status == 201, await r.text()
+    assert '500 response posting to http://localhost:' in caplog
 
 
 async def test_post_enquiry_referrer_too_long(cli, company, other_server):

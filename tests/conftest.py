@@ -228,9 +228,15 @@ async def enquiry_post_view(request):
     json_obj = await request.json()
     referrer = json_obj.get('http_referrer') or ''
     if 'snap' in referrer:
-        raise RuntimeError('enquiry_post_view snap')
+        return Response(text='error', status=500)
     request.app['request_log'].append(('enquiry_post', json_obj))
     return json_response({'status': 'enquiry submitted, no-op'}, status=400 if '400' in referrer else 200)
+
+
+async def booking_post_view(request):
+    json_obj = await request.json()
+    request.app['request_log'].append(('booking_post', json_obj))
+    return json_response({'status': 'booking submitted, no-op'})
 
 
 async def grecaptcha_post_view(request):
@@ -294,6 +300,7 @@ def other_server(loop, test_server):
     app.router.add_get('/api/contractors/', contractor_list_view)
     app.router.add_route('OPTIONS', '/api/enquiry/', enquiry_options_view)
     app.router.add_post('/api/enquiry/', enquiry_post_view)
+    app.router.add_post('/api/recipients/', booking_post_view)
     app.router.add_post('/grecaptcha', grecaptcha_post_view)
     app.router.add_get('/geocode', geocoding_view)
     app.update(
