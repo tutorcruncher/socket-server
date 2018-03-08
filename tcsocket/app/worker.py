@@ -42,6 +42,7 @@ class MainActor(Actor):
         self.api_root = self.settings.tc_api_root
         self.api_contractors = self.api_root + '/contractors/'
         self.api_enquiries = self.api_root + '/enquiry/'
+        self.api_book_appointment = self.api_root + '/recipients/'
         self.session = self.media = self.pg_engine = None
         self.retry_sleep = 1
 
@@ -98,8 +99,8 @@ class MainActor(Actor):
             )
         return 200
 
-    def request_headers(self, company):
-        return dict(accept=CT_JSON, authorization=f'Token {company["private_key"]}')
+    def request_headers(self, company, extra=None):
+        return dict(accept=CT_JSON, authorization=f'Token {company["private_key"]}', **(extra or {}))
 
     async def _get_from_api(self, url, model, company):
         headers = self.request_headers(company)
@@ -187,29 +188,34 @@ class MainActor(Actor):
         grecaptcha_response = data.pop('grecaptcha_response')
         if not await self._check_grecaptcha(company, grecaptcha_response, data['ip_address']):
             return
-        logger.info('ip: %s', data['ip_address'])
+        status = await self.post_data(self.api_enquiries, data, company)
+        if status != 200:
+            await self.update_enquiry_options(company)
+        return status
+
+    @concurrent
+    async def submit_booking(self, company, data):
+        return await self.post_data(self.api_book_appointment, data, company)
+
+    async def post_data(self, url, data, company):
         data_enc = json.dumps(data)
-        logger.info('data_enc: %s', data_enc)
-        headers = self.request_headers(company)
-        headers['Content-Type'] = CT_JSON
-        async with self.session.post(self.api_enquiries, data=data_enc, headers=headers) as r:
-            try:
-                assert r.status in (200, 201, 400)
-                response_data = await r.json()
-            except (ValueError, AssertionError) as e:
-                body = await r.read()
-                raise RuntimeError(f'Bad response from {self.api_enquiries} {r.status}, response:\n{body}') from e
-        logger.info('Response: %d, %s', r.status, response_data)
-        if r.status not in (200, 201):
-            logger.error('%d response forwarding enquiry to %s', r.status, self.api_enquiries, extra={
+        logger.info('POST => %s %s', url, data_enc)
+        headers = self.request_headers(company, {'Content-Type': CT_JSON})
+        async with self.session.post(url, data=data_enc, headers=headers) as r:
+            response_data = await r.read()
+        response_data = response_data.decode()
+        logger.info('%s: response: %d, %s', url, r.status, response_data)
+        if r.status not in {200, 201}:
+            logger.error('%d response posting to %s', r.status, url, extra={
                 'data': {
-                    'headers': dict(r.headers),
                     'company': company,
-                    'request': data,
-                    'response': response_data,
+                    'request_headers': headers,
+                    'request_url': url,
+                    'request_data': data,
+                    'response_headers': dict(r.headers),
+                    'response_data': response_data,
                 }
             })
-            await self.update_enquiry_options(company)
         return r.status
 
     @cron(hour=3, minute=0)

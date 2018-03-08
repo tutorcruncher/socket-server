@@ -13,8 +13,9 @@ from sqlalchemy.sql import and_
 from sqlalchemy.sql import functions as sql_f
 
 from ..models import sa_appointments, sa_services
-from ..utils import HTTPConflictJson, HTTPForbiddenJson, get_arg, get_pagination, json_response, slugify
-from ..validation import AppointmentModel
+from ..utils import (HTTPBadRequestJson, HTTPConflictJson, HTTPForbiddenJson, HTTPNotFoundJson, get_arg, get_pagination,
+                     json_response, slugify)
+from ..validation import AppointmentModel, BookingModel
 
 logger = logging.getLogger('socket.views')
 apt_c = sa_appointments.c
@@ -87,17 +88,23 @@ APT_LIST_FIELDS = (
 )
 
 
+def _today():
+    now = datetime.utcnow()
+    return datetime(now.year, now.month, now.day, 0, 0)
+
+
 async def appointment_list(request):
     company = request['company']
     pagination, offset = get_pagination(request)
 
-    where = ser_c.company == company.id, apt_c.start < datetime.utcnow()
+    where = ser_c.company == company.id, apt_c.start > _today()
     service_id = get_arg(request, 'service')
     if service_id:
         where += apt_c.service == service_id,
 
     conn = await request['conn_manager'].get_connection()
     results = [dict(
+        id=row.appointments_id,
         link=f'{row.appointments_id}-{slugify(row.appointments_topic)}',
         topic=row.appointments_topic,
         attendees_max=row.appointments_attendees_max,
@@ -133,7 +140,7 @@ async def service_list(request):
     company = request['company']
     pagination, offset = get_pagination(request)
 
-    where = ser_c.company == company.id, apt_c.start < datetime.utcnow()
+    where = ser_c.company == company.id, apt_c.start > _today()
     q1 = (
         select([ser_c.id, ser_c.name, ser_c.colour, ser_c.extra_attributes, sql_f.min(apt_c.start).label('min_start')])
         .select_from(sa_appointments.join(sa_services))
@@ -203,20 +210,60 @@ async def check_client(request):
     company = request['company']
     sso_data = _get_sso_data(request, company)
 
-    where = and_(
-        ser_c.company == company.id,
-        apt_c.start < datetime.utcnow(),
-        apt_c.attendees_current_ids.overlap(list(sso_data.students.keys()))
+    q = (
+        select([apt_c.id, apt_c.attendees_current_ids])
+        .select_from(sa_appointments.join(sa_services))
+        .where(and_(
+            ser_c.company == company.id,
+            apt_c.start > datetime.utcnow(),
+            apt_c.attendees_current_ids.overlap(list(sso_data.students.keys()))
+        ))
+        .limit(100)
     )
-
     conn = await request['conn_manager'].get_connection()
     return json_response(
         request,
         status='ok',
-        appointment_ids=[r.id async for r in conn.execute(
-            select([apt_c.id])
-            .select_from(sa_appointments.join(sa_services))
-            .where(where)
-            .limit(100)
-        )]
+        appointment_attendees={
+            r.id: sorted(set(r.attendees_current_ids) & sso_data.students.keys())
+            async for r in conn.execute(q)
+        }
     )
+
+
+async def book_appointment(request):
+    company = request['company']
+    sso_data = _get_sso_data(request, company)
+
+    booking: BookingModel = request['model']
+    if booking.student_id and booking.student_id not in sso_data.students:
+        raise HTTPBadRequestJson(status=f'student {booking.student_id} not associated with this client')
+
+    conn = await request['conn_manager'].get_connection()
+    v = await conn.execute(
+        select([apt_c.attendees_current_ids])
+        .select_from(sa_appointments.join(sa_services))
+        .where(and_(
+            ser_c.company == company.id,
+            apt_c.start > datetime.utcnow(),
+            apt_c.id == booking.appointment,
+        ))
+    )
+    r = await v.first()
+    if not r:
+        raise HTTPNotFoundJson(status=f'appointment {booking.appointment} not found')
+
+    if booking.student_id:
+        apt_attendees = set(r.attendees_current_ids)
+        if booking.student_id in apt_attendees:
+            raise HTTPBadRequestJson(status=f'student {booking.student_id}({sso_data.students[booking.student_id]}) '
+                                            f'already on appointment {booking.appointment}')
+
+    data = {
+        'client_key': sso_data.key,
+        'service_recipient_id': booking.student_id,
+        'service_recipient_name': booking.student_name or None,
+        'appointment': booking.appointment,
+    }
+    await request.app['worker'].submit_booking(dict(company), data)
+    return json_response(request, status='ok')

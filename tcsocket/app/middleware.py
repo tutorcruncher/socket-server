@@ -32,6 +32,7 @@ PUBLIC_VIEWS = {
     'appointment-list',
     'service-list',
     'check-client',
+    'book-appointment',
 }
 
 
