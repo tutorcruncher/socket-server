@@ -236,8 +236,8 @@ async def book_appointment(request):
     sso_data = _get_sso_data(request, company)
 
     booking: BookingModel = request['model']
-    if booking.student not in sso_data.students:
-        raise HTTPBadRequestJson(status=f'student {booking.student} not associated with this client')
+    if booking.student_id and booking.student_id not in sso_data.students:
+        raise HTTPBadRequestJson(status=f'student {booking.student_id} not associated with this client')
 
     conn = await request['conn_manager'].get_connection()
     v = await conn.execute(
@@ -253,14 +253,16 @@ async def book_appointment(request):
     if not r:
         raise HTTPNotFoundJson(status=f'appointment {booking.appointment} not found')
 
-    apt_attendees = set(r.attendees_current_ids)
-    if booking.student in apt_attendees:
-        raise HTTPBadRequestJson(status=f'student {booking.student}({sso_data.students[booking.student]}) '
-                                        f'already on appointment {booking.appointment}')
+    if booking.student_id:
+        apt_attendees = set(r.attendees_current_ids)
+        if booking.student_id in apt_attendees:
+            raise HTTPBadRequestJson(status=f'student {booking.student_id}({sso_data.students[booking.student_id]}) '
+                                            f'already on appointment {booking.appointment}')
 
     data = {
         'client_key': sso_data.key,
-        'service_recipient': booking.student,
+        'service_recipient_id': booking.student_id,
+        'service_recipient_name': booking.student_name or None,
         'appointment': booking.appointment,
     }
     await request.app['worker'].submit_booking(dict(company), data)

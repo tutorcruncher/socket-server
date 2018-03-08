@@ -183,7 +183,14 @@ class AppointmentModel(BaseModel):
 
 class BookingModel(BaseModel):
     appointment: int
-    student: int
+    student_id: int = None
+    student_name: str = ''
+
+    @validator('student_name', always=True)
+    def check_name_or_id(cls, v, values, **kwargs):
+        if v == '' and values['student_id'] is None:
+            raise ValueError('either student_id or student_name is required')
+        return v
 
 
 VIEW_MODELS = {

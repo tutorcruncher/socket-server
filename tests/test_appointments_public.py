@@ -216,10 +216,30 @@ async def test_submit_appointment(cli, company, appointment, other_server):
         .with_query(sig_sso_data(company))
     )
     assert len(other_server.app['request_log']) == 0
-    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '4'}))
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '4'}))
     assert r.status == 200, await r.text()
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
+    assert other_server.app['request_log'][0][1]['service_recipient_id'] == 4
+    assert other_server.app['request_log'][0][1]['service_recipient_name'] is None
+
+
+async def test_submit_appointment_student_name(cli, company, appointment, other_server):
+    url = (
+        cli.server.app.router['book-appointment']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company))
+    )
+    assert len(other_server.app['request_log']) == 0
+    r = await cli.post(url, data=json.dumps({
+        'appointment': appointment['appointment']['id'],
+        'student_name': 'Frank Spencer'
+    }))
+    assert r.status == 200, await r.text()
+    assert len(other_server.app['request_log']) == 1
+    assert other_server.app['request_log'][0][0] == 'booking_post'
+    assert other_server.app['request_log'][0][1]['service_recipient_id'] is None
+    assert other_server.app['request_log'][0][1]['service_recipient_name'] == 'Frank Spencer'
 
 
 async def test_submit_double_book(cli, company, appointment, other_server):
@@ -229,7 +249,7 @@ async def test_submit_double_book(cli, company, appointment, other_server):
         .with_query(sig_sso_data(company))
     )
     assert len(other_server.app['request_log']) == 0
-    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '3'}))
     assert r.status == 400, await r.text()
     assert {'status': 'student 3(Frank Foobar) already on appointment 456'} == await r.json()
     assert len(other_server.app['request_log']) == 0
@@ -242,7 +262,7 @@ async def test_submit_appointment_wrong_appointment(cli, company, appointment, o
         .with_query(sig_sso_data(company))
     )
     assert len(other_server.app['request_log']) == 0
-    r = await cli.post(url, data=json.dumps({'appointment': 987, 'student': '3'}))
+    r = await cli.post(url, data=json.dumps({'appointment': 987, 'student_id': 3}))
     assert r.status == 404, await r.text()
     assert {'status': 'appointment 987 not found'} == await r.json()
     assert len(other_server.app['request_log']) == 0
@@ -254,7 +274,7 @@ async def test_submit_appointment_no_signature(cli, company, appointment, other_
         .url_for(company='thepublickey')
     )
     assert len(other_server.app['request_log']) == 0
-    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': 3}))
     assert r.status == 403, await r.text()
 
 
@@ -267,5 +287,17 @@ async def test_submit_appointment_invalid_signature(cli, company, appointment, o
         .with_query(sig_args)
     )
     assert len(other_server.app['request_log']) == 0
-    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': 3}))
     assert r.status == 403, await r.text()
+
+
+async def test_no_id_or_none(cli, company, appointment, other_server):
+    url = (
+        cli.server.app.router['book-appointment']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company))
+    )
+    assert len(other_server.app['request_log']) == 0
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id']}))
+    assert r.status == 400, await r.text()
+    assert 'either student_id or student_name is required' in await r.text()
