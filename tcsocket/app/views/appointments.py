@@ -13,8 +13,8 @@ from sqlalchemy.sql import and_
 from sqlalchemy.sql import functions as sql_f
 
 from ..models import sa_appointments, sa_services
-from ..utils import (HTTPBadRequestJson, HTTPConflictJson, HTTPForbiddenJson, get_arg, get_pagination, json_response,
-                     slugify)
+from ..utils import (HTTPBadRequestJson, HTTPConflictJson, HTTPForbiddenJson, HTTPNotFoundJson, get_arg, get_pagination,
+                     json_response, slugify)
 from ..validation import AppointmentModel, BookingModel
 
 logger = logging.getLogger('socket.views')
@@ -206,9 +206,12 @@ def _get_sso_data(request, company) -> SSOData:
     return SSOData.parse_raw(sso_data, proto=Protocol.json)
 
 
-async def _get_appointment_ids(conn, sso_data, company):
-    return {r.id async for r in conn.execute(
-        select([apt_c.id])
+async def check_client(request):
+    company = request['company']
+    sso_data = _get_sso_data(request, company)
+
+    q = (
+        select([apt_c.id, apt_c.attendees_current_ids])
         .select_from(sa_appointments.join(sa_services))
         .where(and_(
             ser_c.company == company.id,
@@ -216,18 +219,15 @@ async def _get_appointment_ids(conn, sso_data, company):
             apt_c.attendees_current_ids.overlap(list(sso_data.students.keys()))
         ))
         .limit(100)
-    )}
-
-
-async def check_client(request):
-    company = request['company']
-    sso_data = _get_sso_data(request, company)
-
+    )
     conn = await request['conn_manager'].get_connection()
     return json_response(
         request,
         status='ok',
-        appointment_ids=list(await _get_appointment_ids(conn, sso_data, company))
+        appointment_attendees={
+            r.id: sorted(set(r.attendees_current_ids) & sso_data.students.keys())
+            async for r in conn.execute(q)
+        }
     )
 
 
@@ -240,9 +240,23 @@ async def book_appointment(request):
         raise HTTPBadRequestJson(status=f'student {booking.student} not associated with this client')
 
     conn = await request['conn_manager'].get_connection()
-    appointment_ids = await _get_appointment_ids(conn, sso_data, company)
-    if booking.appointment not in appointment_ids:
-        raise HTTPBadRequestJson(status=f'appointment {booking.appointment} not associated with this client')
+    v = await conn.execute(
+        select([apt_c.attendees_current_ids])
+        .select_from(sa_appointments.join(sa_services))
+        .where(and_(
+            ser_c.company == company.id,
+            apt_c.start > datetime.utcnow(),
+            apt_c.id == booking.appointment,
+        ))
+    )
+    r = await v.first()
+    if not r:
+        raise HTTPNotFoundJson(status=f'appointment {booking.appointment} not found')
+
+    apt_attendees = set(r.attendees_current_ids)
+    if booking.student in apt_attendees:
+        raise HTTPBadRequestJson(status=f'student {booking.student}({sso_data.students[booking.student]}) '
+                                        f'already on appointment {booking.appointment}')
 
     data = {
         'client_key': sso_data.key,

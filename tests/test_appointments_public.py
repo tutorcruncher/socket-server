@@ -100,13 +100,13 @@ async def test_service_filter(cli, db_conn, company):
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert obj['count'] == 3
-    assert {int(r['link'].split('-', 1)[0]) for r in obj['results']} == {1, 2, 3}
+    assert {r['id'] for r in obj['results']} == {1, 2, 3}
 
     r = await cli.get(url.with_query({'service': '1'}))
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert obj['count'] == 2
-    assert {int(r['link'].split('-', 1)[0]) for r in obj['results']} == {1, 2}
+    assert {r['id'] for r in obj['results']} == {1, 2}
 
 
 async def test_service_list(cli, db_conn, company):
@@ -155,7 +155,10 @@ def sig_sso_data(company, **kwargs):
     data = {
         'rt': 'Client',
         'nm': 'Testing Client',
-        'srs': {'3': 'Frank Foobar'},
+        'srs': {
+            '3': 'Frank Foobar',
+            '4': 'Another Student',
+        },
         'id': 364576,
         'tz': 'Europe/London',
         'br_id': 3492,
@@ -172,11 +175,23 @@ def sig_sso_data(company, **kwargs):
 
 
 async def test_check_client_data(cli, company, db_conn):
-    await create_appointment(db_conn, company, appointment_extra={'attendees_current_ids': [384924]})
-    await create_appointment(db_conn, company, appointment_extra={'id': 987654, 'attendees_current_ids': [384924]},
-                             service_extra={'id': 2})
+    await create_appointment(
+        db_conn, company, appointment_extra={'id': 42, 'attendees_current_ids': [384924]}
+    )
+    await create_appointment(
+        db_conn, company, appointment_extra={'id': 43, 'attendees_current_ids': [384924, 123]},
+        create_service=False,
+    )
+    await create_appointment(
+        db_conn,  company, appointment_extra={'id': 44, 'attendees_current_ids': [384924, 6, 7, 8]},
+        create_service=False,
+    )
+    await create_appointment(
+        db_conn,  company, appointment_extra={'id': 45, 'attendees_current_ids': [8, 9]},
+        create_service=False,
+    )
 
-    sso_args = sig_sso_data(company, srs={'384924': 'Frank Foobar'})
+    sso_args = sig_sso_data(company, srs={'384924': 'Frank Foobar', '123': 'Other Studnets'})
 
     url = (
         cli.server.app.router['check-client']
@@ -187,7 +202,11 @@ async def test_check_client_data(cli, company, db_conn):
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert obj['status'] == 'ok'
-    assert sorted(obj['appointment_ids']) == [456, 987654]
+    assert obj['appointment_attendees'] == {
+        '42': [384924],
+        '43': [123, 384924],
+        '44': [384924]
+    }
 
 
 async def test_submit_appointment(cli, company, appointment, other_server):
@@ -197,22 +216,22 @@ async def test_submit_appointment(cli, company, appointment, other_server):
         .with_query(sig_sso_data(company))
     )
     assert len(other_server.app['request_log']) == 0
-    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '4'}))
     assert r.status == 200, await r.text()
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
 
 
-async def test_submit_appointment_wrong_student(cli, company, appointment, other_server):
+async def test_submit_double_book(cli, company, appointment, other_server):
     url = (
         cli.server.app.router['book-appointment']
         .url_for(company='thepublickey')
         .with_query(sig_sso_data(company))
     )
     assert len(other_server.app['request_log']) == 0
-    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '15'}))
+    r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student': '3'}))
     assert r.status == 400, await r.text()
-    assert {'status': 'student 15 not associated with this client'} == await r.json()
+    assert {'status': 'student 3(Frank Foobar) already on appointment 456'} == await r.json()
     assert len(other_server.app['request_log']) == 0
 
 
@@ -224,8 +243,8 @@ async def test_submit_appointment_wrong_appointment(cli, company, appointment, o
     )
     assert len(other_server.app['request_log']) == 0
     r = await cli.post(url, data=json.dumps({'appointment': 987, 'student': '3'}))
-    assert r.status == 400, await r.text()
-    assert {'status': 'appointment 987 not associated with this client'} == await r.json()
+    assert r.status == 404, await r.text()
+    assert {'status': 'appointment 987 not found'} == await r.json()
     assert len(other_server.app['request_log']) == 0
 
 
