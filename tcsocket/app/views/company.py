@@ -52,7 +52,7 @@ async def company_create(request):
 
 OPTIONS_FIELDS = {
     'show_stars', 'display_mode', 'router_mode', 'show_hours_reviewed', 'show_labels', 'show_location_search',
-    'show_subject_filter', 'sort_on', 'pagination', 'auth_url'
+    'show_subject_filter', 'sort_on', 'pagination', 'auth_url', 'distance_units'
 }
 
 
@@ -68,6 +68,8 @@ async def company_update(request):
 
     options = company.dict(include=OPTIONS_FIELDS)
     options = {k: v for k, v in options.items() if v is not None}
+    if company.currency:
+        options['currency'] = company.currency.dict()
     if options:
         data['options'] = options
 

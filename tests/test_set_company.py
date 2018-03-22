@@ -255,6 +255,8 @@ async def test_update_company(cli, db_conn, company, other_server):
         pagination=20,
         sort_on='review_rating',
         auth_url='https://foobar.com/whatever',
+        distance_units='miles',
+        currency={'code': 'GBP', 'symbol': '£'},
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
@@ -267,6 +269,8 @@ async def test_update_company(cli, db_conn, company, other_server):
                 'pagination': 20,
                 'sort_on': 'review_rating',
                 'auth_url': 'https://foobar.com/whatever',
+                'distance_units': 'miles',
+                'currency': {'code': 'GBP', 'symbol': '£'},
             }
         },
         'company_domains': ['changed.com'],
@@ -283,6 +287,8 @@ async def test_update_company(cli, db_conn, company, other_server):
         'show_location_search': False,
         'sort_on': 'review_rating',
         'auth_url': 'https://foobar.com/whatever',
+        'distance_units': 'miles',
+        'currency': {'code': 'GBP', 'symbol': '£'},
     }
 
     r = await cli.get(f'/{company.public_key}/options')

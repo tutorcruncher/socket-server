@@ -72,6 +72,13 @@ class CompanyUpdateModel(BaseModel):
     sort_on: SortOn = None
     pagination: int = None
     auth_url: str = None
+    distance_units: str = None  # TODO could use an enum for strict versions
+
+    class Currency(BaseModel):
+        code: str
+        symbol: str
+
+    currency: Currency = None
 
 
 class CompanyOptionsModel(BaseModel):
