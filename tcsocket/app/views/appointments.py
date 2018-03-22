@@ -6,15 +6,15 @@ from operator import attrgetter
 from secrets import compare_digest
 from typing import Dict
 
-from pydantic import BaseModel, Protocol, validator
+from pydantic import BaseModel, Protocol, ValidationError, validator
 from sqlalchemy import distinct, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_
 from sqlalchemy.sql import functions as sql_f
 
 from ..models import sa_appointments, sa_services
-from ..utils import (HTTPBadRequestJson, HTTPConflictJson, HTTPForbiddenJson, HTTPNotFoundJson, get_arg, get_pagination,
-                     json_response, slugify)
+from ..utils import (HTTPBadRequestJson, HTTPConflictJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson,
+                     get_arg, get_pagination, json_response, slugify)
 from ..validation import AppointmentModel, BookingModel
 
 logger = logging.getLogger('socket.views')
@@ -183,11 +183,6 @@ class SSOData(BaseModel):
         if v != 'Client':
             raise ValueError('must be "Client"')
 
-    @validator('expires')
-    def check_expires(cls, v):
-        if v < datetime.now().replace(tzinfo=timezone.utc):
-            raise ValueError('session expired')
-
     class Config:
         fields = {
             'role_type': 'rt',
@@ -198,12 +193,21 @@ class SSOData(BaseModel):
 
 
 def _get_sso_data(request, company) -> SSOData:
-    sso_data = request.query.get('sso_data', '-')
-    expected_sig = hmac.new(company.private_key.encode(), sso_data.encode(), hashlib.sha1).hexdigest()
+    sso_data_ = request.query.get('sso_data', '-')
+    expected_sig = hmac.new(company.private_key.encode(), sso_data_.encode(), hashlib.sha1).hexdigest()
     if not compare_digest(expected_sig, request.query.get('signature', '-')):
         raise HTTPForbiddenJson(status='invalid signature')
-
-    return SSOData.parse_raw(sso_data, proto=Protocol.json)
+    try:
+        sso_data: SSOData = SSOData.parse_raw(sso_data_, proto=Protocol.json)
+    except ValidationError as e:
+        raise HTTPBadRequestJson(
+            status='invalid request data',
+            details=e.errors_dict,
+        )
+    else:
+        if sso_data.expires < datetime.now().replace(tzinfo=timezone.utc):
+            raise HTTPUnauthorizedJson(status='session expired')
+        return sso_data
 
 
 async def check_client(request):
@@ -266,4 +270,4 @@ async def book_appointment(request):
         'appointment': booking.appointment,
     }
     await request.app['worker'].submit_booking(dict(company), data)
-    return json_response(request, status='ok')
+    return json_response(request, status='ok', status_=201)

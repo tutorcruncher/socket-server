@@ -217,11 +217,48 @@ async def test_submit_appointment(cli, company, appointment, other_server):
     )
     assert len(other_server.app['request_log']) == 0
     r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '4'}))
-    assert r.status == 200, await r.text()
+    assert r.status == 201, await r.text()
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
     assert other_server.app['request_log'][0][1]['service_recipient_id'] == 4
     assert other_server.app['request_log'][0][1]['service_recipient_name'] is None
+
+
+async def test_check_ok(cli, company, appointment):
+    url = (
+        cli.server.app.router['check-client']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company))
+    )
+    r = await cli.get(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '4'}))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['status'] == 'ok'
+
+
+async def test_check_invalid(cli, company, appointment):
+    url = (
+        cli.server.app.router['check-client']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company, rt='Contractor'))
+    )
+    r = await cli.get(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '4'}))
+    assert r.status == 400, await r.text()
+    obj = await r.json()
+    assert obj['status'] == 'invalid request data'
+    assert obj['details']['rt']['error_msg'] == 'must be \"Client\"'
+
+
+async def test_check_expired(cli, company, appointment):
+    url = (
+        cli.server.app.router['check-client']
+        .url_for(company='thepublickey')
+        .with_query(sig_sso_data(company, exp=123))
+    )
+    r = await cli.get(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '4'}))
+    assert r.status == 401, await r.text()
+    obj = await r.json()
+    assert obj == {'status': 'session expired'}
 
 
 async def test_submit_appointment_student_name(cli, company, appointment, other_server):
@@ -235,7 +272,7 @@ async def test_submit_appointment_student_name(cli, company, appointment, other_
         'appointment': appointment['appointment']['id'],
         'student_name': 'Frank Spencer'
     }))
-    assert r.status == 200, await r.text()
+    assert r.status == 201, await r.text()
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
     assert other_server.app['request_log'][0][1]['service_recipient_id'] is None
