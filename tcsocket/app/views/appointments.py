@@ -269,5 +269,6 @@ async def book_appointment(request):
         'service_recipient_name': booking.student_name or None,
         'appointment': booking.appointment,
     }
+    data = {k: v for k, v in data.items() if v is not None}
     await request.app['worker'].submit_booking(dict(company), data)
     return json_response(request, status='ok', status_=201)

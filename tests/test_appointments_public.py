@@ -221,7 +221,7 @@ async def test_submit_appointment(cli, company, appointment, other_server):
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
     assert other_server.app['request_log'][0][1]['service_recipient_id'] == 4
-    assert other_server.app['request_log'][0][1]['service_recipient_name'] is None
+    assert 'service_recipient_name' not in other_server.app['request_log'][0][1]
 
 
 async def test_check_ok(cli, company, appointment):
@@ -275,7 +275,7 @@ async def test_submit_appointment_student_name(cli, company, appointment, other_
     assert r.status == 201, await r.text()
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
-    assert other_server.app['request_log'][0][1]['service_recipient_id'] is None
+    assert 'service_recipient_id' not in other_server.app['request_log'][0][1]
     assert other_server.app['request_log'][0][1]['service_recipient_name'] == 'Frank Spencer'
 
 
