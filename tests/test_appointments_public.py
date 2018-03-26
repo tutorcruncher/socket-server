@@ -338,3 +338,13 @@ async def test_no_id_or_none(cli, company, appointment, other_server):
     r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id']}))
     assert r.status == 400, await r.text()
     assert 'either student_id or student_name is required' in await r.text()
+
+
+async def test_slugify(cli, db_conn, company):
+    await create_appointment(db_conn, company, appointment_extra={'topic': 'appointment - is - here'})
+
+    url = cli.server.app.router['appointment-list'].url_for(company='thepublickey')
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['results'][0]['link'] == '456-appointment-is-here'
