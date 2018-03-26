@@ -170,8 +170,8 @@ async def test_qual_level_list(cli, db_conn, company):
 
 
 @pytest.mark.parametrize('params, con_distances', [
-    ({'location': 'SW1W 0EN'}, [('1-bcon-t', 3129), ('2-acon-t', 10054)]),
-    ({'location': 'SW1W 0EN', 'max_distance': 4000}, [('1-bcon-t', 3129)]),
+    ({'location': 'SW1W 0EN'}, [('1-bcon1-t', 3129), ('2-acon2-t', 10054)]),
+    ({'location': 'SW1W 0EN', 'max_distance': 4000}, [('1-bcon1-t', 3129)]),
     ({'location': 'SW1W 0ENx', 'max_distance': 4000}, []),
 ])
 async def test_distance_filter(cli, db_conn, company, params, con_distances):

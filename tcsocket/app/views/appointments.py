@@ -205,7 +205,7 @@ def _get_sso_data(request, company) -> SSOData:
             details=e.errors_dict,
         )
     else:
-        if sso_data.expires < datetime.now().replace(tzinfo=timezone.utc):
+        if sso_data.expires < datetime.astimezone(datetime.now(), timezone.utc):
             raise HTTPUnauthorizedJson(status='session expired')
         return sso_data
 

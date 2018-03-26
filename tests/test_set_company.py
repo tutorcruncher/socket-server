@@ -228,6 +228,8 @@ async def test_default_options(cli, db_conn, company):
         'show_subject_filter': True,
         'sort_on': 'name',
         'auth_url': None,
+        'distance_units': 'miles',
+        'currency': {'code': 'GBP', 'symbol': '£'},
     }
     assert expected == await r.json()
     assert (await r.text()).count('\n') > 5
@@ -255,8 +257,8 @@ async def test_update_company(cli, db_conn, company, other_server):
         pagination=20,
         sort_on='review_rating',
         auth_url='https://foobar.com/whatever',
-        distance_units='miles',
-        currency={'code': 'GBP', 'symbol': '£'},
+        distance_units='km',
+        currency={'code': 'USD', 'symbol': '$'},
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
@@ -269,8 +271,8 @@ async def test_update_company(cli, db_conn, company, other_server):
                 'pagination': 20,
                 'sort_on': 'review_rating',
                 'auth_url': 'https://foobar.com/whatever',
-                'distance_units': 'miles',
-                'currency': {'code': 'GBP', 'symbol': '£'},
+                'distance_units': 'km',
+                'currency': {'code': 'USD', 'symbol': '$'},
             }
         },
         'company_domains': ['changed.com'],
@@ -287,8 +289,8 @@ async def test_update_company(cli, db_conn, company, other_server):
         'show_location_search': False,
         'sort_on': 'review_rating',
         'auth_url': 'https://foobar.com/whatever',
-        'distance_units': 'miles',
-        'currency': {'code': 'GBP', 'symbol': '£'},
+        'distance_units': 'km',
+        'currency': {'code': 'USD', 'symbol': '$'},
     }
 
     r = await cli.get(f'/{company.public_key}/options')
@@ -306,6 +308,8 @@ async def test_update_company(cli, db_conn, company, other_server):
         'show_subject_filter': True,
         'sort_on': 'review_rating',
         'auth_url': 'https://foobar.com/whatever',
+        'distance_units': 'km',
+        'currency': {'code': 'USD', 'symbol': '$'},
     } == await r.json()
 
 

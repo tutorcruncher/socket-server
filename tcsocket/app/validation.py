@@ -72,7 +72,12 @@ class CompanyUpdateModel(BaseModel):
     sort_on: SortOn = None
     pagination: int = None
     auth_url: str = None
-    distance_units: str = None  # TODO could use an enum for strict versions
+
+    class DistanceEnum(str, Enum):
+        km = 'km'
+        miles = 'miles'
+
+    distance_units: DistanceEnum = None
 
     class Currency(BaseModel):
         code: str
@@ -98,6 +103,8 @@ class CompanyOptionsModel(BaseModel):
     sort_on: SortOn = SortOn.name
     pagination: int = 100
     auth_url: str = None
+    distance_units: CompanyUpdateModel.DistanceEnum = CompanyUpdateModel.DistanceEnum.miles
+    currency: CompanyUpdateModel.Currency = CompanyUpdateModel.Currency(code='GBP', symbol='£')
 
 
 class ExtraAttributeModel(BaseModel):
