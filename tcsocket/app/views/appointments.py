@@ -213,6 +213,7 @@ def _get_sso_data(request, company) -> SSOData:
 async def check_client(request):
     company = request['company']
     sso_data = _get_sso_data(request, company)
+    student_ids = set(sso_data.students.keys())
 
     q = (
         select([apt_c.id, apt_c.attendees_current_ids])
@@ -220,7 +221,7 @@ async def check_client(request):
         .where(and_(
             ser_c.company == company.id,
             apt_c.start > datetime.utcnow(),
-            apt_c.attendees_current_ids.overlap(list(sso_data.students.keys()))
+            apt_c.attendees_current_ids.overlap(list(student_ids))
         ))
         .limit(100)
     )
@@ -229,7 +230,7 @@ async def check_client(request):
         request,
         status='ok',
         appointment_attendees={
-            r.id: sorted(set(r.attendees_current_ids) & sso_data.students.keys())
+            r.id: sorted(set(r.attendees_current_ids) & student_ids)
             async for r in conn.execute(q)
         }
     )

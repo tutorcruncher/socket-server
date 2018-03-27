@@ -39,6 +39,7 @@ PUBLIC_VIEWS = {
 async def log_extra(request, response=None):
     return {'data': dict(
         request_url=str(request.rel_url),
+        request_query=dict(request.query),
         request_method=request.method,
         request_host=request.host,
         request_headers=dict(request.headers),
