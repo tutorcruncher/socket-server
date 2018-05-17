@@ -53,6 +53,7 @@ def test_setup_logging(capsys):
 
 
 async def test_setup_worker_fails(settings, mocker, caplog):
+    caplog.set_level(logging.INFO)
     actor = MainActor(settings=settings)
     actor.retry_sleep = 0.01
     m = mocker.patch('tcsocket.app.worker.create_engine')
@@ -61,12 +62,13 @@ async def test_setup_worker_fails(settings, mocker, caplog):
         await actor.startup()
     assert m.call_count == 6
     assert actor.session is None
-    assert 'socket.worker INFO: create_engine failed, 5 retries remaining, retrying...' in caplog
-    assert 'socket.worker INFO: create_engine failed, 3 retries remaining, retrying...' in caplog
-    assert 'socket.worker INFO: create_engine failed, 1 retries remaining, retrying...' in caplog
+    assert 'create_engine failed, 5 retries remaining, retrying...' in caplog.text
+    assert 'create_engine failed, 3 retries remaining, retrying...' in caplog.text
+    assert 'create_engine failed, 1 retries remaining, retrying...' in caplog.text
 
 
 async def test_setup_worker_fails_then_works(settings, mocker, caplog):
+    caplog.set_level(logging.INFO)
     actor = MainActor(settings=settings)
     actor.retry_sleep = 0.01
     m = mocker.patch('tcsocket.app.worker.create_engine')
@@ -76,9 +78,9 @@ async def test_setup_worker_fails_then_works(settings, mocker, caplog):
     await actor.startup()
     assert m.call_count == 3
     await actor.session.close()
-    assert 'socket.worker INFO: create_engine failed, 5 retries remaining, retrying...' in caplog
-    assert 'socket.worker INFO: create_engine failed, 3 retries remaining, retrying...' not in caplog
-    assert 'socket.worker INFO: create_engine failed, 1 retries remaining, retrying...' not in caplog
+    assert 'create_engine failed, 5 retries remaining, retrying...' in caplog.text
+    assert 'create_engine failed, 3 retries remaining, retrying...' not in caplog.text
+    assert 'create_engine failed, 1 retries remaining, retrying...' not in caplog.text
 
 
 async def snap(request):
@@ -92,7 +94,7 @@ async def test_500_error(test_client, caplog):
     r = await client.get('/')
     assert r.status == 500
     assert '500: Internal Server Error' == await r.text()
-    assert 'socket.request ERROR: RuntimeError: snap' in caplog
+    assert 'ERROR    RuntimeError: snap' in caplog.text
 
 
 async def test_401_return_error(test_client, mocker):

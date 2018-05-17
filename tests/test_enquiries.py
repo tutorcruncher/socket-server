@@ -213,6 +213,7 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
 
 
 async def test_post_enquiry_400(cli, company, other_server, caplog):
+
     other_server.app['extra_attributes'] = 'default'
     data = {
         'client_name': 'Cat Flap',
@@ -253,7 +254,7 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
         ),
         'enquiry_options',
     ]
-    assert '400 response posting to http://localhost:' in caplog
+    assert '400 response posting to http://localhost:' in caplog.text
 
 
 async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
@@ -292,7 +293,7 @@ async def test_post_enquiry_500(cli, company, other_server, caplog):
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers=headers)
     assert r.status == 201, await r.text()
-    assert '500 response posting to http://localhost:' in caplog
+    assert '500 response posting to http://localhost:' in caplog.text
 
 
 async def test_post_enquiry_referrer_too_long(cli, company, other_server):
