@@ -129,6 +129,29 @@ async def enquiry_options_view(request):
                 'sort_index': 1001
             }
         }
+    elif extra_attributes == 'all_optional':
+        attribute_children = {
+            'how-did-you-hear-about-us': {
+                'type': 'choice',
+                'required': False,
+                'read_only': True,
+                'label': '...',
+                'choices': [
+                    {'value': '', 'display_name': ''},
+                    {'value': 'foo', 'display_name': 'Foo'},
+                    {'value': 'bar', 'display_name': 'Bar'},
+                ],
+                'sort_index': 1001
+            },
+            'date-of-birth': {
+                'type': 'date',
+                'required': False,
+                'read_only': True,
+                'label': 'Date of Birth',
+                'help_text': 'Date your child was born',
+                'sort_index': 1003
+            }
+        }
     else:
         attribute_children = {}
     return json_response({

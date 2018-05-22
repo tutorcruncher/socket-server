@@ -369,3 +369,17 @@ async def test_clear_enquiry_options_invalid(cli, company, other_server):
     assert r.status == 401, await r.text()
 
     assert None is not await redis.get(b'enquiry-data-%d' % company.id)
+
+
+async def test_post_all_optional(cli, company, other_server):
+    other_server.app['extra_attributes'] = 'all_optional'
+    data = {
+        'client_name': 'Cat Flap',
+        'client_phone': '123',
+        'grecaptcha_response': 'good' * 5,
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    data = await r.json()
+    assert data == {'status': 'enquiry submitted to TutorCruncher'}
