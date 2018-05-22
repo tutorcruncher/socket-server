@@ -61,6 +61,7 @@ async def test_post_enquiry_success(cli, company, other_server):
         'client_name': 'Cat Flap',
         'client_phone': '123',
         'grecaptcha_response': 'good' * 5,
+        'terms_and_conditions': True,
         'attributes': {
             'tell-us-about-yourself': 'hello',
             'how-did-you-hear-about-us': 'foo',
@@ -89,6 +90,7 @@ async def test_post_enquiry_success(cli, company, other_server):
                 'user_agent': 'Testing Browser',
                 'ip_address': None,
                 'http_referrer': None,
+                'terms_and_conditions': True,
                 'attributes': {
                     'tell-us-about-yourself': 'hello',
                     'how-did-you-hear-about-us': 'foo',
@@ -128,6 +130,7 @@ async def test_post_enquiry_datetime(cli, company, other_server):
                 'user_agent': 'Testing Browser',
                 'ip_address': None,
                 'http_referrer': None,
+                'terms_and_conditions': False,
                 'attributes': {
                     'date-field': '2032-06-01',
                     'datetime-field': '2018-02-07T14:45:00',
@@ -249,7 +252,7 @@ async def test_post_enquiry_400(cli, company, other_server, caplog):
                 'ip_address': None,
                 'http_referrer': 'http://cause400.com',
                 'attributes': {'tell-us-about-yourself': 'hello'},
-
+                'terms_and_conditions': False,
             },
         ),
         'enquiry_options',
@@ -278,6 +281,7 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
                 'user_agent': 'Testing Browser',
                 'ip_address': None,
                 'http_referrer': None,
+                'terms_and_conditions': False,
             },
         ),
     ]

@@ -174,6 +174,7 @@ class EnquiryModal(BaseModel):
     # qual_level: Optional[int] = None
     upstream_http_referrer: Optional[str] = None
     grecaptcha_response: constr(min_length=20, max_length=1000)
+    terms_and_conditions: bool = False
 
     @validator('upstream_http_referrer')
     def val_upstream_http_referrer(cls, v):
