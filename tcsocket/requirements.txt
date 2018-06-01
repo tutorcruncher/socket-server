@@ -1,4 +1,4 @@
-SQLAlchemy==1.2.7
+SQLAlchemy==1.2.8
 aiodns==1.1.1
 aiohttp==3.1.3
 aiopg==0.13.2
