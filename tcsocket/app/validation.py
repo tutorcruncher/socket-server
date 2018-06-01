@@ -69,6 +69,7 @@ class CompanyUpdateModel(BaseModel):
     show_labels: bool = None
     show_location_search: bool = None
     show_subject_filter: bool = None
+    terms_link: str = None
     sort_on: SortOn = None
     pagination: int = None
     auth_url: str = None
@@ -100,6 +101,7 @@ class CompanyOptionsModel(BaseModel):
     show_labels: bool = True
     show_location_search: bool = True
     show_subject_filter: bool = True
+    terms_link: str = None
     sort_on: SortOn = SortOn.name
     pagination: int = 100
     auth_url: str = None

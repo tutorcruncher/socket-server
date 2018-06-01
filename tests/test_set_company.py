@@ -228,6 +228,7 @@ async def test_default_options(cli, db_conn, company):
         'show_subject_filter': True,
         'sort_on': 'name',
         'auth_url': None,
+        'terms_link': None,
         'distance_units': 'miles',
         'currency': {'code': 'GBP', 'symbol': '£'},
     }
@@ -257,6 +258,7 @@ async def test_update_company(cli, db_conn, company, other_server):
         pagination=20,
         sort_on='review_rating',
         auth_url='https://foobar.com/whatever',
+        terms_link='https://terms.com/',
         distance_units='km',
         currency={'code': 'USD', 'symbol': '$'},
     )
@@ -271,6 +273,7 @@ async def test_update_company(cli, db_conn, company, other_server):
                 'pagination': 20,
                 'sort_on': 'review_rating',
                 'auth_url': 'https://foobar.com/whatever',
+                'terms_link': 'https://terms.com/',
                 'distance_units': 'km',
                 'currency': {'code': 'USD', 'symbol': '$'},
             }
@@ -289,6 +292,7 @@ async def test_update_company(cli, db_conn, company, other_server):
         'show_location_search': False,
         'sort_on': 'review_rating',
         'auth_url': 'https://foobar.com/whatever',
+        'terms_link': 'https://terms.com/',
         'distance_units': 'km',
         'currency': {'code': 'USD', 'symbol': '$'},
     }
@@ -308,6 +312,7 @@ async def test_update_company(cli, db_conn, company, other_server):
         'show_subject_filter': True,
         'sort_on': 'review_rating',
         'auth_url': 'https://foobar.com/whatever',
+        'terms_link': 'https://terms.com/',
         'distance_units': 'km',
         'currency': {'code': 'USD', 'symbol': '$'},
     } == await r.json()
