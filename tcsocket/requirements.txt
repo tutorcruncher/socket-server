@@ -1,7 +1,7 @@
 SQLAlchemy==1.2.8
 aiodns==1.1.1
 aiohttp==3.3.0
-aiopg==0.13.2
+aiopg==0.14.0
 arq==0.13
 cchardet==2.1.1
 gunicorn==19.8.1
