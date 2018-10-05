@@ -202,7 +202,7 @@ def _get_sso_data(request, company) -> SSOData:
     except ValidationError as e:
         raise HTTPBadRequestJson(
             status='invalid request data',
-            details=e.errors_dict,
+            details=e.errors(),
         )
     else:
         if sso_data.expires < datetime.astimezone(datetime.now(), timezone.utc):

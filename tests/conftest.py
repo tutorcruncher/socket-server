@@ -47,7 +47,7 @@ async def contractor_list_view(request):
     data = {
         1: {
             'count': 2,
-            'next': f'{request.app["server_name"]}/api/contractors/?page=2',
+            'next': f'{request.app["extra"]["server_name"]}/api/contractors/?page=2',
             'previous': None,
             'results': [
                 {
@@ -62,7 +62,7 @@ async def contractor_list_view(request):
         2: {
             'count': 2,
             'next': None,
-            'previous': f'{request.app["server_name"]}/api/contractors/?page=1',
+            'previous': f'{request.app["extra"]["server_name"]}/api/contractors/?page=1',
             'results': [
                 {
                     'id': 23,
@@ -317,8 +317,8 @@ async def geocoding_view(request):
 
 
 @pytest.fixture
-def other_server(loop, test_server):
-    app = Application(loop=loop)
+def other_server(loop, aiohttp_server):
+    app = Application()
     app.router.add_get('/_testing/image', test_image_view)
     app.router.add_get('/api/contractors/', contractor_list_view)
     app.router.add_route('OPTIONS', '/api/enquiry/', enquiry_options_view)
@@ -329,9 +329,10 @@ def other_server(loop, test_server):
     app.update(
         request_log=[],
         grecaptcha_host='example.com',
+        extra={},
     )
-    server = loop.run_until_complete(test_server(app))
-    app['server_name'] = f'http://localhost:{server.port}'
+    server = loop.run_until_complete(aiohttp_server(app))
+    app['extra']['server_name'] = f'http://localhost:{server.port}'
     return server
 
 
@@ -408,7 +409,7 @@ class MockEngine:
 
 
 @pytest.fixture
-def cli(loop, test_client, db_conn, settings):
+def cli(loop, aiohttp_client, db_conn, settings):
     """
     Create an app and client to interact with it
 
@@ -426,7 +427,7 @@ def cli(loop, test_client, db_conn, settings):
 
     app = create_app(loop, settings=settings)
     app.on_startup.append(modify_startup)
-    return loop.run_until_complete(test_client(app))
+    return loop.run_until_complete(aiohttp_client(app))
 
 
 async def create_company(db_conn, public_key, private_key, name='foobar', domains=['example.com']):

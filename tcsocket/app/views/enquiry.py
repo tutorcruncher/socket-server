@@ -105,7 +105,7 @@ async def enquiry_post(request, company, enquiry_options):
         try:
             attributes = dynamic_model.parse_obj(attributes or {})
         except pydantic.ValidationError as e:
-            raise HTTPBadRequestJson(status='invalid attribute data', details=e.errors_dict)
+            raise HTTPBadRequestJson(status='invalid attribute data', details=e.errors())
         else:
             data['attributes'] = {k: v for k, v in attributes.dict().items() if v is not None}
 

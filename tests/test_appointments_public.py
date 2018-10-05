@@ -246,7 +246,9 @@ async def test_check_invalid(cli, company, appointment):
     assert r.status == 400, await r.text()
     obj = await r.json()
     assert obj['status'] == 'invalid request data'
-    assert obj['details']['rt']['error_msg'] == 'must be \"Client\"'
+    deets = obj['details'][0]
+    assert deets['loc'] == ['rt']
+    assert deets['msg'] == 'must be \"Client\"'
 
 
 async def test_check_expired(cli, company, appointment):
