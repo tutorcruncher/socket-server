@@ -130,7 +130,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
 
     distinct_cols = sort_col, c.id
     if sort_col == c.review_rating:
-        sort_on = c.review_rating.desc(), c.review_duration.desc(), c.id
+        sort_on = c.review_rating.desc().nullslast(), c.review_duration.desc().nullslast(), c.id
         distinct_cols = c.review_rating, c.review_duration, c.id
     elif sort_col == c.last_updated:
         sort_on = sort_col.desc(), c.id

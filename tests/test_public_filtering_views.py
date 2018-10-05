@@ -398,9 +398,9 @@ async def test_contractor_pagination(cli, db_conn, company, filter_args, con_cou
 
 
 @pytest.mark.parametrize('sort, cons', [
-    ('name', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x']),
-    ('review_rating', ['3-charlie-x', '2-ben-x', '1-anne-x', '4-dave-x']),
-    ('last_updated', ['4-dave-x', '3-charlie-x', '2-ben-x', '1-anne-x']),
+    ('name', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x', '5-edgar-x', '6-fred-x']),
+    ('review_rating', ['3-charlie-x', '2-ben-x', '1-anne-x', '6-fred-x', '4-dave-x', '5-edgar-x']),
+    ('last_updated', ['6-fred-x', '5-edgar-x', '4-dave-x', '3-charlie-x', '2-ben-x', '1-anne-x']),
 ])
 async def test_sorting(cli, db_conn, company, sort, cons):
     await db_conn.execute(
@@ -414,7 +414,11 @@ async def test_sorting(cli, db_conn, company, sort, cons):
             dict(id=3, company=company.id, first_name='Charlie', last_name='x',
                  last_updated=datetime(2032, 1, 3), review_rating=4.5, review_duration=100),
             dict(id=4, company=company.id, first_name='Dave', last_name='x',
-                 last_updated=datetime(2032, 1, 4), review_rating=0, review_duration=0),
+                 last_updated=datetime(2032, 1, 4), review_rating=1, review_duration=0),
+            dict(id=5, company=company.id, first_name='Edgar', last_name='x',
+                 last_updated=datetime(2032, 1, 5), review_rating=None, review_duration=0),
+            dict(id=6, company=company.id, first_name='Fred', last_name='x',
+                 last_updated=datetime(2032, 1, 6), review_rating=4, review_duration=0),
         ])
     )
     await create_labels(db_conn, company)
