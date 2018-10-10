@@ -183,7 +183,7 @@ async def json_request_middleware(request, handler):
                 try:
                     request['model'] = model.parse_obj(data)
                 except ValidationError as e:
-                    error_details = e.errors_dict
+                    error_details = e.errors()
 
         if error_details:
             raise HTTPBadRequestJson(

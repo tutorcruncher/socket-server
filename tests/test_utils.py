@@ -87,21 +87,21 @@ async def snap(request):
     raise RuntimeError('snap')
 
 
-async def test_500_error(test_client, caplog):
+async def test_500_error(aiohttp_client, caplog):
     app = Application(middlewares=[middleware.error_middleware])
     app.router.add_get('/', snap)
-    client = await test_client(app)
+    client = await aiohttp_client(app)
     r = await client.get('/')
     assert r.status == 500
     assert '500: Internal Server Error' == await r.text()
     assert 'ERROR    RuntimeError: snap' in caplog.text
 
 
-async def test_401_return_error(test_client, mocker):
+async def test_401_return_error(aiohttp_client, mocker):
     mocker.spy(middleware.request_logger, 'warning')
     app = Application(middlewares=[middleware.error_middleware])
     app.router.add_get('/', lambda request: Response(text='foobar', status=401))
-    client = await test_client(app)
+    client = await aiohttp_client(app)
     r = await client.get('/')
     assert r.status == 401
     assert middleware.request_logger.warning.call_count == 1
@@ -114,11 +114,11 @@ async def raise_400(request):
     raise HTTPBadRequestJson(status='foobar')
 
 
-async def test_400_raise_error(test_client, mocker):
+async def test_400_raise_error(aiohttp_client, mocker):
     mocker.spy(middleware.request_logger, 'warning')
     app = Application(middlewares=[middleware.error_middleware])
     app.router.add_route('*', '/', raise_400)
-    client = await test_client(app)
+    client = await aiohttp_client(app)
     r = await client.post('/', data='foobar')
     assert r.status == 400
     assert middleware.request_logger.warning.call_count == 1

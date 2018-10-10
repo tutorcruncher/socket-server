@@ -157,22 +157,23 @@ async def test_post_enquiry_invalid_attributes(cli, company, other_server):
     assert r.status == 400, await r.text()
     data = await r.json()
     assert data == {
-        'details': {
-            'date-of-birth': {
-                'error_msg': 'Invalid date format',
-                'error_type': 'ValueError',
-                'track': 'date',
+        'details': [
+            {
+                'loc': ['tell-us-about-yourself'],
+                'msg': 'field required',
+                'type': 'value_error.missing'
             },
-            'how-did-you-hear-about-us': {
-                'error_msg': "'spam' is not a valid DynamicEnum",
-                'error_type': 'ValueError',
-                'track': 'DynamicEnum',
+            {
+                'loc': ['how-did-you-hear-about-us'],
+                'msg': 'value is not a valid enumeration member',
+                'type': 'type_error.enum'
             },
-            'tell-us-about-yourself': {
-                'error_msg': 'field required',
-                'error_type': 'Missing',
-            },
-        },
+            {
+                'loc': ['date-of-birth'],
+                'msg': 'invalid date format',
+                'type': 'type_error.date'
+            }
+        ],
         'status': 'invalid attribute data',
     }
 

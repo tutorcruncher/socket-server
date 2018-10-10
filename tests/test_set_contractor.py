@@ -451,13 +451,13 @@ async def test_invalid_schema(cli, company):
     assert r.status == 400, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'details': {
-            'id': {
-                'error_msg': "invalid literal for int() with base 10: 'not an int'",
-                'error_type': 'ValueError',
-                'track': 'int'
+        'details': [
+            {
+                'loc': ['id'],
+                'msg': 'value is not a valid integer',
+                'type': 'type_error.integer'
             }
-        },
+        ],
         'status': 'invalid request data',
     }
 
@@ -485,16 +485,15 @@ async def test_invalid_input(cli, db_conn, company):
     )
     assert r.status == 400, await r.text()
     data = await r.json()
-    assert {
-        'details': {
-            'first_name': {
-                'error_msg': 'length greater than maximum allowed: 63',
-                'error_type': 'ValueError',
-                'track': 'ConstrainedStrValue',
-            },
-        },
+    assert data == {
+        'details': [{
+            'ctx': {'limit_value': 63},
+            'loc': ['first_name'],
+            'msg': 'ensure this value has at most 63 characters',
+            'type': 'value_error.any_str.max_length'
+        }],
         'status': 'invalid request data',
-    } == data
+    }
 
 
 async def test_create_labels(cli, db_conn, company):
