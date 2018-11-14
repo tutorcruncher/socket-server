@@ -309,6 +309,28 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_se
         assert im.size == (256, 256)
 
 
+async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir, other_server):
+    r = await signed_request(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=123,
+        first_name='Fred',
+        photo=f'{image_download_url}?exif=1'
+    )
+    assert r.status == 201, await r.text()
+    assert other_server.app['request_log'] == [('test_image', None)]
+
+    assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
+    path = Path(tmpdir / 'media' / company.public_key / '123.jpg')
+    assert path.exists()
+    with Image.open(str(path)) as im:
+        assert im.size == (1000, 1000)
+    path = Path(tmpdir / 'media' / company.public_key / '123.thumb.jpg')
+    assert path.exists()
+    with Image.open(str(path)) as im:
+        assert im.size == (256, 256)
+
+
 async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == []
     r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')

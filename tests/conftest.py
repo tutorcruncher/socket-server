@@ -38,7 +38,13 @@ async def test_image_view(request):
 
     image = Image.new(create_as, (2000, 1200), (50, 100, 150))
     ImageDraw.Draw(image).line((0, 0) + image.size, fill=128)
-    image.save(stream, format=save_as, optimize=True)
+    kwargs = dict(format=save_as, optimize=True)
+    if request.query.get('exif'):
+        kwargs['exif'] = (
+            b'Exif\x00\x00MM\x00*\x00\x00\x00\x08\x00\x01\x01\x12\x00'
+            b'\x03\x00\x00\x00\x01\x00\x06\x00\x00\x00\x00\x00\x00'
+        )
+    image.save(stream, **kwargs)
     return Response(body=stream.getvalue(), content_type=f'image/{save_as.lower()}')
 
 
