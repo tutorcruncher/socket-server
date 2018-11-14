@@ -37,7 +37,7 @@ async def test_image_view(request):
         create_as, save_as = 'RGB', 'JPEG'
 
     image = Image.new(create_as, (2000, 1200), (50, 100, 150))
-    ImageDraw.Draw(image).line((0, 0) + image.size, fill=128)
+    ImageDraw.Draw(image).polygon([(0, 0), (image.width, 0), (image.width, 100), (0, 100)], fill=(128, 128, 128))
     kwargs = dict(format=save_as, optimize=True)
     if request.query.get('exif'):
         kwargs['exif'] = (
