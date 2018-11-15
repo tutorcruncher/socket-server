@@ -81,14 +81,8 @@ class MainActor(Actor):
                     if not chunk:
                         break
                     f.write(chunk)
-            f.seek(0)
-            with Image.open(f) as img:
-                img = img.convert('RGB')
-                img_large = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
-                img_large.save(image_path_main, 'JPEG')
 
-                img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
-                img_thumb.save(image_path_thumb, 'JPEG')
+            save_image(f, image_path_main, image_path_thumb)
 
         image_hash = hashlib.md5(image_path_thumb.read_bytes()).hexdigest()
         async with self.pg_engine.acquire() as conn:
@@ -234,6 +228,33 @@ class MainActor(Actor):
             await self.pg_engine.wait_closed()
         if self.session:
             await self.session.close()
+
+
+exif_orientation = 0x112
+rotations = {
+    3: 180,
+    6: 270,
+    8: 90,
+}
+
+
+def save_image(file, image_path_main, image_path_thumb):
+    file.seek(0)
+    with Image.open(file) as img:
+        # could use more of https://piexif.readthedocs.io/en/latest/sample.html#rotate-image-by-exif-orientation
+        if hasattr(img, '_getexif'):
+            exif = img._getexif()
+            if exif:
+                rotation = rotations.get(exif[exif_orientation])
+                if rotation:
+                    img = img.rotate(rotation, expand=True)
+
+        img = img.convert('RGB')
+        img_large = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
+        img_large.save(image_path_main, 'JPEG')
+
+        img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
+        img_thumb.save(image_path_thumb, 'JPEG')
 
 
 class Worker(BaseWorker):
