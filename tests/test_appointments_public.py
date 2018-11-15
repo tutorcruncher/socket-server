@@ -183,11 +183,11 @@ async def test_check_client_data(cli, company, db_conn):
         create_service=False,
     )
     await create_appointment(
-        db_conn,  company, appointment_extra={'id': 44, 'attendees_current_ids': [384924, 6, 7, 8]},
+        db_conn, company, appointment_extra={'id': 44, 'attendees_current_ids': [384924, 6, 7, 8]},
         create_service=False,
     )
     await create_appointment(
-        db_conn,  company, appointment_extra={'id': 45, 'attendees_current_ids': [8, 9]},
+        db_conn, company, appointment_extra={'id': 45, 'attendees_current_ids': [8, 9]},
         create_service=False,
     )
 

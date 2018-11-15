@@ -128,8 +128,8 @@ async def test_create_bad_body_time(cli, request_time):
     r = await cli.post('/companies/create', data=payload, headers=headers)
     assert r.status == 403
     assert {
-       'details': f"request time '{_request_time}' not in the last 10 seconds",
-       'status': 'invalid request time'
+        'details': f"request time '{_request_time}' not in the last 10 seconds",
+        'status': 'invalid request time'
     } == await r.json()
 
 

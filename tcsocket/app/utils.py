@@ -94,8 +94,8 @@ def json_response(request, *, status_=200, list_=None, **data):
 
 def slugify(name):
     name = (name or '').replace(' ', '-').lower()
-    name = re.sub('[^a-z0-9\-]', '', name)
-    return re.sub('-{2,}', '-', name)
+    name = re.sub(r'[^a-z0-9\-]', '', name)
+    return re.sub(r'-{2,}', '-', name)
 
 
 def route_url(request, view_name, **kwargs):
