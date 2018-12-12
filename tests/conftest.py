@@ -53,7 +53,7 @@ async def contractor_list_view(request):
     data = {
         1: {
             'count': 2,
-            'next': f'{request.app["extra"]["server_name"]}/api/contractors/?page=2',
+            'next': f'{request.app["extra"]["server_name"]}/api/public_contractors/?page=2',
             'previous': None,
             'results': [
                 {
@@ -68,7 +68,7 @@ async def contractor_list_view(request):
         2: {
             'count': 2,
             'next': None,
-            'previous': f'{request.app["extra"]["server_name"]}/api/contractors/?page=1',
+            'previous': f'{request.app["extra"]["server_name"]}/api/public_contractors/?page=1',
             'results': [
                 {
                     'id': 23,
@@ -326,10 +326,10 @@ async def geocoding_view(request):
 def other_server(loop, aiohttp_server):
     app = Application()
     app.router.add_get('/_testing/image', test_image_view)
-    app.router.add_get('/api/contractors/', contractor_list_view)
+    app.router.add_get('/api/public_contractors/', contractor_list_view)
     app.router.add_route('OPTIONS', '/api/enquiry/', enquiry_options_view)
     app.router.add_post('/api/enquiry/', enquiry_post_view)
-    app.router.add_post('/api/recipients/', booking_post_view)
+    app.router.add_post('/api/recipient_appointments/', booking_post_view)
     app.router.add_post('/grecaptcha', grecaptcha_post_view)
     app.router.add_get('/geocode', geocoding_view)
     app.update(
