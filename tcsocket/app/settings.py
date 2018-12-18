@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     geocoding_url = 'https://maps.googleapis.com/maps/api/geocode/json'
     geocoding_key = 'required secret for google geocoding'
 
+    tc_contractors_endpoint = '/public_contractors/'
+    tc_enquiry_endpoint = '/enquiry/'
+    tc_book_apt_endpoint = '/recipient_appointments/'
+
     @validator('media_dir')
     def check_media_dir(cls, p):
         path = p.resolve()

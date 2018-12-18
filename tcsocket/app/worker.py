@@ -40,9 +40,9 @@ class MainActor(Actor):
         self.redis_settings = self.settings.redis_settings
         super().__init__(**kwargs)
         self.api_root = self.settings.tc_api_root
-        self.api_contractors = self.api_root + '/contractors/'
-        self.api_enquiries = self.api_root + '/enquiry/'
-        self.api_book_appointment = self.api_root + '/recipients/'
+        self.api_contractors = self.api_root + self.settings.tc_contractors_endpoint
+        self.api_enquiries = self.api_root + self.settings.tc_enquiry_endpoint
+        self.api_book_appointment = self.api_root + self.settings.tc_book_apt_endpoint
         self.session = self.media = self.pg_engine = None
         self.retry_sleep = 1
 
