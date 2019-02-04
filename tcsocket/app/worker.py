@@ -245,7 +245,7 @@ def save_image(file, image_path_main, image_path_thumb):
         if hasattr(img, '_getexif'):
             exif = img._getexif()
             if exif:
-                rotation = rotations.get(exif[exif_orientation])
+                rotation = rotations.get(exif.get(exif_orientation, {}))
                 if rotation:
                     img = img.rotate(rotation, expand=True)
 
