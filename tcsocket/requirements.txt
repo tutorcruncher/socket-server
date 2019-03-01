@@ -7,7 +7,7 @@ cchardet==2.1.4
 gunicorn==19.9.0
 python-dateutil==2.8.0
 pillow==5.4.1
-pydantic[email]==0.17
+pydantic[email]==0.20.1
 raven==6.10.0
 uvloop==0.11.3
 ipython==7.2.0
