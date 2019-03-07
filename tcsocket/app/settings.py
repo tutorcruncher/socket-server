@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     pg_password: str = None
     pg_host = 'localhost'
     pg_port = '5432'
-    pg_driver = 'postgres'
+    pg_driver = 'postgresql'
 
     redis_host = 'localhost'
     redis_port = 6379

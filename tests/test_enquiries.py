@@ -319,6 +319,23 @@ async def test_post_enquiry_referrer_too_long(cli, company, other_server):
     assert other_server.app['request_log'][2][1]['http_referrer'] == 'Y' * 1023
 
 
+async def test_post_enquiry_referrer_blank(cli, company, other_server):
+    data = {
+        'client_name': 'Cat Flap',
+        'client_phone': '123',
+        'grecaptcha_response': 'good' * 5,
+        'upstream_http_referrer': '',
+        'attributes': {'tell-us-about-yourself': 'hello'},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    headers = {'User-Agent': 'Testing Browser', 'Origin': 'http://example.com'}
+    r = await cli.post(url, data=json.dumps(data), headers=headers)
+    assert r.status == 201, await r.text()
+    data = await r.json()
+    assert data == {'status': 'enquiry submitted to TutorCruncher'}
+    assert other_server.app['request_log'][2][1]['upstream_http_referrer'] == ''
+
+
 async def test_clear_enquiry_options(cli, company, other_server):
     redis = await cli.server.app['worker'].get_redis()
     assert None is await redis.get(b'enquiry-data-%d' % company.id)
