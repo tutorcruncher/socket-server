@@ -1,4 +1,4 @@
-attrs==18.2.0
+attrs==19.1.0
 coverage==4.5.2
 flake8==3.6.0
 isort==4.3.4
