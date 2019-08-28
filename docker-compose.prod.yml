@@ -15,15 +15,3 @@ services:
     - 443:443
     depends_on:
     - logs
-
-  telegraf:
-    build: telegraf
-    hostname: socket-telegraf
-    volumes:
-    - /var/run/docker.sock:/var/run/docker.sock:ro
-    - /var/run/utmp:/var/run/utmp:ro
-    environment:
-      INFLUXDB_URL: ${INFLUXDB_URL}
-      INFLUXDB_PASSWORD: ${INFLUXDB_PASSWORD}
-    pid: host
-    restart: always
