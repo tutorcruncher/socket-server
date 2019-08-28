@@ -16,7 +16,7 @@ fi
 
 # prevent the cloudflare ip check returning 403 below
 echo "allow all;" > nginx/prod/allowed.nginx.conf
-export LOGSPOUT_ENDPOINT="syslog://example.com"
+export LOGSPOUT_ENDPOINT="syslog://example.com:8000"
 export APP_MASTER_KEY="123"
 export SERVER_NAME="end2endtest"
 export MODE="PRODUCTION"
