@@ -161,18 +161,21 @@ async def test_post_enquiry_invalid_attributes(cli, company, other_server):
             {
                 'loc': ['tell-us-about-yourself'],
                 'msg': 'field required',
-                'type': 'value_error.missing'
+                'type': 'value_error.missing',
             },
             {
+                'ctx': {
+                    'enum_values': ['', 'foo', 'bar', ],
+                },
                 'loc': ['how-did-you-hear-about-us'],
-                'msg': 'value is not a valid enumeration member',
-                'type': 'type_error.enum'
+                'msg': "value is not a valid enumeration member; permitted: '', 'foo', 'bar'",
+                'type': 'type_error.enum',
             },
             {
                 'loc': ['date-of-birth'],
                 'msg': 'invalid date format',
-                'type': 'type_error.date'
-            }
+                'type': 'type_error.date',
+            },
         ],
         'status': 'invalid attribute data',
     }

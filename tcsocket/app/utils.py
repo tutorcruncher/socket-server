@@ -2,6 +2,7 @@ import datetime as datetime
 import json
 import re
 from decimal import Decimal
+from enum import Enum
 from types import GeneratorType
 from typing import Any, Callable
 from uuid import UUID
@@ -30,6 +31,8 @@ class UniversalEncoder(json.JSONEncoder):
     }
 
     def default(self, obj):
+        if isinstance(obj, Enum):
+            return obj.value
         try:
             encoder = self.ENCODER_BY_TYPE[type(obj)]
         except KeyError:
