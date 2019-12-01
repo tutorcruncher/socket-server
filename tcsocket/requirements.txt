@@ -9,7 +9,7 @@ python-dateutil==2.8.0
 pillow==6.2.1
 pydantic[email]==0.32.2
 raven==6.10.0
-uvloop==0.13.0
+uvloop==0.14.0
 ipython==7.8.0
 pgcli==2.1.1
 ipython-sql==0.3.9
