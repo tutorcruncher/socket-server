@@ -319,7 +319,7 @@ async def test_labels_list(cli, db_conn, company):
         .values(name='snap', public_key='snap', private_key='snap', domains=['example.com'])
         .returning(sa_companies.c.id)
     )
-    new_company_id = next(r.id for r in v)
+    new_company_id = [r async for r in v][0].id
     await db_conn.execute(
         sa_labels
         .insert()

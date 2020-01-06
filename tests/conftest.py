@@ -478,10 +478,11 @@ async def select_set(db_conn, *fields, select_from=None):
 
 
 async def get(db_conn, model, *where):
-    v = list(await db_conn.execute(
+    v = await db_conn.execute(
         select([c for c in model.c])
         .where(*where)
-    ))
+    )
+    v = [r async for r in v]
     if len(v) != 1:
         raise RuntimeError(f'get got wrong number of results: {len(v)} != 1, model: {model}')
     return dict(v[0])
