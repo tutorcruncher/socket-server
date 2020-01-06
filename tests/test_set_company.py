@@ -68,7 +68,7 @@ async def test_create_with_url_public_key(cli, db_conn):
     }
 
 
-async def test_create_with_keys(cli, db_conn):
+async def test_create_with_keys(cli, db_conn, worker):
     data = {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40, '_request_time': int(time())}
     payload = json.dumps(data)
     b_payload = payload.encode()
@@ -83,6 +83,7 @@ async def test_create_with_keys(cli, db_conn):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.name == 'foobar'
+    await worker.run_check()
     assert {(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())} == {
         (22, 'James', 'Higgins'), (23, None, 'Person 2')
     }
@@ -242,7 +243,7 @@ async def test_default_options(cli, db_conn, company):
     assert (await r.text()).count('\n') == 0
 
 
-async def test_update_company(cli, db_conn, company, other_server):
+async def test_update_company(cli, db_conn, company, other_server, worker):
     curr = await db_conn.execute(sa_companies.select())
     result = await curr.first()
     assert result.domains == ['example.com']
@@ -281,6 +282,7 @@ async def test_update_company(cli, db_conn, company, other_server):
         'company_domains': ['changed.com'],
         'status': 'success',
     }
+    await worker.run_check()
     assert other_server.app['request_log'] == [('contractor_list', None), ('contractor_list', '2')]
 
     curr = await db_conn.execute(sa_companies.select())

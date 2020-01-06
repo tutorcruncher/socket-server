@@ -38,7 +38,7 @@ async def geocode(request):
     with await redis_pool as redis:
         loc_data = await redis.get(loc_key)
         if loc_data:
-            result = json.loads(loc_data.decode())
+            result = json.loads(loc_data)
             logger.info('cached geocode result "%s|%s" > "%s"', location_str, region,
                         result.get('error') or result['pretty'])
             return result

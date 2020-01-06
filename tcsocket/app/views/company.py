@@ -37,7 +37,7 @@ async def company_create(request):
         logger.info('created company "%s", id %d, public key %s, private key %s',
                     new_company.name, new_company.id, new_company.public_key, new_company.private_key)
         if existing_company:
-            await request.app['worker'].update_contractors(dict(new_company))
+            await request.app['redis'].enqueue_job('update_contractors', company=dict(new_company))
         return json_response(
             request,
             status_=201,
@@ -89,7 +89,7 @@ async def company_update(request):
     result = await conn.execute(q)
     company = dict(await result.first())
 
-    await request.app['worker'].update_contractors(company)
+    await request.app['redis'].enqueue_job('update_contractors', company=company)
     return json_response(
         request,
         status_=200,

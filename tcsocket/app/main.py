@@ -1,11 +1,10 @@
-import asyncio
 import os
 import re
 from html import escape
 
 from aiohttp import ClientSession, web
 from aiopg.sa import create_engine
-from arq import create_pool_lenient
+from arq import create_pool
 
 from .middleware import middleware
 from .settings import THIS_DIR, Settings
@@ -15,25 +14,23 @@ from .views.appointments import (appointment_list, appointment_webhook, appointm
 from .views.company import company_create, company_list, company_options, company_update
 from .views.contractor import contractor_get, contractor_list, contractor_set
 from .views.enquiry import clear_enquiry, enquiry
-from .worker import MainActor
 
 
 async def startup(app: web.Application):
     settings: Settings = app['settings']
-    redis = await create_pool_lenient(settings.redis_settings, asyncio.get_event_loop())
+    redis = await create_pool(settings.redis_settings)
     app.update(
         pg_engine=await create_engine(settings.pg_dsn),
         redis=redis,
-        worker=MainActor(settings=settings, existing_redis=redis),
         session=ClientSession(),
     )
-    await app['worker'].startup()
 
 
 async def cleanup(app: web.Application):
     app['pg_engine'].close()
     await app['pg_engine'].wait_closed()
-    await app['worker'].close(True)
+    app['redis'].close()
+    await app['redis'].wait_closed()
     await app['session'].close()
 
 

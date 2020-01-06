@@ -271,5 +271,5 @@ async def book_appointment(request):
         'appointment': booking.appointment,
     }
     data = {k: v for k, v in data.items() if v is not None}
-    await request.app['worker'].submit_booking(dict(company), data)
+    await request.app['redis'].enqueue_job('submit_booking', company=dict(company), data=data)
     return json_response(request, status='ok', status_=201)

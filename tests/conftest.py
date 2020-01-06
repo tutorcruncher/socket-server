@@ -8,8 +8,12 @@ from itertools import product
 from time import time
 
 import pytest
+from aiohttp import ClientSession, ClientTimeout
 from aiohttp.web import Application, Response, json_response
 from aiopg.sa import create_engine as aio_create_engine
+from aioredis import create_redis
+from arq import Worker
+from arq.connections import ArqRedis
 from PIL import Image, ImageDraw
 from sqlalchemy import create_engine as sa_create_engine
 from sqlalchemy import select
@@ -19,6 +23,7 @@ from tcsocket.app.main import create_app
 from tcsocket.app.management import populate_db, psycopg2_cursor
 from tcsocket.app.models import sa_appointments, sa_companies, sa_con_skills, sa_qual_levels, sa_services, sa_subjects
 from tcsocket.app.settings import Settings
+from tcsocket.app.worker import WorkerSettings, startup
 
 DB_NAME = 'socket_test'
 MASTER_KEY = 'this is the master key'
@@ -322,6 +327,46 @@ async def geocoding_view(request):
     return json_response(loc, status=status)
 
 
+@pytest.yield_fixture(name='redis')
+async def _fix_redis(settings):
+    addr = settings.redis_settings.host, settings.redis_settings.port
+
+    redis = await create_redis(addr, db=settings.redis_settings.database, encoding='utf8', commands_factory=ArqRedis)
+    await redis.flushdb()
+
+    yield redis
+
+    redis.close()
+    await redis.wait_closed()
+
+
+@pytest.yield_fixture(name='worker_ctx')
+async def _fix_worker_ctx(redis, settings, db_conn):
+    session = ClientSession(timeout=ClientTimeout(total=10))
+    ctx = dict(
+        settings=settings,
+        pg_engine=MockEngine(db_conn),
+        session=session,
+        redis=redis,
+    )
+
+    yield ctx
+
+    await session.close()
+
+
+@pytest.yield_fixture(name='worker')
+async def _fix_worker(redis, worker_ctx):
+    worker = Worker(
+        functions=WorkerSettings.functions, redis_pool=redis, burst=True, poll_delay=0.01, ctx=worker_ctx
+    )
+
+    yield worker
+
+    worker.pool = None
+    await worker.close()
+
+
 @pytest.fixture
 def other_server(loop, aiohttp_server):
     app = Application()
@@ -350,7 +395,7 @@ def image_download_url(other_server):
 @pytest.fixture
 def settings(tmpdir, other_server):
     return Settings(
-        pg_name='socket_test',
+        pg_name=DB_NAME,
         redis_database=7,
         master_key=MASTER_KEY,
         grecaptcha_secret='X' * 30,
@@ -375,7 +420,7 @@ def db():
 
 
 @pytest.yield_fixture
-def db_conn(loop, db, settings):
+def db_conn(loop, settings, db):
     engine = loop.run_until_complete(aio_create_engine(settings.pg_dsn, loop=loop))
     conn = loop.run_until_complete(engine.acquire())
     transaction = loop.run_until_complete(conn.begin())
@@ -425,10 +470,10 @@ def cli(loop, aiohttp_client, db_conn, settings):
 
     async def modify_startup(app):
         app['pg_engine'] = MockEngine(db_conn)
-        app['worker']._concurrency_enabled = False
-        await app['worker'].startup()
-        app['worker'].pg_engine = app['pg_engine']
-        redis = await app['worker'].get_redis()
+        ctx = {'settings': settings}
+        await startup(ctx)
+        ctx['pg_engine'] = app['pg_engine']
+        redis = app['redis']
         await redis.flushdb()
 
     app = create_app(loop, settings=settings)
