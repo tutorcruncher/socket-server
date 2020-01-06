@@ -340,7 +340,7 @@ async def test_post_enquiry_referrer_blank(cli, company, other_server):
 
 
 async def test_clear_enquiry_options(cli, company, other_server):
-    redis = await cli.server.app['worker'].get_redis()
+    redis = await cli.server.app['redis']
     assert None is await redis.get(b'enquiry-data-%d' % company.id)
 
     r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))

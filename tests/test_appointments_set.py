@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
 
+from arq.connections import RedisSettings, create_pool
+
 from tcsocket.app.models import sa_appointments, sa_services
-from tcsocket.app.worker import MainActor
+from tcsocket.app.worker import startup, delete_old_appointments
 
 from .conftest import MockEngine, count, create_appointment, create_company, select_set, signed_request
 
@@ -170,15 +172,15 @@ async def test_delete_old_appointments(db_conn, company, settings):
     await create_appointment(db_conn, company, appointment_extra={'id': 4, 'start': n - timedelta(days=365)},
                              service_extra={'id': 3}, create_service=False)
 
-    actor = MainActor(settings=settings)
-    actor._concurrency_enabled = False
-    actor.pg_engine = MockEngine(db_conn)
+    ctx = {'settings': settings}
+    await startup(ctx)
+    ctx['pg_engine'] = MockEngine(db_conn)
 
     assert {(1, 1), (2, 2), (3, 3), (4, 3)} == await select_set(db_conn, sa_appointments.c.id,
                                                                 sa_appointments.c.service)
     assert {(1,), (2,), (3,)} == await select_set(db_conn, sa_services.c.id)
 
-    await actor.delete_old_appointments()
+    await delete_old_appointments(ctx)
 
     assert {(1, 1), (3, 3)} == await select_set(db_conn, sa_appointments.c.id, sa_appointments.c.service)
     assert {(1,), (3,)} == await select_set(db_conn, sa_services.c.id)

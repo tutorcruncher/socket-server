@@ -1,5 +1,6 @@
 import logging
 from operator import attrgetter
+from pathlib import Path
 from typing import List
 
 from sqlalchemy import select
@@ -107,13 +108,14 @@ def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine
         return None, extra_attributes
 
 
-async def contractor_set(*, conn, company, worker, contractor: ContractorModel, skip_deleted=False) -> Action:
+async def contractor_set(*, conn, company, app, contractor: ContractorModel, skip_deleted=False) -> Action:
+    from .worker import get_image
     """
     Create or update a contractor.
 
     :param conn: pg connection
     :param company: dict with company info, including id and public_key
-    :param worker: instance of RequestWorker
+    :param app: instance of the app
     :param contractor: data about contractor
     :param skip_deleted: whether or not to skip deleted contractors (or delete them in the db.)
     :return: Action: created, updated or deleted
@@ -176,6 +178,7 @@ async def contractor_set(*, conn, company, worker, contractor: ContractorModel, 
         )
     await _set_skills(conn, contractor.id, contractor.skills)
     await _set_labels(conn, company['id'], contractor.labels)
-    contractor.photo and await worker.get_image(company['public_key'], contractor.id, contractor.photo)
+    ctx = {'session': app['session'], 'pg_engine': app['pg_engine'], 'media': Path(app['settings'].media_dir)}
+    contractor.photo and await get_image(ctx, company['public_key'], contractor.id, contractor.photo)
     logger.info('%s contractor on %s', r.action, company['public_key'])
     return r.action

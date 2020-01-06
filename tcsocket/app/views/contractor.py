@@ -24,7 +24,7 @@ async def contractor_set(request):
     contractor: ContractorModel = request['model']
     action = await _contractor_set(
         conn=await request['conn_manager'].get_connection(),
-        worker=request.app['worker'],
+        app=request.app,
         company=request['company'],
         contractor=contractor,
     )

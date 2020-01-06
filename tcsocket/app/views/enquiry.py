@@ -6,11 +6,11 @@ from operator import itemgetter
 
 import pydantic
 from aiohttp.hdrs import METH_POST
-from arq.utils import timestamp
+from arq.utils import timestamp_ms
 
 from ..geo import get_ip
 from ..utils import HTTPBadRequestJson, json_response
-from ..worker import REDIS_ENQUIRY_CACHE_KEY, store_enquiry_data
+from ..worker import REDIS_ENQUIRY_CACHE_KEY, store_enquiry_data, update_enquiry_options, get_enquiry_options
 
 logger = logging.getLogger('socket.views')
 VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'
@@ -31,16 +31,17 @@ async def enquiry(request):
 
     redis = request.app['redis']
     raw_enquiry_options = await redis.get(REDIS_ENQUIRY_CACHE_KEY % company['id'])
-    ts = timestamp()
+    ts = timestamp_ms()
     if raw_enquiry_options:
         enquiry_options = json.loads(raw_enquiry_options.decode())
         enquiry_last_updated = enquiry_options['last_updated']
         # 1800 so data should never expire for regularly used forms
         if (ts - enquiry_last_updated) > 1800:
-            await request.app['worker'].update_enquiry_options(company)
+            await request.app['redis'].enqueue_job('update_enquiry_options', company)
     else:
         # no enquiry options yet exist, we have to get them now even though it will make the request slow
-        enquiry_options = await request.app['worker'].get_enquiry_options(company)
+        ctx = {'settings': request.app['settings'], 'session': request.app['session']}
+        enquiry_options = await get_enquiry_options(ctx, company=company)
         enquiry_options['last_updated'] = ts
         await store_enquiry_data(redis, company, enquiry_options)
 
@@ -109,7 +110,7 @@ async def enquiry_post(request, company, enquiry_options):
         else:
             data['attributes'] = {k: v for k, v in attributes.dict().items() if v is not None}
 
-    await request.app['worker'].submit_enquiry(company, data)
+    await request.app['redis'].enqueue_job('submit_enquiry', company=company, data=data)
     return json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
 
 

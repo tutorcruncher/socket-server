@@ -9,7 +9,7 @@ from psycopg2 import OperationalError
 from tcsocket.app import middleware
 from tcsocket.app.logs import setup_logging
 from tcsocket.app.utils import HTTPBadRequestJson, pretty_lenient_json
-from tcsocket.app.worker import MainActor
+from tcsocket.app.worker import shutdown, startup
 
 
 def test_universal_encoder():
@@ -54,14 +54,13 @@ def test_setup_logging(capsys):
 
 async def test_setup_worker_fails(settings, mocker, caplog):
     caplog.set_level(logging.INFO)
-    actor = MainActor(settings=settings)
-    actor.retry_sleep = 0.01
     m = mocker.patch('tcsocket.app.worker.create_engine')
     m.side_effect = OperationalError
+    ctx = {'settings': settings}
     with pytest.raises(OperationalError):
-        await actor.startup()
+        await startup(ctx)
     assert m.call_count == 6
-    assert actor.session is None
+    assert not ctx.get('session')
     assert 'create_engine failed, 5 retries remaining, retrying...' in caplog.text
     assert 'create_engine failed, 3 retries remaining, retrying...' in caplog.text
     assert 'create_engine failed, 1 retries remaining, retrying...' in caplog.text
@@ -69,15 +68,14 @@ async def test_setup_worker_fails(settings, mocker, caplog):
 
 async def test_setup_worker_fails_then_works(settings, mocker, caplog):
     caplog.set_level(logging.INFO)
-    actor = MainActor(settings=settings)
-    actor.retry_sleep = 0.01
     m = mocker.patch('tcsocket.app.worker.create_engine')
     f = Future()
     f.set_result(1)
     m.side_effect = [OperationalError, OperationalError, f]
-    await actor.startup()
+    ctx = {'settings': settings}
+    await startup(ctx)
     assert m.call_count == 3
-    await actor.session.close()
+    await ctx['session'].close()
     assert 'create_engine failed, 5 retries remaining, retrying...' in caplog.text
     assert 'create_engine failed, 3 retries remaining, retrying...' not in caplog.text
     assert 'create_engine failed, 1 retries remaining, retrying...' not in caplog.text

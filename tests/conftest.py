@@ -11,6 +11,8 @@ import pytest
 from aiohttp.web import Application, Response, json_response
 from aiopg.sa import create_engine as aio_create_engine
 from PIL import Image, ImageDraw
+from arq import create_pool
+from arq.connections import RedisSettings
 from sqlalchemy import create_engine as sa_create_engine
 from sqlalchemy import select
 from sqlalchemy.sql.functions import count as count_func
@@ -19,6 +21,7 @@ from tcsocket.app.main import create_app
 from tcsocket.app.management import populate_db, psycopg2_cursor
 from tcsocket.app.models import sa_appointments, sa_companies, sa_con_skills, sa_qual_levels, sa_services, sa_subjects
 from tcsocket.app.settings import Settings
+from tcsocket.app.worker import startup
 
 DB_NAME = 'socket_test'
 MASTER_KEY = 'this is the master key'
@@ -425,10 +428,10 @@ def cli(loop, aiohttp_client, db_conn, settings):
 
     async def modify_startup(app):
         app['pg_engine'] = MockEngine(db_conn)
-        app['worker']._concurrency_enabled = False
-        await app['worker'].startup()
-        app['worker'].pg_engine = app['pg_engine']
-        redis = await app['worker'].get_redis()
+        ctx = {'settings': settings}
+        await startup(ctx)
+        ctx['pg_engine'] = app['pg_engine']
+        redis = app['redis']
         await redis.flushdb()
 
     app = create_app(loop, settings=settings)
