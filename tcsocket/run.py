@@ -6,15 +6,14 @@ from functools import partial
 
 import click
 from aiohttp import ClientSession
-from arq import run_worker
+from arq import Worker, run_worker
 from arq.connections import RedisSettings
 from gunicorn.app.base import BaseApplication
 
-from app.logs import setup_logging
-from app.main import create_app
-from app.management import prepare_database, run_patch
-from app.settings import Settings
-from app.worker import Worker
+from tcsocket.app.logs import setup_logging
+from tcsocket.app.main import create_app
+from tcsocket.app.management import prepare_database, run_patch
+from tcsocket.app.settings import Settings
 from tcsocket.app.worker import WorkerSettings
 
 logger = logging.getLogger('socket.run')

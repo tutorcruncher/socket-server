@@ -89,8 +89,7 @@ async def company_update(request):
     result = await conn.execute(q)
     company = dict(await result.first())
 
-    app = request.app
-    await app['redis'].enqueue_job('update_contractors', company=company)
+    await request.app['redis'].enqueue_job('update_contractors', company=company)
     return json_response(
         request,
         status_=200,

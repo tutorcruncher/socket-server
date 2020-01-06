@@ -117,7 +117,9 @@ async def contractor_set(
 
     :param conn: pg connection
     :param company: dict with company info, including id and public_key
-    :param app: instance of the app
+    :param settings: settings data
+    :param session:
+    :param pg_engine:
     :param contractor: data about contractor
     :param skip_deleted: whether or not to skip deleted contractors (or delete them in the db.)
     :return: Action: created, updated or deleted
