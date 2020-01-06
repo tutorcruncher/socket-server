@@ -9,7 +9,7 @@ from psycopg2 import OperationalError
 from tcsocket.app import middleware
 from tcsocket.app.logs import setup_logging
 from tcsocket.app.utils import HTTPBadRequestJson, pretty_lenient_json
-from tcsocket.app.worker import shutdown, startup
+from tcsocket.app.worker import startup
 
 
 def test_universal_encoder():

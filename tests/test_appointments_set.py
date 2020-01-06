@@ -1,9 +1,7 @@
 from datetime import datetime, timedelta
 
-from arq.connections import RedisSettings, create_pool
-
 from tcsocket.app.models import sa_appointments, sa_services
-from tcsocket.app.worker import startup, delete_old_appointments
+from tcsocket.app.worker import delete_old_appointments, startup
 
 from .conftest import MockEngine, count, create_appointment, create_company, select_set, signed_request
 

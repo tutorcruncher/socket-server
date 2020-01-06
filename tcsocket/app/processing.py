@@ -108,7 +108,9 @@ def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine
         return None, extra_attributes
 
 
-async def contractor_set(*, conn, company, app, contractor: ContractorModel, skip_deleted=False) -> Action:
+async def contractor_set(
+    *, conn, company, settings, session, pg_engine, contractor: ContractorModel, skip_deleted=False
+) -> Action:
     from .worker import get_image
     """
     Create or update a contractor.
@@ -178,7 +180,14 @@ async def contractor_set(*, conn, company, app, contractor: ContractorModel, ski
         )
     await _set_skills(conn, contractor.id, contractor.skills)
     await _set_labels(conn, company['id'], contractor.labels)
-    ctx = {'session': app['session'], 'pg_engine': app['pg_engine'], 'media': Path(app['settings'].media_dir)}
-    contractor.photo and await get_image(ctx, company['public_key'], contractor.id, contractor.photo)
+    if contractor.photo:
+        await get_image(
+            session=session,
+            company_key=company['public_key'],
+            pg_engine=pg_engine,
+            media_path=Path(settings.media_dir),
+            contractor_id=contractor.id,
+            url=contractor.photo
+        )
     logger.info('%s contractor on %s', r.action, company['public_key'])
     return r.action

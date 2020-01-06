@@ -10,7 +10,7 @@ from arq.utils import timestamp_ms
 
 from ..geo import get_ip
 from ..utils import HTTPBadRequestJson, json_response
-from ..worker import REDIS_ENQUIRY_CACHE_KEY, store_enquiry_data, update_enquiry_options, get_enquiry_options
+from ..worker import REDIS_ENQUIRY_CACHE_KEY, get_enquiry_options, store_enquiry_data
 
 logger = logging.getLogger('socket.views')
 VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'
@@ -33,7 +33,7 @@ async def enquiry(request):
     raw_enquiry_options = await redis.get(REDIS_ENQUIRY_CACHE_KEY % company['id'])
     ts = timestamp_ms()
     if raw_enquiry_options:
-        enquiry_options = json.loads(raw_enquiry_options.decode())
+        enquiry_options = json.loads(raw_enquiry_options)
         enquiry_last_updated = enquiry_options['last_updated']
         # 1800 so data should never expire for regularly used forms
         if (ts - enquiry_last_updated) > 1800:

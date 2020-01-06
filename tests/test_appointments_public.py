@@ -209,7 +209,7 @@ async def test_check_client_data(cli, company, db_conn):
     }
 
 
-async def test_submit_appointment(cli, company, appointment, other_server):
+async def test_submit_appointment(cli, company, appointment, other_server, worker):
     url = (
         cli.server.app.router['book-appointment']
         .url_for(company='thepublickey')
@@ -218,6 +218,7 @@ async def test_submit_appointment(cli, company, appointment, other_server):
     assert len(other_server.app['request_log']) == 0
     r = await cli.post(url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '4'}))
     assert r.status == 201, await r.text()
+    await worker.run_check()
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
     assert other_server.app['request_log'][0][1]['service_recipient_id'] == 4
@@ -263,7 +264,7 @@ async def test_check_expired(cli, company, appointment):
     assert obj == {'status': 'session expired'}
 
 
-async def test_submit_appointment_student_name(cli, company, appointment, other_server):
+async def test_submit_appointment_student_name(cli, company, appointment, other_server, worker):
     url = (
         cli.server.app.router['book-appointment']
         .url_for(company='thepublickey')
@@ -275,6 +276,7 @@ async def test_submit_appointment_student_name(cli, company, appointment, other_
         'student_name': 'Frank Spencer'
     }))
     assert r.status == 201, await r.text()
+    await worker.run_check()
     assert len(other_server.app['request_log']) == 1
     assert other_server.app['request_log'][0][0] == 'booking_post'
     assert 'service_recipient_id' not in other_server.app['request_log'][0][1]
