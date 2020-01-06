@@ -161,11 +161,11 @@ async def update_enquiry_options(ctx, company):
     await store_enquiry_data(redis, company, data)
 
 
-async def post_data(ctx, url, data, company):
+async def post_data(session, url, data, company):
     data_enc = json.dumps(data)
     logger.info('POST => %s %s', url, data_enc)
     headers = request_headers(company, {'Content-Type': CT_JSON})
-    async with ctx['session'].post(url, data=data_enc, headers=headers) as r:
+    async with session.post(url, data=data_enc, headers=headers) as r:
         response_data = await r.read()
     response_data = response_data.decode()
     logger.info('%s: response: %d, %s', url, r.status, response_data)
@@ -186,27 +186,27 @@ async def post_data(ctx, url, data, company):
 async def submit_enquiry(ctx, company, data):
     api_enquiries_url = ctx['settings'].tc_api_root + ctx['settings'].tc_enquiry_endpoint
     grecaptcha_response = data.pop('grecaptcha_response')
-    if not await _check_grecaptcha(ctx, company, grecaptcha_response, data['ip_address']):
+    if not await _check_grecaptcha(ctx['settings'], ctx['session'], company, grecaptcha_response, data['ip_address']):
         return
-    status = await post_data(ctx, api_enquiries_url, data, company)
+    status = await post_data(ctx['session'], api_enquiries_url, data, company)
     if status != 200:
         await update_enquiry_options(ctx, company)
     return status
 
 
-async def _check_grecaptcha(ctx, company, grecaptcha_response, client_ip):
+async def _check_grecaptcha(settings, session, company, grecaptcha_response, client_ip):
     if grecaptcha_response == 'mock-grecaptcha:{[private_key]}'.format(company):
         logger.info('skipping recaptcha using company private key')
         return True
     data = dict(
-        secret=ctx['settings'].grecaptcha_secret,
+        secret=settings.grecaptcha_secret,
         response=grecaptcha_response,
     )
     if client_ip:
         data['remoteip'] = client_ip
     data = urlencode(data).encode()
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-    async with ctx['session'].post(ctx['settings'].grecaptcha_url, data=data, headers=headers) as r:
+    async with session.post(settings.grecaptcha_url, data=data, headers=headers) as r:
         assert r.status == 200
         obj = await r.json()
         domains = company['domains']
@@ -218,7 +218,7 @@ async def _check_grecaptcha(ctx, company, grecaptcha_response, client_ip):
 
 async def submit_booking(ctx, company, data):
     api_book_appointment_url = ctx['settings'].tc_api_root + ctx['settings'].tc_book_apt_endpoint
-    return await post_data(ctx, api_book_appointment_url, data, company)
+    return await post_data(ctx['session'], api_book_appointment_url, data, company)
 
 
 async def delete_old_appointments(ctx):

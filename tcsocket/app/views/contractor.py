@@ -22,12 +22,11 @@ async def contractor_set(request):
     Create or update a contractor.
     """
     contractor: ContractorModel = request['model']
-    app = request.app
     action = await _contractor_set(
         conn=await request['conn_manager'].get_connection(),
-        settings=app['settings'],
-        pg_engine=app['pg_engine'],
-        session=app['session'],
+        settings=request.app['settings'],
+        pg_engine=request.app['pg_engine'],
+        session=request.app['session'],
         company=request['company'],
         contractor=contractor,
     )
