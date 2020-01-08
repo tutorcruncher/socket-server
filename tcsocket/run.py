@@ -6,7 +6,7 @@ from functools import partial
 
 import click
 from aiohttp import ClientSession
-from arq import Worker, run_worker
+from arq import run_worker
 from gunicorn.app.base import BaseApplication
 
 from app.logs import setup_logging
@@ -108,30 +108,16 @@ async def _check_web_coro(url):
         logger.info('web check successful')
 
 
-def _check_web():
+@cli.command()
+def check_web():
+    """
+    Check the web worker is running fine
+    """
     url = 'http://' + os.getenv('BIND', '127.0.0.1:8000')
     loop = asyncio.get_event_loop()
     exit_code = loop.run_until_complete(_check_web_coro(url))
     if exit_code:
         exit(exit_code)
-
-
-def _check_worker():
-    exit(Worker.check_health())
-
-
-@cli.command()
-def check():
-    """
-    Check the application is running correctly, what this does depends on the CHECK environment variable
-    """
-    check_mode = os.getenv('CHECK')
-    if check_mode == 'web':
-        _check_web()
-    elif check_mode == 'worker':
-        _check_worker()
-    else:
-        raise ValueError(f'"CHECK" environment variable should be set to "web" or "worker" not "{check_mode}"')
 
 
 @cli.command()
