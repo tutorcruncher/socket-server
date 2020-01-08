@@ -184,6 +184,18 @@ async def test_get_contractor(cli, db_conn):
     } == obj
 
 
+async def test_get_contractor_doesnt_exist(cli, db_conn):
+    await db_conn.execute(
+        sa_companies
+        .insert()
+        .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
+        .returning(sa_companies.c.id)
+    )
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='123456', slug='x'))
+    assert r.status == 404
+    assert {} == await r.json()
+
+
 async def test_missing_url(cli):
     r = await cli.get('/foobar')
     assert r.status == 404, await r.text()
