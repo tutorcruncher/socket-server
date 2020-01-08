@@ -7,7 +7,6 @@ from functools import partial
 import click
 from aiohttp import ClientSession
 from arq import Worker, run_worker
-from arq.connections import RedisSettings
 from gunicorn.app.base import BaseApplication
 
 from app.logs import setup_logging
@@ -142,7 +141,8 @@ def worker():
     """
     logger.info('waiting for redis to come up...')
     check_services_ready()
-    run_worker(WorkerSettings, ctx={'settings': RedisSettings()})
+    settings = Settings()
+    run_worker(WorkerSettings, redis_settings=settings.redis_settings, ctx={'settings': settings})
 
 
 @cli.command()
