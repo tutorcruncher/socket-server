@@ -1,6 +1,5 @@
 import logging
 from operator import attrgetter
-from pathlib import Path
 from typing import List
 
 from sqlalchemy import select
@@ -109,21 +108,21 @@ def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine
 
 
 async def contractor_set(
-    *, conn, company, settings, session, pg_engine, contractor: ContractorModel, skip_deleted=False
+    *, conn, company, contractor: ContractorModel, skip_deleted=False, redis=None, ctx=None,
 ) -> Action:
-    from .worker import get_image
     """
     Create or update a contractor.
 
     :param conn: pg connection
+    :param redis: redis connection
+    :param ctx: the context from the worker
     :param company: dict with company info, including id and public_key
-    :param settings: settings data
-    :param session:
-    :param pg_engine:
     :param contractor: data about contractor
     :param skip_deleted: whether or not to skip deleted contractors (or delete them in the db.)
     :return: Action: created, updated or deleted
     """
+    from .worker import get_image
+
     if contractor.deleted:
         if not skip_deleted:
             curr = await conn.execute(
@@ -183,13 +182,15 @@ async def contractor_set(
     await _set_skills(conn, contractor.id, contractor.skills)
     await _set_labels(conn, company['id'], contractor.labels)
     if contractor.photo:
-        await get_image(
-            session=session,
-            company_key=company['public_key'],
-            pg_engine=pg_engine,
-            media_path=Path(settings.media_dir),
-            contractor_id=contractor.id,
-            url=contractor.photo
-        )
+        # Sometimes creating the contractor is already done on a job, so don't need another one.
+        if redis:
+            await redis.enqueue_job(
+                'get_image',
+                company_key=company['public_key'],
+                contractor_id=contractor.id,
+                url=contractor.photo
+            )
+        else:
+            await get_image(ctx, company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo)
     logger.info('%s contractor on %s', r.action, company['public_key'])
     return r.action

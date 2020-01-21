@@ -24,9 +24,7 @@ async def contractor_set(request):
     contractor: ContractorModel = request['model']
     action = await _contractor_set(
         conn=await request['conn_manager'].get_connection(),
-        settings=request.app['settings'],
-        pg_engine=request.app['pg_engine'],
-        session=request.app['session'],
+        redis=request.app['redis'],
         company=request['company'],
         contractor=contractor,
     )
