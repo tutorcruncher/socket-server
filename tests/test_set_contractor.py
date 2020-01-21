@@ -287,7 +287,7 @@ async def test_extra_attributes_null(cli, db_conn, company):
 
 
 @pytest.mark.parametrize('image_format', ['JPEG', 'RGBA', 'P'])
-async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_server, image_format):
+async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_server, image_format, worker):
     r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
@@ -296,6 +296,7 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_se
         photo=f'{image_download_url}?format={image_format}'
     )
     assert r.status == 201, await r.text()
+    await worker.run_check()
     assert other_server.app['request_log'] == [('test_image', image_format)]
 
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
@@ -311,7 +312,7 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_se
         assert im.getpixel((1, 1)) == (128, 128, 128)
 
 
-async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir, other_server):
+async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir, other_server, worker):
     r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
@@ -320,6 +321,7 @@ async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir,
         photo=f'{image_download_url}?exif=1'
     )
     assert r.status == 201, await r.text()
+    await worker.run_check()
     assert other_server.app['request_log'] == [('test_image', None)]
 
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
@@ -346,7 +348,7 @@ async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
 
 
-async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
+async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir, worker):
     r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
@@ -354,6 +356,7 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
         first_name='Fred',
     )
     assert r.status == 201, await r.text()
+    await worker.run_check()
 
     cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
     assert cons == [('Fred', '-')]
@@ -366,6 +369,7 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir):
         photo=f'{image_download_url}?format=JPEG'
     )
     assert r.status == 201, await r.text()
+    await worker.run_check()
 
     path = Path(tmpdir / 'media' / company.public_key / '124.thumb.jpg')
     assert path.exists()

@@ -62,13 +62,13 @@ async def shutdown(ctx):
         await session.close()
 
 
-async def get_image(media_path, session, pg_engine, company_key, contractor_id, url):
-    save_dir = media_path / company_key
+async def get_image(ctx, company_key, contractor_id, url):
+    save_dir = Path(ctx['settings'].media_dir) / company_key
     save_dir.mkdir(exist_ok=True)
     image_path_main = save_dir / f'{contractor_id}.jpg'
     image_path_thumb = save_dir / f'{contractor_id}.thumb.jpg'
     with TemporaryFile() as f:
-        async with session.get(url) as r:
+        async with ctx['session'].get(url) as r:
             if r.status != 200:
                 logger.warning('company %s, contractor %d, unable to download %s: %d',
                                company_key, contractor_id, url, r.status)
@@ -82,7 +82,7 @@ async def get_image(media_path, session, pg_engine, company_key, contractor_id, 
         save_image(f, image_path_main, image_path_thumb)
 
     image_hash = hashlib.md5(image_path_thumb.read_bytes()).hexdigest()
-    async with pg_engine.acquire() as conn:
+    async with ctx['pg_engine'].acquire() as conn:
         await conn.execute(
             update(sa_contractors)
             .values(photo_hash=image_hash[:6])
@@ -121,12 +121,9 @@ async def update_contractors(ctx, company):
     api_contractors = ctx['settings'].tc_api_root + ctx['settings'].tc_contractors_endpoint
     async with ctx['pg_engine'].acquire() as conn:
         async for contractor in _get_from_api(ctx['session'], api_contractors, ContractorModel, company):
-
             await contractor_set(
                 conn=conn,
-                session=ctx['session'],
-                settings=ctx['settings'],
-                pg_engine=ctx['pg_engine'],
+                ctx=ctx,
                 company=company,
                 contractor=contractor,
                 skip_deleted=True,
@@ -232,7 +229,7 @@ async def delete_old_appointments(ctx):
 
 
 class WorkerSettings:
-    functions = [update_contractors, update_enquiry_options, submit_enquiry, submit_booking]
+    functions = [get_image, submit_booking, submit_enquiry, update_contractors, update_enquiry_options]
     cron_jobs = [cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21})]
     on_startup = startup
     on_shutdown = shutdown
