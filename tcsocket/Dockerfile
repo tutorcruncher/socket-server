@@ -11,6 +11,6 @@ ADD ./run.py /home/root/run.py
 
 ENV PYTHONUNBUFFERED 1
 WORKDIR /home/root
-HEALTHCHECK --interval=60s --timeout=10s --retries=2 CMD /home/root/run.py check_web || exit 1
+HEALTHCHECK --interval=60s --timeout=10s --retries=2 CMD /home/root/run.py check-web || exit 1
 ENTRYPOINT ["./run.py"]
 CMD ["web"]
