@@ -56,7 +56,6 @@ services:
       APP_TC_API_ROOT: ${TC_API_ROOT}
       APP_GEOCODING_KEY: ${GEOCODING_KEY}
       BIND: 0.0.0.0:8000
-      CHECK: web
       COMMIT: ${COMMIT}
       RELEASE_DATE: ${RELEASE_DATE}
       RAVEN_DSN: ${RAVEN_DSN}
@@ -84,7 +83,6 @@ services:
       APP_TC_API_ROOT: ${TC_API_ROOT}
       APP_GRECAPTCHA_SECRET: ${GRECAPTCHA_SECRET}
       APP_GEOCODING_KEY: ${GEOCODING_KEY}
-      CHECK: worker
       COMMIT: ${COMMIT}
       RAVEN_DSN: ${RAVEN_DSN}
       SERVER_NAME: ${SERVER_NAME:-tcsocket}
