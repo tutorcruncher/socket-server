@@ -5,7 +5,6 @@ import os
 from functools import partial
 
 import click
-from aiohttp import ClientSession
 from arq import run_worker
 from gunicorn.app.base import BaseApplication
 
@@ -94,30 +93,6 @@ def web():
 
     logger.info('starting gunicorn...')
     Application().run()
-
-
-async def _check_web_coro(url):
-    try:
-        async with ClientSession() as session:
-            async with session.get(url) as r:
-                assert r.status == 200, f'response error {r.status} != 200'
-    except (ValueError, AssertionError, OSError) as e:
-        logger.error('web check error: %s: %s, url: "%s"', e.__class__.__name__, e, url)
-        return 1
-    else:
-        logger.info('web check successful')
-
-
-@cli.command()
-def check_web():
-    """
-    Check the web worker is running fine
-    """
-    url = 'http://' + os.getenv('BIND', '127.0.0.1:8000')
-    loop = asyncio.get_event_loop()
-    exit_code = loop.run_until_complete(_check_web_coro(url))
-    if exit_code:
-        exit(exit_code)
 
 
 @cli.command()
