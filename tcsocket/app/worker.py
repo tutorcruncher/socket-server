@@ -230,14 +230,16 @@ async def delete_old_appointments(ctx):
         logger.info('%d old appointments deleted', v.rowcount)
 
 
-async def restart_worker(ctx):
+async def kill_worker(ctx):
+    pid = os.getppid()
     os.kill(os.getppid(), SIGTERM)
-    logger.info('Killing workers nightly')
+    os.waitpid(pid, 0)
+    logger.info('Killed worker pid %s nightly', pid)
 
 
 class WorkerSettings:
     functions = [get_image, submit_booking, submit_enquiry, update_contractors, update_enquiry_options]
-    cron_jobs = [cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21}), cron(restart_worker, hour=3)]
+    cron_jobs = [cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21}), cron(kill_worker, hour=3)]
     on_startup = startup
     on_shutdown = shutdown
 
