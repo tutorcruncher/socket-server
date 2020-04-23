@@ -2,8 +2,10 @@ import asyncio
 import hashlib
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
+from signal import SIGTERM
 from tempfile import TemporaryFile
 from urllib.parse import urlencode
 
@@ -228,9 +230,14 @@ async def delete_old_appointments(ctx):
         logger.info('%d old appointments deleted', v.rowcount)
 
 
+async def restart_worker(ctx):
+    os.kill(os.getppid(), SIGTERM)
+    logger.info('Killing workers nightly')
+
+
 class WorkerSettings:
     functions = [get_image, submit_booking, submit_enquiry, update_contractors, update_enquiry_options]
-    cron_jobs = [cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21})]
+    cron_jobs = [cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21}), cron(restart_worker, hour=3)]
     on_startup = startup
     on_shutdown = shutdown
 
