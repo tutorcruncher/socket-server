@@ -232,8 +232,7 @@ async def delete_old_appointments(ctx):
 
 async def kill_worker(ctx):
     pid = os.getppid()
-    os.kill(os.getppid(), SIGTERM)
-    os.waitpid(pid, 0)
+    os.kill(pid, SIGTERM)
     logger.info('Killed worker pid %s nightly', pid)
 
 
