@@ -5,13 +5,6 @@ volumes:
  media: {}
  redis_data: {}
 
-networks:
-  default:
-    driver: bridge
-    ipam:
-      config:
-      - subnet: 172.20.0.0/16
-
 services:
   logs:
     image: gliderlabs/logspout
@@ -28,9 +21,6 @@ services:
       POSTGRES_PASSWORD: docker
     volumes:
     - pg_data:/var/lib/postgresql/data
-    networks:
-      default:
-        ipv4_address: 172.20.0.101
     restart: always
     depends_on:
     - logs
@@ -40,9 +30,6 @@ services:
     volumes:
     - redis_data:/data
     restart: always
-    networks:
-      default:
-        ipv4_address: 172.20.0.102
     depends_on:
     - logs
 
@@ -51,7 +38,7 @@ services:
     environment:
       APP_PG_HOST: postgres
       APP_PG_PASSWORD: docker
-      APP_REDIS_HOST: '172.20.0.102'
+      APP_REDIS_HOST: redis
       APP_MASTER_KEY: ${APP_MASTER_KEY}
       APP_TC_API_ROOT: ${TC_API_ROOT}
       APP_GEOCODING_KEY: ${GEOCODING_KEY}
@@ -60,9 +47,6 @@ services:
       RELEASE_DATE: ${RELEASE_DATE}
       RAVEN_DSN: ${RAVEN_DSN}
       SERVER_NAME: ${SERVER_NAME:-tcsocket}
-    networks:
-      default:
-        ipv4_address: 172.20.0.103
     restart: always
     depends_on:
     - postgres
@@ -78,7 +62,7 @@ services:
     environment:
       APP_PG_HOST: postgres
       APP_PG_PASSWORD: docker
-      APP_REDIS_HOST: '172.20.0.102'
+      APP_REDIS_HOST: redis
       APP_MEDIA_DIR: /media
       APP_TC_API_ROOT: ${TC_API_ROOT}
       APP_GRECAPTCHA_SECRET: ${GRECAPTCHA_SECRET}
