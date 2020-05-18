@@ -2,7 +2,6 @@ from pathlib import Path
 
 from arq.connections import RedisSettings
 from pydantic import BaseSettings, validator
-from pydantic.utils import make_dsn
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR.parent
@@ -54,12 +53,7 @@ class Settings(BaseSettings):
 
     @property
     def pg_dsn(self) -> str:
-        return make_dsn(
-            driver=self.pg_driver,
-            user=self.pg_user,
-            password=self.pg_password,
-            host=self.pg_host,
-            port=self.pg_port,
-            name=self.pg_name,
-            query=None,
-        )
+        if self.pg_password:
+            return f'{self.pg_driver}://{self.pg_user}:{self.pg_password}@{self.pg_host}:{self.pg_port}/{self.pg_name}'
+        else:
+            return f'{self.pg_driver}://{self.pg_user}@{self.pg_host}:{self.pg_port}/{self.pg_name}'
