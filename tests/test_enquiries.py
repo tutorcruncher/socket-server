@@ -177,7 +177,7 @@ async def test_post_enquiry_invalid_attributes(cli, company, other_server, worke
             {
                 'loc': ['date-of-birth'],
                 'msg': 'invalid date format',
-                'type': 'type_error.date',
+                'type': 'value_error.date',
             },
         ],
         'status': 'invalid attribute data',

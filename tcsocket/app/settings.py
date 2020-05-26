@@ -1,20 +1,16 @@
 from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
 
 from arq.connections import RedisSettings
 from pydantic import BaseSettings, validator
-from pydantic.utils import make_dsn
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR.parent
 
 
 class Settings(BaseSettings):
-    pg_name = 'socket'
-    pg_user = 'postgres'
-    pg_password: str = None
-    pg_host = 'localhost'
-    pg_port = '5432'
-    pg_driver = 'postgresql'
+    pg_dsn: Optional[str] = 'postgres://postgres@localhost:5432/socket'
 
     redis_host = 'localhost'
     redis_port = 6379
@@ -53,13 +49,28 @@ class Settings(BaseSettings):
         )
 
     @property
-    def pg_dsn(self) -> str:
-        return make_dsn(
-            driver=self.pg_driver,
-            user=self.pg_user,
-            password=self.pg_password,
-            host=self.pg_host,
-            port=self.pg_port,
-            name=self.pg_name,
-            query=None,
-        )
+    def _pg_dsn_parsed(self):
+        return urlparse(self.pg_dsn)
+
+    @property
+    def pg_name(self):
+        return self._pg_dsn_parsed.path.lstrip('/')
+
+    @property
+    def pg_host(self):
+        return self._pg_dsn_parsed.hostname
+
+    @property
+    def pg_port(self):
+        return self._pg_dsn_parsed.port
+
+    @property
+    def pg_password(self):
+        return self._pg_dsn_parsed.password
+
+    @property
+    def pg_user(self):
+        return self._pg_dsn_parsed.username
+
+    class Config:
+        fields = {'pg_dsn': {'env': 'DATABASE_URL'}}

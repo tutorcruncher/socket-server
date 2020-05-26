@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import os
 from collections import namedtuple
 from datetime import datetime
 from io import BytesIO
@@ -25,7 +26,7 @@ from tcsocket.app.models import sa_appointments, sa_companies, sa_con_skills, sa
 from tcsocket.app.settings import Settings
 from tcsocket.app.worker import WorkerSettings, startup
 
-DB_NAME = 'socket_test'
+DB_URL = os.getenv('DATABASE_URL') or 'postgres://postgres@localhost:5432/socket_test'
 MASTER_KEY = 'this is the master key'
 
 
@@ -362,8 +363,6 @@ async def _fix_worker(redis, worker_ctx):
     )
 
     yield worker
-
-    worker.pool = None
     await worker.close()
 
 
@@ -395,7 +394,7 @@ def image_download_url(other_server):
 @pytest.fixture
 def settings(tmpdir, other_server):
     return Settings(
-        pg_name=DB_NAME,
+        pg_dsn=DB_URL,
         redis_database=7,
         master_key=MASTER_KEY,
         grecaptcha_secret='X' * 30,
@@ -408,7 +407,7 @@ def settings(tmpdir, other_server):
 
 @pytest.yield_fixture(scope='session')
 def db():
-    settings_: Settings = Settings(pg_name=DB_NAME)
+    settings_: Settings = Settings(pg_dsn=DB_URL)
     with psycopg2_cursor(settings_) as cur:
         cur.execute(f'DROP DATABASE IF EXISTS {settings_.pg_name}')
         cur.execute(f'CREATE DATABASE {settings_.pg_name}')
