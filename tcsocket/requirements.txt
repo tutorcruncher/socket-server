@@ -10,7 +10,7 @@ pillow==7.1.2
 pydantic[email]==0.32.2
 raven==6.10.0
 uvloop==0.14.0
-ipython==7.13.0
+ipython==7.15.0
 pgcli==3.0.0
 ipython-sql==0.3.9
 yarl==1.4.2
