@@ -82,8 +82,8 @@ async def _set_labels(conn, company_id, labels):
         return
     async with conn.begin():
         stmt = pg_insert(sa_labels).values([
-            {'company': company_id, 'machine_name': l.machine_name, 'name': l.name}
-            for l in labels
+            {'company': company_id, 'machine_name': label.machine_name, 'name': label.name}
+            for label in labels
         ])
         await conn.execute(
             stmt
@@ -144,7 +144,7 @@ async def contractor_set(
         town=contractor.town,
         country=contractor.country,
         last_updated=contractor.last_updated,
-        labels=[l.machine_name for l in contractor.labels],
+        labels=[label.machine_name for label in contractor.labels],
     )
     if contractor.location:
         data.update(contractor.location.dict())
