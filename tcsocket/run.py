@@ -134,7 +134,7 @@ EXEC_LINES = [
 ]
 EXEC_LINES += (
     ['print("\\n    Python {v.major}.{v.minor}.{v.micro}\\n".format(v=sys.version_info))'] +
-    [f'print("    {l}")' for l in EXEC_LINES]
+    [f'print("    {line}")' for line in EXEC_LINES]
 )
 
 

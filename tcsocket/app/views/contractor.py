@@ -221,7 +221,7 @@ async def contractor_get(request):
     )
     con = await curr.first()
     if not con:
-        return HTTPNotFoundJson()
+        raise HTTPNotFoundJson()
     options = request['company'].options or {}
     return json_response(
         request,
