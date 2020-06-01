@@ -96,7 +96,8 @@ async def _set_labels(conn, company_id, labels):
 
 def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine_name, attr_type):
     """
-    Find special extra attributes suitable for tag_line and primary_description.
+    Find special extra attributes suitable for tag_line and primary_description. Uses the first attr of type attr_type
+    if that machine_name is not found.
     """
     eas = [ea for ea in extra_attributes if ea.type == attr_type]
     if eas:
@@ -159,7 +160,7 @@ async def contractor_set(
     primary_description, ex_attrs = _get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
     data.update(
         extra_attributes=[ea_.dict(exclude={'sort_index'}) for ea_ in sorted(ex_attrs, key=attrgetter('sort_index'))],
-        tag_line=tag_line,
+        tag_line=tag_line and tag_line[:255],  # Field limit; TC should only send through the first 100 chars.
         primary_description=primary_description,
     )
     v = await conn.execute(
