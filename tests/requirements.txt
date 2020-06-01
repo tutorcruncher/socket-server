@@ -9,5 +9,5 @@ pytest-aiohttp==0.3.0
 pytest-cov==2.8.1
 pytest-isort==1.0.0
 pytest-mock==3.1.0
-pytest-sugar==0.9.2
+pytest-sugar==0.9.3
 pytest-toolbox==0.4
