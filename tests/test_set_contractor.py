@@ -201,6 +201,58 @@ async def test_extra_attributes(cli, db_conn, company):
     assert obj['extra_attributes'][2]['value'] == '2032-06-01'
 
 
+async def test_tag_line_from_short_text(cli, db_conn, company):
+    eas = [
+        {
+            'machine_name': 'whatever',
+            'type': 'text_short',
+            'name': 'Should be tag line?',
+            'value': 'Should be tag line.',
+            'sort_index': 0
+        },
+    ]
+    r = await signed_request(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=123,
+        deleted=False,
+        first_name='Fred',
+        extra_attributes=eas
+    )
+    assert r.status == 201, await r.text()
+    curr = await db_conn.execute(sa_contractors.select())
+    result = await curr.first()
+    assert result.id == 123
+    assert result.first_name == 'Fred'
+    assert result.tag_line == 'Should be tag line.'
+
+
+async def test_shorten_tag_line(cli, db_conn, company):
+    eas = [
+        {
+            'machine_name': 'whatever',
+            'type': 'text_short',
+            'name': 'Should be tag line?',
+            'value': 'Should be tag line.' * 50,
+            'sort_index': 0
+        },
+    ]
+    r = await signed_request(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=123,
+        deleted=False,
+        first_name='Fred',
+        extra_attributes=eas
+    )
+    assert r.status == 201, await r.text()
+    curr = await db_conn.execute(sa_contractors.select())
+    result = await curr.first()
+    assert result.id == 123
+    assert result.first_name == 'Fred'
+    assert len(result.tag_line) == 255
+
+
 async def test_extra_attributes_special(cli, db_conn, company):
     eas = [
         {
