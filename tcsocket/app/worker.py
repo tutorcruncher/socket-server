@@ -238,7 +238,10 @@ async def kill_worker(ctx):
 
 class WorkerSettings:
     functions = [get_image, submit_booking, submit_enquiry, update_contractors, update_enquiry_options]
-    cron_jobs = [cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21}), cron(kill_worker, hour=3)]
+    cron_jobs = [
+        cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21}, minute=0),
+        cron(kill_worker, hour=3, minute=0),
+    ]
     on_startup = startup
     on_shutdown = shutdown
 
