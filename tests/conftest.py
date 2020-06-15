@@ -364,6 +364,7 @@ async def _fix_worker(redis, worker_ctx):
 
     yield worker
 
+    # Sets the pool to use our settings RedisSettings instead of ArqRedis
     worker._pool = None
     await worker.close()
 
