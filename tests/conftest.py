@@ -363,6 +363,8 @@ async def _fix_worker(redis, worker_ctx):
     )
 
     yield worker
+
+    worker._pool = None
     await worker.close()
 
 

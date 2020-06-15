@@ -10,7 +10,7 @@ BASE_DIR = THIS_DIR.parent
 
 
 class Settings(BaseSettings):
-    pg_dsn: Optional[str] = 'postgres://postgres@localhost:5432/socket'
+    pg_dsn: Optional[str] = 'postgresql://postgres@localhost:5432/socket'
 
     redis_host = 'localhost'
     redis_port = 6379
