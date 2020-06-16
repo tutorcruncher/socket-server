@@ -26,29 +26,6 @@ def cli(verbose):
     setup_logging(verbose)
 
 
-async def _check_port_open(host, port, loop):
-    steps, delay = 100, 0.1
-    for i in range(steps):
-        try:
-            await loop.create_connection(lambda: asyncio.Protocol(), host=host, port=port)
-        except OSError:
-            await asyncio.sleep(delay, loop=loop)
-        else:
-            logger.info('Connected successfully to %s:%s after %0.2fs', host, port, delay * i)
-            return
-    raise RuntimeError(f'Unable to connect to {host}:{port} after {steps * delay}s')
-
-
-def check_services_ready():
-    settings = Settings()
-    loop = asyncio.get_event_loop()
-    coros = [
-        _check_port_open(settings.pg_host, settings.pg_port, loop),
-        _check_port_open(settings.redis_host, settings.redis_port, loop),
-    ]
-    loop.run_until_complete(asyncio.gather(*coros, loop=loop))
-
-
 def check_app():
     loop = asyncio.get_event_loop()
     logger.info("initialising aiohttp app to check it's working...")
@@ -66,9 +43,6 @@ def web():
 
     If the database doesn't already exist it will be created.
     """
-    logger.info('waiting for postgres and redis to come up...')
-    check_services_ready()
-
     logger.info('preparing the database...')
     prepare_database(False)
 
@@ -99,7 +73,6 @@ def worker():
     Run the worker
     """
     logger.info('waiting for redis to come up...')
-    check_services_ready()
     settings = Settings()
     run_worker(WorkerSettings, redis_settings=settings.redis_settings, ctx={'settings': settings})
 
