@@ -1,9 +1,7 @@
 from enum import Enum, unique
 from typing import Type
 
-from sqlalchemy import Column, DateTime
-from sqlalchemy import Enum as _SAEnum
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, Enum as _SAEnum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 

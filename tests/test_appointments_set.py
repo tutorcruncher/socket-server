@@ -164,9 +164,9 @@ async def test_delete_old_appointments(db_conn, company, settings):
     assert {(1, 1), (2, 2), (3, 3), (4, 3)} == await select_set(
         db_conn, sa_appointments.c.id, sa_appointments.c.service
     )
-    assert {(1), (2), (3)} == await select_set(db_conn, sa_services.c.id)
+    assert {(1,), (2,), (3,)} == await select_set(db_conn, sa_services.c.id)
 
     await delete_old_appointments(ctx)
 
     assert {(1, 1), (3, 3)} == await select_set(db_conn, sa_appointments.c.id, sa_appointments.c.service)
-    assert {(1), (3)} == await select_set(db_conn, sa_services.c.id)
+    assert {(1,), (3,)} == await select_set(db_conn, sa_services.c.id)

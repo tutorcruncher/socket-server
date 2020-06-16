@@ -9,8 +9,7 @@ from typing import Dict
 from pydantic import BaseModel, Protocol, ValidationError, validator
 from sqlalchemy import distinct, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.sql import and_
-from sqlalchemy.sql import functions as sql_f
+from sqlalchemy.sql import and_, functions as sql_f
 
 from ..models import sa_appointments, sa_services
 from ..utils import (

@@ -4,9 +4,7 @@ from operator import attrgetter
 
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.sql import and_, distinct
-from sqlalchemy.sql import functions as sql_f
-from sqlalchemy.sql import or_
+from sqlalchemy.sql import and_, distinct, functions as sql_f, or_
 
 from ..geo import geocode
 from ..models import Action, NameOptions, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects

@@ -16,8 +16,7 @@ from aioredis import create_redis
 from arq import Worker
 from arq.connections import ArqRedis
 from PIL import Image, ImageDraw
-from sqlalchemy import create_engine as sa_create_engine
-from sqlalchemy import select
+from sqlalchemy import create_engine as sa_create_engine, select
 from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.main import create_app

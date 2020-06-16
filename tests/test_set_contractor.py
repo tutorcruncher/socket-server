@@ -514,10 +514,7 @@ async def test_create_labels(cli, db_conn, company):
 
 async def test_delete_all_labels(cli, db_conn, company):
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     assert 1 == await count(db_conn, sa_contractors)
@@ -535,10 +532,7 @@ async def test_delete_all_labels(cli, db_conn, company):
 
 async def test_delete_some_labels(cli, db_conn, company):
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
@@ -562,10 +556,7 @@ async def test_delete_some_labels(cli, db_conn, company):
 
 async def test_labels_conflict(cli, db_conn, company):
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
