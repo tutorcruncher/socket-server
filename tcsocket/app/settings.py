@@ -65,5 +65,7 @@ class Settings(BaseSettings):
 
     class Config:
         fields = {
+            'port': {'env': 'PORT'},
             'pg_dsn': {'env': 'DATABASE_URL'},
+            'redis_settings': {'env': 'REDISCLOUD_URL'},
         }
