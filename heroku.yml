@@ -1,0 +1,4 @@
+build:
+  docker:
+    web: tcsocket/Dockerfile
+    worker: tcsocket/Dockerfile
