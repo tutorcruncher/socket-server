@@ -4,6 +4,12 @@
 install:
 	pip install -r requirements.txt
 
+.PHONY: format
+format:
+	isort -rc -w 120 tcsocket
+	isort -rc -w 120 tests
+	black -S -l 120 --target-version py38 tcsocket tests
+
 .PHONY: isort
 isort:
 	isort -rc -w 120 tcsocket

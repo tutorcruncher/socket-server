@@ -34,12 +34,7 @@ CREATE TRIGGER service_delete AFTER DELETE ON appointments FOR EACH ROW EXECUTE 
 
 def lenient_connection(settings: Settings, retries=5):
     try:
-        return psycopg2.connect(
-            password=settings.pg_password,
-            host=settings.pg_host,
-            port=settings.pg_port,
-            user=settings.pg_user,
-        )
+        return psycopg2.connect(password=settings.pg_password, dsn=settings.pg_dsn,)
     except psycopg2.Error as e:
         if retries <= 0:
             raise
@@ -73,14 +68,14 @@ WHERE pg_stat_activity.datname = %s AND pid <> pg_backend_pid();
 """
 
 
-def prepare_database(delete_existing: Union[bool, callable]) -> bool:
+def prepare_database(delete_existing: Union[bool, callable], settings: Settings = None) -> bool:
     """
     (Re)create a fresh database and run migrations.
 
     :param delete_existing: whether or not to drop an existing database if it exists
     :return: whether or not a database as (re)created
     """
-    settings = Settings()
+    settings = settings or Settings()
 
     with psycopg2_cursor(settings) as cur:
         cur.execute('SELECT EXISTS (SELECT datname FROM pg_catalog.pg_database WHERE datname=%s)', (settings.pg_name,))
@@ -96,13 +91,12 @@ def prepare_database(delete_existing: Union[bool, callable]) -> bool:
             else:
                 print(f'dropping existing connections to "{settings.pg_name}"...')
                 cur.execute(DROP_CONNECTIONS, (settings.pg_name,))
-                print(f'dropping database "{settings.pg_name}" as it already exists...')
-                cur.execute(f'DROP DATABASE {settings.pg_name}')
-        else:
-            print(f'database "{settings.pg_name}" does not yet exist')
 
-        print(f'creating database "{settings.pg_name}"...')
-        cur.execute(f'CREATE DATABASE {settings.pg_name}')
+                logger.debug('dropping and re-creating the schema...')
+                cur.execute('drop schema public cascade;\ncreate schema public;')
+        else:
+            print(f'database "{settings.pg_name}" does not yet exist, creating')
+            cur.execute(f'CREATE DATABASE {settings.pg_name}')
 
     engine = create_engine(settings.pg_dsn)
     print('creating tables from model definition...')
@@ -122,9 +116,11 @@ def patch(func):
 
 def run_patch(live, patch_name):
     if patch_name is None:
-        print('available patches:\n{}'.format(
-            '\n'.join('  {}: {}'.format(p.__name__, p.__doc__.strip('\n ')) for p in patches)
-        ))
+        print(
+            'available patches:\n{}'.format(
+                '\n'.join('  {}: {}'.format(p.__name__, p.__doc__.strip('\n ')) for p in patches)
+            )
+        )
         return
     patch_lookup = {p.__name__: p for p in patches}
     try:
@@ -168,8 +164,11 @@ def print_tables(conn):
         'float8': 'FLOAT',
     }
     for table_name, *_ in result:
-        r = conn.execute("SELECT column_name, udt_name, character_maximum_length, is_nullable, column_default "
-                         "FROM information_schema.columns WHERE table_name=%s", table_name)
+        r = conn.execute(
+            "SELECT column_name, udt_name, character_maximum_length, is_nullable, column_default "
+            "FROM information_schema.columns WHERE table_name=%s",
+            table_name,
+        )
         fields = []
         for name, col_type, max_chars, nullable, dft in r:
             col_type = type_lookup.get(col_type, col_type.upper())
@@ -204,11 +203,13 @@ def add_labels(conn):
     add labels field to contractors
     """
     conn.execute('ALTER TABLE contractors ADD labels VARCHAR(255)[]')
-    conn.execute("""
+    conn.execute(
+        """
     CREATE INDEX ix_contractors_labels
       ON contractors
       USING btree (labels);
-    """)
+    """
+    )
 
 
 @patch
@@ -220,11 +221,9 @@ def add_domains_options(conn):
     conn.execute('ALTER TABLE companies ADD options JSONB')
     updated = 0
     for id, domain in conn.execute('SELECT id, domain FROM companies WHERE domain IS NOT NULL'):
-        conn.execute((
-            update(sa_companies)
-            .values({'domains': [domain, 'www.' + domain]})
-            .where(sa_companies.c.id == id)
-        ))
+        conn.execute(
+            (update(sa_companies).values({'domains': [domain, 'www.' + domain]}).where(sa_companies.c.id == id))
+        )
         updated += 1
     print(f'domains updated for {updated} companies')
     conn.execute('ALTER TABLE companies DROP COLUMN domain')

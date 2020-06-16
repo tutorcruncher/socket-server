@@ -53,13 +53,7 @@ async def test_create_company_key(cli, db_conn, company):
 
 
 async def test_create_bad_auth(cli, company):
-    data = dict(
-        id=123,
-        deleted=False,
-        first_name='Fred',
-        last_name='Bloggs',
-        _request_time=time()
-    )
+    data = dict(id=123, deleted=False, first_name='Fred', last_name='Bloggs', _request_time=time())
     payload = json.dumps(data)
     b_payload = payload.encode()
     m = hmac.new(b'this is not the secret key', b_payload, hashlib.sha256)
@@ -85,7 +79,7 @@ async def test_create_skills(cli, db_conn, company):
                 'qual_level': 'GCSE',
                 'subject': 'Algebra',
                 'qual_level_ranking': 16.0,
-                'category': 'Maths'
+                'category': 'Maths',
             },
             {
                 'subject_id': 2,
@@ -93,13 +87,14 @@ async def test_create_skills(cli, db_conn, company):
                 'qual_level': 'GCSE',
                 'subject': 'Language',
                 'qual_level_ranking': 16.0,
-                'category': 'English'
-            }
-        ]
+                'category': 'English',
+            },
+        ],
     )
     assert r.status == 201, await r.text()
-    con_skills = await select_set(db_conn,
-                                  sa_con_skills.c.contractor, sa_con_skills.c.subject, sa_con_skills.c.qual_level)
+    con_skills = await select_set(
+        db_conn, sa_con_skills.c.contractor, sa_con_skills.c.subject, sa_con_skills.c.qual_level
+    )
     assert con_skills == {(123, 1, 1), (123, 2, 1)}
 
 
@@ -109,21 +104,15 @@ async def test_modify_skills(cli, db_conn, company):
         f'/{company.public_key}/webhook/contractor',
         id=123,
         skills=[
-            {
-                'subject_id': 100,
-                'qual_level_id': 200,
-                'qual_level': 'GCSE',
-                'subject': 'Algebra',
-                'category': 'Maths'
-            },
+            {'subject_id': 100, 'qual_level_id': 200, 'qual_level': 'GCSE', 'subject': 'Algebra', 'category': 'Maths'},
             {
                 'subject_id': 101,
                 'qual_level_id': 200,
                 'qual_level': 'GCSE',
                 'subject': 'Language',
-                'category': 'English'
-            }
-        ]
+                'category': 'English',
+            },
+        ],
     )
     assert r.status == 201, await r.text()
     fields = sa_con_skills.c.contractor, sa_con_skills.c.subject, sa_con_skills.c.qual_level
@@ -140,9 +129,9 @@ async def test_modify_skills(cli, db_conn, company):
                 'qual_level_id': 200,
                 'qual_level': 'GCSE',
                 'subject': 'Literature',
-                'category': 'English'
+                'category': 'English',
             }
-        ]
+        ],
     )
     assert r.status == 200, await r.text()
     con_skills = await select_set(db_conn, *fields)
@@ -159,30 +148,13 @@ async def test_extra_attributes(cli, db_conn, company):
             'type': 'checkbox',
             'name': 'Terms and Conditions agreement',
             'value': True,
-            'sort_index': 0
+            'sort_index': 0,
         },
-        {
-            'machine_name': 'bio',
-            'type': 'integer',
-            'name': 'Teaching Experience',
-            'value': 123,
-            'sort_index': 0.123
-        },
-        {
-            'machine_name': 'date',
-            'type': 'date',
-            'name': 'The Date',
-            'value': '2032-06-01',
-            'sort_index': 0.123
-        }
+        {'machine_name': 'bio', 'type': 'integer', 'name': 'Teaching Experience', 'value': 123, 'sort_index': 0.123},
+        {'machine_name': 'date', 'type': 'date', 'name': 'The Date', 'value': '2032-06-01', 'sort_index': 0.123},
     ]
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        deleted=False,
-        first_name='Fred',
-        extra_attributes=eas
+        cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
     )
     assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())
@@ -208,16 +180,11 @@ async def test_tag_line_from_short_text(cli, db_conn, company):
             'type': 'text_short',
             'name': 'Should be tag line?',
             'value': 'Should be tag line.',
-            'sort_index': 0
+            'sort_index': 0,
         },
     ]
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        deleted=False,
-        first_name='Fred',
-        extra_attributes=eas
+        cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
     )
     assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())
@@ -234,16 +201,11 @@ async def test_shorten_tag_line(cli, db_conn, company):
             'type': 'text_short',
             'name': 'Should be tag line?',
             'value': 'Should be tag line.' * 50,
-            'sort_index': 0
+            'sort_index': 0,
         },
     ]
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        deleted=False,
-        first_name='Fred',
-        extra_attributes=eas
+        cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
     )
     assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())
@@ -255,49 +217,38 @@ async def test_shorten_tag_line(cli, db_conn, company):
 
 async def test_extra_attributes_special(cli, db_conn, company):
     eas = [
-        {
-            'machine_name': 'tag_line_a',
-            'type': 'checkbox',
-            'name': 'Should be missed',
-            'value': True,
-            'sort_index': 0
-        },
+        {'machine_name': 'tag_line_a', 'type': 'checkbox', 'name': 'Should be missed', 'value': True, 'sort_index': 0},
         {
             'machine_name': 'whatever',
             'type': 'text_short',
             'name': 'Should be missed',
             'value': 'whatever',
-            'sort_index': 0
+            'sort_index': 0,
         },
         {
             'machine_name': 'tag_line',
             'type': 'text_short',
             'name': 'Should be used',
             'value': 'this is the tag line',
-            'sort_index': 10
+            'sort_index': 10,
         },
         {
             'machine_name': 'foobar',
             'type': 'text_extended',
             'name': 'Primary Description',
             'value': 'Should be used as primary description',
-            'sort_index': 1
+            'sort_index': 1,
         },
         {
             'machine_name': 'no_primary',
             'type': 'text_extended',
             'name': 'Not Primary Description',
             'value': 'Should not be used as primary description because it has a higher sort index than above',
-            'sort_index': 2
-        }
+            'sort_index': 2,
+        },
     ]
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        deleted=False,
-        first_name='Fred',
-        extra_attributes=eas
+        cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
     )
     assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())
@@ -317,16 +268,11 @@ async def test_extra_attributes_null(cli, db_conn, company):
             'name': 'Terms and Conditions agreement',
             'value': None,
             'id': 381,
-            'sort_index': 0
+            'sort_index': 0,
         }
     ]
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        deleted=False,
-        first_name='Fred',
-        extra_attributes=eas
+        cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
     )
     assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())
@@ -345,7 +291,7 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_se
         f'/{company.public_key}/webhook/contractor',
         id=123,
         first_name='Fred',
-        photo=f'{image_download_url}?format={image_format}'
+        photo=f'{image_download_url}?format={image_format}',
     )
     assert r.status == 201, await r.text()
     await worker.run_check()
@@ -370,7 +316,7 @@ async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir,
         f'/{company.public_key}/webhook/contractor',
         id=123,
         first_name='Fred',
-        photo=f'{image_download_url}?exif=1'
+        photo=f'{image_download_url}?exif=1',
     )
     assert r.status == 201, await r.text()
     await worker.run_check()
@@ -401,12 +347,7 @@ async def test_update(cli, db_conn, company):
 
 
 async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir, worker):
-    r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        first_name='Fred',
-    )
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
     assert r.status == 201, await r.text()
     await worker.run_check()
 
@@ -418,7 +359,7 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir, wor
         f'/{company.public_key}/webhook/contractor',
         id=124,
         first_name='George',
-        photo=f'{image_download_url}?format=JPEG'
+        photo=f'{image_download_url}?format=JPEG',
     )
     assert r.status == 201, await r.text()
     await worker.run_check()
@@ -465,7 +406,7 @@ async def test_delete_all_fields(cli, db_conn, company):
         'photo': None,
         'release_timestamp': '2032-02-06T14:17:05.548260Z',
         'skills': [],
-        'town': None
+        'town': None,
     }
 
     r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', **data)
@@ -483,14 +424,8 @@ async def test_delete_skills(cli, db_conn, company):
         f'/{company.public_key}/webhook/contractor',
         id=123,
         skills=[
-            {
-                'subject_id': 1,
-                'qual_level_id': 1,
-                'qual_level': 'GCSE',
-                'subject': 'Literature',
-                'category': 'English'
-            }
-        ]
+            {'subject_id': 1, 'qual_level_id': 1, 'qual_level': 'GCSE', 'subject': 'Literature', 'category': 'English'}
+        ],
     )
     assert r.status == 201, await r.text()
     assert 1 == await count(db_conn, sa_contractors)
@@ -525,31 +460,17 @@ async def test_invalid_json(cli, company):
 
 
 async def test_invalid_schema(cli, company):
-    r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id='not an int',
-    )
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id='not an int')
     assert r.status == 400, await r.text()
     response_data = await r.json()
     assert response_data == {
-        'details': [
-            {
-                'loc': ['id'],
-                'msg': 'value is not a valid integer',
-                'type': 'type_error.integer'
-            }
-        ],
+        'details': [{'loc': ['id'], 'msg': 'value is not a valid integer', 'type': 'type_error.integer'}],
         'status': 'invalid request data',
     }
 
 
 async def test_missing_company(cli, company):
-    r = await signed_request(
-        cli,
-        f'/not-{company.public_key}/webhook/contractor',
-        id=123,
-    )
+    r = await signed_request(cli, f'/not-{company.public_key}/webhook/contractor', id=123)
     assert r.status == 404, await r.text()
     response_data = await r.json()
     assert response_data == {
@@ -559,21 +480,18 @@ async def test_missing_company(cli, company):
 
 
 async def test_invalid_input(cli, db_conn, company):
-    r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        first_name='x' * 100,
-    )
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='x' * 100)
     assert r.status == 400, await r.text()
     data = await r.json()
     assert data == {
-        'details': [{
-            'ctx': {'limit_value': 63},
-            'loc': ['first_name'],
-            'msg': 'ensure this value has at most 63 characters',
-            'type': 'value_error.any_str.max_length'
-        }],
+        'details': [
+            {
+                'ctx': {'limit_value': 63},
+                'loc': ['first_name'],
+                'msg': 'ensure this value has at most 63 characters',
+                'type': 'value_error.any_str.max_length',
+            }
+        ],
         'status': 'invalid request data',
     }
 
@@ -584,16 +502,7 @@ async def test_create_labels(cli, db_conn, company):
         f'/{company.public_key}/webhook/contractor',
         id=123,
         first_name='Fred',
-        labels=[
-            {
-                'machine_name': 'foobar',
-                'name': 'Foobar',
-            },
-            {
-                'machine_name': 'apple-pie',
-                'name': 'Apple Pie',
-            },
-        ]
+        labels=[{'machine_name': 'foobar', 'name': 'Foobar'}, {'machine_name': 'apple-pie', 'name': 'Apple Pie'}],
     )
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name, sa_labels.c.company)
@@ -605,15 +514,7 @@ async def test_create_labels(cli, db_conn, company):
 
 async def test_delete_all_labels(cli, db_conn, company):
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        labels=[
-            {
-                'machine_name': 'foobar',
-                'name': 'Foobar',
-            },
-        ]
+        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     assert 1 == await count(db_conn, sa_contractors)
@@ -631,15 +532,7 @@ async def test_delete_all_labels(cli, db_conn, company):
 
 async def test_delete_some_labels(cli, db_conn, company):
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        labels=[
-            {
-                'machine_name': 'foobar',
-                'name': 'Foobar',
-            },
-        ]
+        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
@@ -651,12 +544,7 @@ async def test_delete_some_labels(cli, db_conn, company):
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
-        labels=[
-            {
-                'machine_name': 'squiggle',
-                'name': 'Squiggle',
-            },
-        ]
+        labels=[{'machine_name': 'squiggle', 'name': 'Squiggle'}],
     )
     assert r.status == 200, await r.text()
 
@@ -668,15 +556,7 @@ async def test_delete_some_labels(cli, db_conn, company):
 
 async def test_labels_conflict(cli, db_conn, company):
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=123,
-        labels=[
-            {
-                'machine_name': 'foobar',
-                'name': 'Foobar',
-            },
-        ]
+        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
@@ -690,12 +570,7 @@ async def test_labels_conflict(cli, db_conn, company):
         cli,
         f'/{company.public_key}/webhook/contractor',
         id=123,
-        labels=[
-            {
-                'machine_name': 'foobar',
-                'name': 'Squiggle',
-            },
-        ]
+        labels=[{'machine_name': 'foobar', 'name': 'Squiggle'}],
     )
     assert r.status == 200, await r.text()
 
@@ -733,10 +608,7 @@ async def test_add_location(cli, db_conn, company):
         f'/{company.public_key}/webhook/contractor',
         signing_key_='this is the master key',
         id=321,
-        location=dict(
-            latitude=12.345,
-            longitude=56.789,
-        )
+        location=dict(latitude=12.345, longitude=56.789),
     )
     assert r.status == 201, await r.text()
     curr = await db_conn.execute(sa_contractors.select())

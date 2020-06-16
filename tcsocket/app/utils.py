@@ -51,9 +51,7 @@ ACCESS_CONTROL_HEADERS = {'Access-Control-Allow-Origin': '*'}
 class HTTPClientErrorJson(web.HTTPClientError):
     def __init__(self, **data):
         super().__init__(
-            text=pretty_lenient_json(data),
-            content_type=JSON_CONTENT_TYPE,
-            headers=ACCESS_CONTROL_HEADERS,
+            text=pretty_lenient_json(data), content_type=JSON_CONTENT_TYPE, headers=ACCESS_CONTROL_HEADERS,
         )
 
 
@@ -105,14 +103,13 @@ def route_url(request, view_name, **kwargs):
     return str(request.app.router[view_name].url_for(**{k: str(v) for k, v in kwargs.items()}))
 
 
-def get_arg(request, field, *, decoder: Callable[[str], Any]=int, default: Any=None):
+def get_arg(request, field, *, decoder: Callable[[str], Any] = int, default: Any = None):
     v = request.query.get(field, default)
     try:
         return None if v is None else decoder(v)
     except ValueError:
         raise HTTPBadRequestJson(
-            status='invalid_argument',
-            details=f'"{field}" had an invalid value "{v}"',
+            status='invalid_argument', details=f'"{field}" had an invalid value "{v}"',
         )
 
 

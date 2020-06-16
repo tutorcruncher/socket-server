@@ -91,6 +91,7 @@ class CompanyOptionsModel(BaseModel):
     """
     Used for options views, this is the definitive set of defaults for company options
     """
+
     name: str
     name_display: NameOptions
 
@@ -124,6 +125,7 @@ class ExtraAttributeModel(BaseModel):
         dropdown = 'dropdown'
         datetime = 'datetime'
         date = 'date'
+
     type: EATypeEnum
 
 
@@ -146,6 +148,7 @@ class ContractorModel(BaseModel):
     class LatitudeModel(BaseModel):
         latitude: Optional[float] = None
         longitude: Optional[float] = None
+
     location: LatitudeModel = None
     extra_attributes: List[ExtraAttributeModel] = []
 
@@ -156,11 +159,13 @@ class ContractorModel(BaseModel):
         qual_level: str
         qual_level_id: int
         qual_level_ranking: float = 0
+
     skills: List[SkillModel] = []
 
     class LabelModel(BaseModel):
         name: str
         machine_name: str
+
     labels: List[LabelModel] = []
 
 

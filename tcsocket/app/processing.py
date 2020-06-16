@@ -33,26 +33,29 @@ async def _set_skills(conn, contractor_id, skills):
     async with conn.begin():
         await conn.execute(
             pg_insert(sa_subjects)
-            .values([
-                {'id': s.subject_id, 'name': s.subject, 'category': s.category}
-                for s in _distinct(skills, 'subject_id')
-            ])
+            .values(
+                [
+                    {'id': s.subject_id, 'name': s.subject, 'category': s.category}
+                    for s in _distinct(skills, 'subject_id')
+                ]
+            )
             .on_conflict_do_nothing()
         )
         await conn.execute(
             pg_insert(sa_qual_levels)
-            .values([
-                {'id': s.qual_level_id, 'name': s.qual_level, 'ranking': s.qual_level_ranking}
-                for s in _distinct(skills, 'qual_level_id')
-            ])
+            .values(
+                [
+                    {'id': s.qual_level_id, 'name': s.qual_level, 'ranking': s.qual_level_ranking}
+                    for s in _distinct(skills, 'qual_level_id')
+                ]
+            )
             .on_conflict_do_nothing()
         )
 
         con_skills_to_create = {(s.subject_id, s.qual_level_id) for s in skills}
 
-        q = (
-            select([sa_con_skills.c.id, sa_con_skills.c.subject, sa_con_skills.c.qual_level])
-            .where(sa_con_skills.c.contractor == contractor_id)
+        q = select([sa_con_skills.c.id, sa_con_skills.c.subject, sa_con_skills.c.qual_level]).where(
+            sa_con_skills.c.contractor == contractor_id
         )
         to_delete = set()
         async for r in conn.execute(q):
@@ -66,11 +69,12 @@ async def _set_skills(conn, contractor_id, skills):
         to_delete and await conn.execute(sa_con_skills.delete().where(sa_con_skills.c.id.in_(to_delete)))
 
         con_skills_to_create and await conn.execute(
-            sa_con_skills.insert()
-            .values([
-                dict(contractor=contractor_id, subject=subject, qual_level=qual_level)
-                for subject, qual_level in con_skills_to_create
-            ])
+            sa_con_skills.insert().values(
+                [
+                    dict(contractor=contractor_id, subject=subject, qual_level=qual_level)
+                    for subject, qual_level in con_skills_to_create
+                ]
+            )
         )
 
 
@@ -81,16 +85,11 @@ async def _set_labels(conn, company_id, labels):
     if not labels:
         return
     async with conn.begin():
-        stmt = pg_insert(sa_labels).values([
-            {'company': company_id, 'machine_name': label.machine_name, 'name': label.name}
-            for label in labels
-        ])
+        stmt = pg_insert(sa_labels).values(
+            [{'company': company_id, 'machine_name': label.machine_name, 'name': label.name} for label in labels]
+        )
         await conn.execute(
-            stmt
-            .on_conflict_do_update(
-                index_elements=['company', 'machine_name'],
-                set_=dict(name=stmt.excluded.name)
-            )
+            stmt.on_conflict_do_update(index_elements=['company', 'machine_name'], set_=dict(name=stmt.excluded.name))
         )
 
 
@@ -127,15 +126,13 @@ async def contractor_set(
     if contractor.deleted:
         if not skip_deleted:
             curr = await conn.execute(
-                sa_contractors
-                .delete()
+                sa_contractors.delete()
                 .where(and_(sa_contractors.c.company == company['id'], sa_contractors.c.id == contractor.id))
                 .returning(sa_contractors.c.id)
             )
             if not await curr.first():
                 raise HTTPNotFoundJson(
-                    status='not found',
-                    details=f'contractor with id {contractor.id} not found',
+                    status='not found', details=f'contractor with id {contractor.id} not found',
                 )
         return Action.deleted
 
@@ -169,7 +166,7 @@ async def contractor_set(
         .on_conflict_do_update(
             index_elements=[sa_contractors.c.id],
             where=sa_contractors.c.company == company['id'],
-            set_=dict(action=Action.updated, **data)
+            set_=dict(action=Action.updated, **data),
         )
         .returning(sa_contractors.c.action)
     )
@@ -177,8 +174,7 @@ async def contractor_set(
     if r is None:
         # the contractor already exists but on another company
         raise HTTPForbiddenJson(
-            status='permission denied',
-            details=f'you do not have permission to update contractor {contractor.id}',
+            status='permission denied', details=f'you do not have permission to update contractor {contractor.id}',
         )
     await _set_skills(conn, contractor.id, contractor.skills)
     await _set_labels(conn, company['id'], contractor.labels)
@@ -186,10 +182,7 @@ async def contractor_set(
         # Sometimes creating the contractor is already done on a job, so don't need another one.
         if redis:
             await redis.enqueue_job(
-                'get_image',
-                company_key=company['public_key'],
-                contractor_id=contractor.id,
-                url=contractor.photo
+                'get_image', company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo
             )
         else:
             await get_image(ctx, company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo)

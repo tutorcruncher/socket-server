@@ -1,9 +1,7 @@
 from enum import Enum, unique
 from typing import Type
 
-from sqlalchemy import Column, DateTime
-from sqlalchemy import Enum as _SAEnum
-from sqlalchemy import Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Column, DateTime, Enum as _SAEnum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -101,9 +99,7 @@ class ConSkill(Base):
     subject = Column(Integer, ForeignKey('subjects.id'), nullable=False)
     qual_level = Column(Integer, ForeignKey('qual_levels.id'), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint('contractor', 'subject', 'qual_level', name='_con_skill_all'),
-    )
+    __table_args__ = (UniqueConstraint('contractor', 'subject', 'qual_level', name='_con_skill_all'),)
 
 
 sa_con_skills = ConSkill.__table__
@@ -117,9 +113,7 @@ class Label(Base):
     machine_name = Column(String(255), nullable=False)
     name = Column(String(255), nullable=False)
 
-    __table_args__ = (
-        UniqueConstraint('company', 'machine_name', name='_labels_company_machine_name'),
-    )
+    __table_args__ = (UniqueConstraint('company', 'machine_name', name='_labels_company_machine_name'),)
 
 
 sa_labels = Label.__table__

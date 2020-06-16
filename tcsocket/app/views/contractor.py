@@ -4,9 +4,7 @@ from operator import attrgetter
 
 from sqlalchemy import String, cast, func, select
 from sqlalchemy.dialects.postgresql import ARRAY
-from sqlalchemy.sql import and_, distinct
-from sqlalchemy.sql import functions as sql_f
-from sqlalchemy.sql import or_
+from sqlalchemy.sql import and_, distinct, functions as sql_f, or_
 
 from ..geo import geocode
 from ..models import Action, NameOptions, sa_con_skills, sa_contractors, sa_qual_levels, sa_subjects
@@ -29,17 +27,10 @@ async def contractor_set(request):
         contractor=contractor,
     )
     if action == Action.deleted:
-        return json_response(
-            request,
-            status='success',
-            details='contractor deleted',
-        )
+        return json_response(request, status='success', details='contractor deleted',)
     else:
         return json_response(
-            request,
-            status_=201 if action == Action.created else 200,
-            status='success',
-            details=f'contractor {action}',
+            request, status_=201 if action == Action.created else 200, status='success', details=f'contractor {action}',
         )
 
 
@@ -74,20 +65,29 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
 
     company = request['company']
     options = company.options or {}
-    fields = c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.town, c.country, c.photo_hash,
+    fields = (
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.tag_line,
+        c.primary_description,
+        c.town,
+        c.country,
+        c.photo_hash,
+    )
     show_labels = options.get('show_labels')
     if show_labels:
-        fields += c.labels,
+        fields += (c.labels,)
 
     show_stars = options.get('show_stars')
     if show_stars:
-        fields += c.review_rating,
+        fields += (c.review_rating,)
 
     show_hours_reviewed = options.get('show_hours_reviewed')
     if show_hours_reviewed:
-        fields += c.review_duration,
+        fields += (c.review_duration,)
 
-    where = c.company == company.id,
+    where = (c.company == company.id,)
 
     subject_filter = get_arg(request, 'subject')
     qual_level_filter = get_arg(request, 'qual_level')
@@ -97,35 +97,30 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         select_from = sa_contractors.join(sa_con_skills)
         if subject_filter:
             select_from = select_from.join(sa_subjects)
-            where += sa_subjects.c.id == subject_filter,
+            where += (sa_subjects.c.id == subject_filter,)
         if qual_level_filter:
             select_from = select_from.join(sa_qual_levels)
-            where += sa_qual_levels.c.id == qual_level_filter,
+            where += (sa_qual_levels.c.id == qual_level_filter,)
 
     labels_filter = request.query.getall('label', [])
     labels_exclude_filter = request.query.getall('label_exclude', [])
     if labels_filter:
-        where += c.labels.contains(cast(labels_filter, ARRAY(String(255)))),
+        where += (c.labels.contains(cast(labels_filter, ARRAY(String(255)))),)
     if labels_exclude_filter:
-        where += or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),
+        where += (or_(~c.labels.overlap(cast(labels_exclude_filter, ARRAY(String(255)))), c.labels.is_(None)),)
 
     location = await geocode(request)
     inc_distance = None
     if location:
         if location.get('error'):
-            return json_response(
-                request,
-                location=location,
-                results=[],
-                count=0,
-            )
+            return json_response(request, location=location, results=[], count=0,)
         max_distance = get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
         request_loc = func.ll_to_earth(location['lat'], location['lng'])
         con_loc = func.ll_to_earth(c.latitude, c.longitude)
         distance_func = func.earth_distance(request_loc, con_loc)
-        where += distance_func < max_distance,
-        fields += distance_func.label('distance'),
+        where += (distance_func < max_distance,)
+        fields += (distance_func.label('distance'),)
         sort_col = distance_func
 
     distinct_cols = sort_col, c.id
@@ -138,12 +133,7 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         sort_on = sort_col.asc(), c.id
 
     q_iter = (
-        select(fields)
-        .where(and_(*where))
-        .order_by(*sort_on)
-        .distinct(*distinct_cols)
-        .offset(offset)
-        .limit(pagination)
+        select(fields).where(and_(*where)).order_by(*sort_on).distinct(*distinct_cols).offset(offset).limit(pagination)
     )
     q_count = select([sql_f.count(distinct(c.id))]).where(and_(*where))
     if select_from is not None:
@@ -176,30 +166,19 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         results.append(con)
 
     cur_count = await conn.execute(q_count)
-    return json_response(
-        request,
-        location=location,
-        results=results,
-        count=(await cur_count.first())[0],
-    )
+    return json_response(request, location=location, results=results, count=(await cur_count.first())[0],)
 
 
 def _group_skills(skills):
     for sub_cat, g in groupby(skills, attrgetter('subjects_name', 'subjects_category')):
-        yield {
-            'subject': sub_cat[0],
-            'category': sub_cat[1],
-            'qual_levels': [s.qual_levels_name for s in g]
-        }
+        yield {'subject': sub_cat[0], 'category': sub_cat[1], 'qual_levels': [s.qual_levels_name for s in g]}
 
 
 async def _get_skills(conn, con_id):
     cols = sa_subjects.c.category, sa_subjects.c.name, sa_qual_levels.c.name, sa_qual_levels.c.ranking
     skills_curr = await conn.execute(
         select(cols, use_labels=True)
-        .select_from(
-            sa_con_skills.join(sa_subjects).join(sa_qual_levels)
-        )
+        .select_from(sa_con_skills.join(sa_subjects).join(sa_qual_levels))
         .where(sa_con_skills.c.contractor == con_id)
         .order_by(sa_subjects.c.name, sa_qual_levels.c.ranking)
     )
@@ -209,16 +188,22 @@ async def _get_skills(conn, con_id):
 
 async def contractor_get(request):
     cols = (
-        c.id, c.first_name, c.last_name, c.tag_line, c.primary_description, c.extra_attributes, c.town,
-        c.country, c.labels, c.review_rating, c.review_duration, c.photo_hash,
+        c.id,
+        c.first_name,
+        c.last_name,
+        c.tag_line,
+        c.primary_description,
+        c.extra_attributes,
+        c.town,
+        c.country,
+        c.labels,
+        c.review_rating,
+        c.review_duration,
+        c.photo_hash,
     )
     con_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
-    curr = await conn.execute(
-        select(cols)
-        .where(and_(c.company == request['company'].id, c.id == con_id))
-        .limit(1)
-    )
+    curr = await conn.execute(select(cols).where(and_(c.company == request['company'].id, c.id == con_id)).limit(1))
     con = await curr.first()
     if not con:
         raise HTTPNotFoundJson()

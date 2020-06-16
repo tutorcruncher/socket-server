@@ -9,8 +9,14 @@ from arq import create_pool
 from .middleware import middleware
 from .settings import THIS_DIR, Settings
 from .views import favicon, index, labels_list, qual_level_list, robots_txt, subject_list
-from .views.appointments import (appointment_list, appointment_webhook, appointment_webhook_delete, book_appointment,
-                                 check_client, service_list)
+from .views.appointments import (
+    appointment_list,
+    appointment_webhook,
+    appointment_webhook_delete,
+    book_appointment,
+    check_client,
+    service_list,
+)
 from .views.company import company_create, company_list, company_options, company_update
 from .views.contractor import contractor_get, contractor_list, contractor_set
 from .views.enquiry import clear_enquiry, enquiry
@@ -20,9 +26,7 @@ async def startup(app: web.Application):
     settings: Settings = app['settings']
     redis = await create_pool(settings.redis_settings)
     app.update(
-        pg_engine=await create_engine(settings.pg_dsn),
-        redis=redis,
-        session=ClientSession(),
+        pg_engine=await create_engine(settings.pg_dsn), redis=redis, session=ClientSession(),
     )
 
 
@@ -48,8 +52,9 @@ def setup_routes(app):
     app.router.add_post(r'/{company}/webhook/contractor', contractor_set, name='webhook-contractor')
     app.router.add_post(r'/{company}/webhook/clear-enquiry', clear_enquiry, name='webhook-clear-enquiry')
     app.router.add_post(r'/{company}/webhook/appointments/{id:\d+}', appointment_webhook, name='webhook-appointment')
-    app.router.add_delete(r'/{company}/webhook/appointments/{id:\d+}', appointment_webhook_delete,
-                          name='webhook-appointment-delete')
+    app.router.add_delete(
+        r'/{company}/webhook/appointments/{id:\d+}', appointment_webhook_delete, name='webhook-appointment-delete'
+    )
 
     app.router.add_get(r'/{company}/contractors', contractor_list, name='contractor-list')
     app.router.add_get(r'/{company}/contractors/{id:\d+}', contractor_get, name='contractor-get')
@@ -64,7 +69,7 @@ def setup_routes(app):
     app.router.add_post(r'/{company}/book-appointment', book_appointment, name='book-appointment')
 
 
-def create_app(loop, *, settings: Settings=None):
+def create_app(loop, *, settings: Settings = None):
     app = web.Application(middlewares=middleware)
     settings = settings or Settings()
     app['settings'] = settings

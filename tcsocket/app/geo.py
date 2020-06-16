@@ -39,8 +39,9 @@ async def geocode(request):
         loc_data = await redis.get(loc_key)
         if loc_data:
             result = json.loads(loc_data)
-            logger.info('cached geocode result "%s|%s" > "%s"', location_str, region,
-                        result.get('error') or result['pretty'])
+            logger.info(
+                'cached geocode result "%s|%s" > "%s"', location_str, region, result.get('error') or result['pretty']
+            )
             return result
 
         ip_key = 'geoip:' + ip_address
@@ -76,6 +77,12 @@ async def geocode(request):
         else:
             result = {'error': 'no_results'}
         await redis.setex(loc_key, NINETY_DAYS, json.dumps(result).encode())
-        logger.info('new geocode result "%s|%s" > "%s" (%d from "%s")',
-                    location_str, region, result.get('error') or result['pretty'], geo_attempts, ip_address)
+        logger.info(
+            'new geocode result "%s|%s" > "%s" (%d from "%s")',
+            location_str,
+            region,
+            result.get('error') or result['pretty'],
+            geo_attempts,
+            ip_address,
+        )
         return result

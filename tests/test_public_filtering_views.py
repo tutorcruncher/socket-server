@@ -22,24 +22,24 @@ async def test_list_contractors_origin(cli, company):
     assert r.headers.get('Access-Control-Allow-Origin') == '*'
     assert {
         'details': "the current Origin 'http://different.com' does not match the allowed domains",
-        'status': 'wrong Origin domain'
+        'status': 'wrong Origin domain',
     } == await r.json()
 
 
-@pytest.mark.parametrize('domains, origin, response', [
-    (['example.com'], 'http://example.com', 200),
-    (['example.com'], 'http://www.example.com', 403),
-    (['*.example.com'], 'http://www.example.com', 200),
-    ([], 'http://example.com', 403),
-    (None, 'http://example.com', 200),
-    (['localhost'], 'http://localhost:8000', 200),
-])
+@pytest.mark.parametrize(
+    'domains, origin, response',
+    [
+        (['example.com'], 'http://example.com', 200),
+        (['example.com'], 'http://www.example.com', 403),
+        (['*.example.com'], 'http://www.example.com', 200),
+        ([], 'http://example.com', 403),
+        (None, 'http://example.com', 200),
+        (['localhost'], 'http://localhost:8000', 200),
+    ],
+)
 async def test_list_contractors_domains(cli, company, domains, origin, response):
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/options',
-        signing_key_='this is the master key',
-        domains=domains,
+        cli, f'/{company.public_key}/webhook/options', signing_key_='this is the master key', domains=domains,
     )
     assert r.status == 200, await r.text()
 
@@ -58,25 +58,28 @@ async def test_list_contractors_referrer(cli, company):
     assert r.status == 200
 
 
-@pytest.mark.parametrize('filter_args, con_count', [
-    ('', 2),
-    ('subject=1', 1),
-    ('subject=2', 1),
-    ('subject=3', 0),
-    ('qual_level=11', 1),
-    ('qual_level=12', 1),
-    ('qual_level=13', 0),
-    ('subject=1&qual_level=11', 1),
-    ('subject=3&qual_level=11', 0),
-])
+@pytest.mark.parametrize(
+    'filter_args, con_count',
+    [
+        ('', 2),
+        ('subject=1', 1),
+        ('subject=2', 1),
+        ('subject=3', 0),
+        ('qual_level=11', 1),
+        ('qual_level=12', 1),
+        ('qual_level=13', 0),
+        ('subject=1&qual_level=11', 1),
+        ('subject=3&qual_level=11', 0),
+    ],
+)
 async def test_filter_contractors_skills(cli, db_conn, company, filter_args, con_count):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values([
-            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
-            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
-        ])
+        sa_contractors.insert().values(
+            [
+                dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
+                dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+            ]
+        )
     )
     await create_con_skills(db_conn, 1)
 
@@ -92,14 +95,12 @@ async def test_filter_contractors_skills(cli, db_conn, company, filter_args, con
 
 async def test_filter_contractors_skills_distinct(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+        sa_contractors.insert().values(
+            id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()
+        )
     )
     await create_con_skills(db_conn, 1)
-    await db_conn.execute(
-        sa_con_skills.insert().values({'contractor': 1, 'subject': 1, 'qual_level': 12})
-    )
+    await db_conn.execute(sa_con_skills.insert().values({'contractor': 1, 'subject': 1, 'qual_level': 12}))
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
     r = await cli.get(url + '?subject=1')
@@ -111,9 +112,9 @@ async def test_filter_contractors_skills_distinct(cli, db_conn, company):
 
 async def test_filter_contractors_skills_invalid(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+        sa_contractors.insert().values(
+            id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()
+        )
     )
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key)) + '?subject=foobar'
@@ -125,12 +126,12 @@ async def test_filter_contractors_skills_invalid(cli, db_conn, company):
 
 async def test_subject_list(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values([
-            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
-            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
-        ])
+        sa_contractors.insert().values(
+            [
+                dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
+                dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+            ]
+        )
     )
     # adding subjects to both cons checks distinct in query
     await create_con_skills(db_conn, 1, 2)
@@ -142,18 +143,18 @@ async def test_subject_list(cli, db_conn, company):
     obj = await r.json()
     assert obj == [
         {'category': 'English', 'id': 2, 'name': 'Language', 'link': '2-language'},
-        {'category': 'Maths', 'id': 1, 'name': 'Mathematics', 'link': '1-mathematics'}
+        {'category': 'Maths', 'id': 1, 'name': 'Mathematics', 'link': '1-mathematics'},
     ]
 
 
 async def test_qual_level_list(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values([
-            dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
-            dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
-        ])
+        sa_contractors.insert().values(
+            [
+                dict(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()),
+                dict(id=2, company=company.id, first_name='con2', last_name='tractor', last_updated=datetime.now()),
+            ]
+        )
     )
     # adding qual levels to both cons checks distinct in query
     await create_con_skills(db_conn, 1, 2)
@@ -163,27 +164,41 @@ async def test_qual_level_list(cli, db_conn, company):
     r = await cli.get(cli.server.app.router['qual-level-list'].url_for(company=company.public_key))
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert obj == [
-        {'id': 11, 'name': 'GCSE', 'link': '11-gcse'},
-        {'id': 12, 'name': 'A Level', 'link': '12-a-level'}
-    ]
+    assert obj == [{'id': 11, 'name': 'GCSE', 'link': '11-gcse'}, {'id': 12, 'name': 'A Level', 'link': '12-a-level'}]
 
 
-@pytest.mark.parametrize('params, con_distances', [
-    ({'location': 'SW1W 0EN'}, [('1-bcon1-t', 3129), ('2-acon2-t', 10054)]),
-    ({'location': 'SW1W 0EN', 'max_distance': 4000}, [('1-bcon1-t', 3129)]),
-    ({'location': 'SW1W 0ENx', 'max_distance': 4000}, []),
-])
+@pytest.mark.parametrize(
+    'params, con_distances',
+    [
+        ({'location': 'SW1W 0EN'}, [('1-bcon1-t', 3129), ('2-acon2-t', 10054)]),
+        ({'location': 'SW1W 0EN', 'max_distance': 4000}, [('1-bcon1-t', 3129)]),
+        ({'location': 'SW1W 0ENx', 'max_distance': 4000}, []),
+    ],
+)
 async def test_distance_filter(cli, db_conn, company, params, con_distances):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values([
-            dict(id=1, company=company.id, latitude=51.5, longitude=-0.1, first_name='b_con1', last_name='t',
-                 last_updated=datetime.now()),
-            dict(id=2, company=company.id, latitude=51.5, longitude=0, first_name='a_con2', last_name='t',
-                 last_updated=datetime.now()),
-        ])
+        sa_contractors.insert().values(
+            [
+                dict(
+                    id=1,
+                    company=company.id,
+                    latitude=51.5,
+                    longitude=-0.1,
+                    first_name='b_con1',
+                    last_name='t',
+                    last_updated=datetime.now(),
+                ),
+                dict(
+                    id=2,
+                    company=company.id,
+                    latitude=51.5,
+                    longitude=0,
+                    first_name='a_con2',
+                    last_name='t',
+                    last_updated=datetime.now(),
+                ),
+            ]
+        )
     )
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
@@ -203,7 +218,7 @@ async def test_geocode_cache(cli, other_server, company):
     assert {
         'pretty': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
         'lat': 51.4980603,
-        'lng': -0.14505
+        'lng': -0.14505,
     } == obj['location']
 
     r = await cli.get(url, params={'location': 'SW1W 0EN'}, headers={'X-Forwarded-For': '1.1.1.2', **country})
@@ -245,7 +260,7 @@ async def test_geocode_other_country(cli, other_server, company):
     r = await cli.get(
         cli.server.app.router['contractor-list'].url_for(company=company.public_key),
         params={'location': 'SW1W 0EN'},
-        headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'US'}
+        headers={'X-Forwarded-For': '1.1.1.1', 'CF-IPCountry': 'US'},
     )
     assert r.status == 200, await r.text()
     obj = await r.json()
@@ -259,40 +274,44 @@ async def test_geocode_other_country(cli, other_server, company):
 
 async def create_labels(db_conn, company):
     await db_conn.execute(
-        sa_labels
-        .insert()
-        .values([
-            {'name': 'Apple', 'machine_name': 'apple', 'company': company.id},
-            {'name': 'Banana', 'machine_name': 'banana', 'company': company.id},
-            {'name': 'Carrot', 'machine_name': 'carrot', 'company': company.id},
-        ])
+        sa_labels.insert().values(
+            [
+                {'name': 'Apple', 'machine_name': 'apple', 'company': company.id},
+                {'name': 'Banana', 'machine_name': 'banana', 'company': company.id},
+                {'name': 'Carrot', 'machine_name': 'carrot', 'company': company.id},
+            ]
+        )
     )
 
 
-@pytest.mark.parametrize('filter_args, cons', [
-    ('', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x']),
-    ('label=apple', ['1-anne-x', '2-ben-x']),
-    ('label=apple&label=banana&label=carrot', ['1-anne-x']),
-    ('label=banana&label=carrot', ['1-anne-x', '3-charlie-x']),
-    ('label_exclude=carrot', ['2-ben-x', '4-dave-x']),
-    ('label_exclude=apple&label_exclude=carrot', ['4-dave-x']),
-    ('label=apple&label_exclude=carrot', ['2-ben-x']),
-])
+@pytest.mark.parametrize(
+    'filter_args, cons',
+    [
+        ('', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x']),
+        ('label=apple', ['1-anne-x', '2-ben-x']),
+        ('label=apple&label=banana&label=carrot', ['1-anne-x']),
+        ('label=banana&label=carrot', ['1-anne-x', '3-charlie-x']),
+        ('label_exclude=carrot', ['2-ben-x', '4-dave-x']),
+        ('label_exclude=apple&label_exclude=carrot', ['4-dave-x']),
+        ('label=apple&label_exclude=carrot', ['2-ben-x']),
+    ],
+)
 async def test_label_filter(cli, db_conn, company, filter_args, cons):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values([
-            dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now()),
-            dict(id=2, company=company.id, first_name='Ben', last_name='x', last_updated=datetime.now()),
-            dict(id=3, company=company.id, first_name='Charlie', last_name='x', last_updated=datetime.now()),
-            dict(id=4, company=company.id, first_name='Dave', last_name='x', last_updated=datetime.now()),
-        ])
+        sa_contractors.insert().values(
+            [
+                dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now()),
+                dict(id=2, company=company.id, first_name='Ben', last_name='x', last_updated=datetime.now()),
+                dict(id=3, company=company.id, first_name='Charlie', last_name='x', last_updated=datetime.now()),
+                dict(id=4, company=company.id, first_name='Dave', last_name='x', last_updated=datetime.now()),
+            ]
+        )
     )
     await create_labels(db_conn, company)
 
-    await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
-                          .where(sa_contractors.c.id == 1))
+    await db_conn.execute(
+        update(sa_contractors).values(labels=['apple', 'banana', 'carrot']).where(sa_contractors.c.id == 1)
+    )
     await db_conn.execute(update(sa_contractors).values(labels=['apple']).where(sa_contractors.c.id == 2))
     await db_conn.execute(update(sa_contractors).values(labels=['banana', 'carrot']).where(sa_contractors.c.id == 3))
 
@@ -314,16 +333,13 @@ async def test_labels_list(cli, db_conn, company):
     await create_labels(db_conn, company)
 
     v = await db_conn.execute(
-        sa_companies
-        .insert()
+        sa_companies.insert()
         .values(name='snap', public_key='snap', private_key='snap', domains=['example.com'])
         .returning(sa_companies.c.id)
     )
     new_company_id = [r async for r in v][0].id
     await db_conn.execute(
-        sa_labels
-        .insert()
-        .values({'name': 'Different', 'machine_name': 'different', 'company': new_company_id})
+        sa_labels.insert().values({'name': 'Different', 'machine_name': 'different', 'company': new_company_id})
     )
 
     r = await cli.get(url)
@@ -338,10 +354,16 @@ async def test_labels_list(cli, db_conn, company):
 
 async def test_show_permissions(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now(),
-                labels=['foo', 'bar'], review_rating=3.5, review_duration=1800)
+        sa_contractors.insert().values(
+            id=1,
+            company=company.id,
+            first_name='Fred',
+            last_name='Bloggs',
+            last_updated=datetime.now(),
+            labels=['foo', 'bar'],
+            review_rating=3.5,
+            review_duration=1800,
+        )
     )
 
     url = cli.server.app.router['contractor-list'].url_for(company=company.public_key)
@@ -355,9 +377,9 @@ async def test_show_permissions(cli, db_conn, company):
     assert 'review_rating' not in results[0], results[0]
     assert 'review_duration' not in results[0], results[0]
 
-    await db_conn.execute(update(sa_companies).values(options={
-        'show_labels': True, 'show_stars': True, 'show_hours_reviewed': True
-    }))
+    await db_conn.execute(
+        update(sa_companies).values(options={'show_labels': True, 'show_stars': True, 'show_hours_reviewed': True})
+    )
 
     r = await cli.get(url)
     assert r.status == 200, await r.text()
@@ -368,23 +390,22 @@ async def test_show_permissions(cli, db_conn, company):
     assert results[0]['review_duration'] == 1800, results[0]
 
 
-@pytest.mark.parametrize('filter_args, con_count, first_id, last_id', [
-    ('sort=name', 100, 1, 100),
-    ('sort=name&pagination=40', 40, 1, 40),
-    ('sort=name&page=1', 100, 1, 100),
-    ('sort=name&page=2', 10, 101, 110),
-    ('sort=name&pagination=40&page=2', 40, 41, 80),
-])
+@pytest.mark.parametrize(
+    'filter_args, con_count, first_id, last_id',
+    [
+        ('sort=name', 100, 1, 100),
+        ('sort=name&pagination=40', 40, 1, 40),
+        ('sort=name&page=1', 100, 1, 100),
+        ('sort=name&page=2', 10, 101, 110),
+        ('sort=name&pagination=40&page=2', 40, 41, 80),
+    ],
+)
 async def test_contractor_pagination(cli, db_conn, company, filter_args, con_count, first_id, last_id):
     cons = [
         dict(id=i, company=company.id, first_name=f'Fred{i:04d}', last_name='X', last_updated=datetime.now())
         for i in range(1, 111)
     ]
-    await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(cons)
-    )
+    await db_conn.execute(sa_contractors.insert().values(cons))
 
     url = str(cli.server.app.router['contractor-list'].url_for(company=company.public_key))
     r = await cli.get(url + '?' + filter_args)
@@ -397,34 +418,80 @@ async def test_contractor_pagination(cli, db_conn, company, filter_args, con_cou
     assert results[-1]['id'] == last_id, results[-1]
 
 
-@pytest.mark.parametrize('sort, cons', [
-    ('name', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x', '5-edgar-x', '6-fred-x']),
-    ('review_rating', ['3-charlie-x', '2-ben-x', '1-anne-x', '6-fred-x', '4-dave-x', '5-edgar-x']),
-    ('last_updated', ['6-fred-x', '5-edgar-x', '4-dave-x', '3-charlie-x', '2-ben-x', '1-anne-x']),
-])
+@pytest.mark.parametrize(
+    'sort, cons',
+    [
+        ('name', ['1-anne-x', '2-ben-x', '3-charlie-x', '4-dave-x', '5-edgar-x', '6-fred-x']),
+        ('review_rating', ['3-charlie-x', '2-ben-x', '1-anne-x', '6-fred-x', '4-dave-x', '5-edgar-x']),
+        ('last_updated', ['6-fred-x', '5-edgar-x', '4-dave-x', '3-charlie-x', '2-ben-x', '1-anne-x']),
+    ],
+)
 async def test_sorting(cli, db_conn, company, sort, cons):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values([
-            dict(id=1, company=company.id, first_name='Anne', last_name='x',
-                 last_updated=datetime(2032, 1, 1), review_rating=4, review_duration=1000),
-            dict(id=2, company=company.id, first_name='Ben', last_name='x',
-                 last_updated=datetime(2032, 1, 2), review_rating=4.5, review_duration=50),
-            dict(id=3, company=company.id, first_name='Charlie', last_name='x',
-                 last_updated=datetime(2032, 1, 3), review_rating=4.5, review_duration=100),
-            dict(id=4, company=company.id, first_name='Dave', last_name='x',
-                 last_updated=datetime(2032, 1, 4), review_rating=1, review_duration=0),
-            dict(id=5, company=company.id, first_name='Edgar', last_name='x',
-                 last_updated=datetime(2032, 1, 5), review_rating=None, review_duration=0),
-            dict(id=6, company=company.id, first_name='Fred', last_name='x',
-                 last_updated=datetime(2032, 1, 6), review_rating=4, review_duration=0),
-        ])
+        sa_contractors.insert().values(
+            [
+                dict(
+                    id=1,
+                    company=company.id,
+                    first_name='Anne',
+                    last_name='x',
+                    last_updated=datetime(2032, 1, 1),
+                    review_rating=4,
+                    review_duration=1000,
+                ),
+                dict(
+                    id=2,
+                    company=company.id,
+                    first_name='Ben',
+                    last_name='x',
+                    last_updated=datetime(2032, 1, 2),
+                    review_rating=4.5,
+                    review_duration=50,
+                ),
+                dict(
+                    id=3,
+                    company=company.id,
+                    first_name='Charlie',
+                    last_name='x',
+                    last_updated=datetime(2032, 1, 3),
+                    review_rating=4.5,
+                    review_duration=100,
+                ),
+                dict(
+                    id=4,
+                    company=company.id,
+                    first_name='Dave',
+                    last_name='x',
+                    last_updated=datetime(2032, 1, 4),
+                    review_rating=1,
+                    review_duration=0,
+                ),
+                dict(
+                    id=5,
+                    company=company.id,
+                    first_name='Edgar',
+                    last_name='x',
+                    last_updated=datetime(2032, 1, 5),
+                    review_rating=None,
+                    review_duration=0,
+                ),
+                dict(
+                    id=6,
+                    company=company.id,
+                    first_name='Fred',
+                    last_name='x',
+                    last_updated=datetime(2032, 1, 6),
+                    review_rating=4,
+                    review_duration=0,
+                ),
+            ]
+        )
     )
     await create_labels(db_conn, company)
 
-    await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
-                          .where(sa_contractors.c.id == 1))
+    await db_conn.execute(
+        update(sa_contractors).values(labels=['apple', 'banana', 'carrot']).where(sa_contractors.c.id == 1)
+    )
     await db_conn.execute(update(sa_contractors).values(labels=['apple']).where(sa_contractors.c.id == 2))
     await db_conn.execute(update(sa_contractors).values(labels=['banana', 'carrot']).where(sa_contractors.c.id == 3))
 
