@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import os
 from collections import namedtuple
 from datetime import datetime
 from io import BytesIO
@@ -20,13 +21,13 @@ from sqlalchemy import select
 from sqlalchemy.sql.functions import count as count_func
 
 from tcsocket.app.main import create_app
-from tcsocket.app.management import populate_db, psycopg2_cursor
+from tcsocket.app.management import populate_db, prepare_database
 from tcsocket.app.models import sa_appointments, sa_companies, sa_con_skills, sa_qual_levels, sa_services, sa_subjects
 from tcsocket.app.settings import Settings
 from tcsocket.app.worker import WorkerSettings, startup
 
-DB_NAME = 'socket_test'
 MASTER_KEY = 'this is the master key'
+DB_DSN = 'postgres://postgres@localhost:5432/socket_test'
 
 
 async def test_image_view(request):
@@ -68,18 +69,13 @@ async def contractor_list_view(request):
                     'town': 'London',
                     'country': 'United Kingdom',
                 }
-            ]
+            ],
         },
         2: {
             'count': 2,
             'next': None,
             'previous': f'{request.app["extra"]["server_name"]}/api/public_contractors/?page=1',
-            'results': [
-                {
-                    'id': 23,
-                    'last_name': 'Person 2',
-                }
-            ]
+            'results': [{'id': 23, 'last_name': 'Person 2'}],
         },
     }
     page = int(request.query.get('page', 1))
@@ -98,7 +94,7 @@ async def enquiry_options_view(request):
                 'label': 'Tell us about yourself',
                 'help_text': 'whatever',
                 'max_length': 2047,
-                'sort_index': 1000
+                'sort_index': 1000,
             },
             'how-did-you-hear-about-us': {
                 'type': 'choice',
@@ -110,7 +106,7 @@ async def enquiry_options_view(request):
                     {'value': 'foo', 'display_name': 'Foo'},
                     {'value': 'bar', 'display_name': 'Bar'},
                 ],
-                'sort_index': 1001
+                'sort_index': 1001,
             },
             'date-of-birth': {
                 'type': 'date',
@@ -118,8 +114,8 @@ async def enquiry_options_view(request):
                 'read_only': True,
                 'label': 'Date of Birth',
                 'help_text': 'Date your child was born',
-                'sort_index': 1003
-            }
+                'sort_index': 1003,
+            },
         }
     elif extra_attributes == 'datetime':
         attribute_children = {
@@ -129,7 +125,7 @@ async def enquiry_options_view(request):
                 'read_only': True,
                 'label': 'Foobar date',
                 'help_text': 'xxx',
-                'sort_index': 1000
+                'sort_index': 1000,
             },
             'datetime-field': {
                 'type': 'datetime',
@@ -137,8 +133,8 @@ async def enquiry_options_view(request):
                 'read_only': True,
                 'label': 'Foobar datetime',
                 'help_text': 'xxx',
-                'sort_index': 1001
-            }
+                'sort_index': 1001,
+            },
         }
     elif extra_attributes == 'all_optional':
         attribute_children = {
@@ -152,7 +148,7 @@ async def enquiry_options_view(request):
                     {'value': 'foo', 'display_name': 'Foo'},
                     {'value': 'bar', 'display_name': 'Bar'},
                 ],
-                'sort_index': 1001
+                'sort_index': 1001,
             },
             'date-of-birth': {
                 'type': 'date',
@@ -160,102 +156,104 @@ async def enquiry_options_view(request):
                 'read_only': True,
                 'label': 'Date of Birth',
                 'help_text': 'Date your child was born',
-                'sort_index': 1003
-            }
+                'sort_index': 1003,
+            },
         }
     else:
         attribute_children = {}
-    return json_response({
-        'name': 'Enquiries',
-        '_': 'unused fields missing...',
-        'actions': {
-            'POST': {
-                'client_name': {
-                    'type': 'string',
-                    'required': True,
-                    'read_only': False,
-                    'label': 'Name',
-                    'max_length': 255,
-                    'sort_index': 10,
-                },
-                'client_email': {
-                    'type': 'email',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Email',
-                    'max_length': 255,
-                    'sort_index': 20,
-                },
-                'client_phone': {
-                    'type': 'string',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Phone number',
-                    'max_length': 255,
-                    'sort_index': 30,
-                },
-                'service_recipient_name': {
-                    'type': 'string',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Student name',
-                    'max_length': 255,
-                    'sort_index': 40,
-                },
-                'attributes': {
-                    'type': 'nested object',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Attributes',
-                    'children': attribute_children,
-                },
-                'contractor': {
-                    'type': 'field',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Tutor',
-                    'sort_index': 50,
-                },
-                'subject': {
-                    'type': 'field',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Subject',
-                    'sort_index': 60,
-                },
-                'qual_level': {
-                    'type': 'field',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Qualification Level',
-                    'sort_index': 70,
-                },
-                'user_agent': {
-                    'type': 'string',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Browser User-Agent',
-                    'max_length': 255,
-                    'sort_index': 80,
-                },
-                'ip_address': {
-                    'type': 'string',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'IP Address',
-                    'sort_index': 90,
-                },
-                'http_referrer': {
-                    'type': 'url',
-                    'required': False,
-                    'read_only': False,
-                    'label': 'Referrer',
-                    'max_length': 200,
-                    'sort_index': 100,
+    return json_response(
+        {
+            'name': 'Enquiries',
+            '_': 'unused fields missing...',
+            'actions': {
+                'POST': {
+                    'client_name': {
+                        'type': 'string',
+                        'required': True,
+                        'read_only': False,
+                        'label': 'Name',
+                        'max_length': 255,
+                        'sort_index': 10,
+                    },
+                    'client_email': {
+                        'type': 'email',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Email',
+                        'max_length': 255,
+                        'sort_index': 20,
+                    },
+                    'client_phone': {
+                        'type': 'string',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Phone number',
+                        'max_length': 255,
+                        'sort_index': 30,
+                    },
+                    'service_recipient_name': {
+                        'type': 'string',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Student name',
+                        'max_length': 255,
+                        'sort_index': 40,
+                    },
+                    'attributes': {
+                        'type': 'nested object',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Attributes',
+                        'children': attribute_children,
+                    },
+                    'contractor': {
+                        'type': 'field',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Tutor',
+                        'sort_index': 50,
+                    },
+                    'subject': {
+                        'type': 'field',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Subject',
+                        'sort_index': 60,
+                    },
+                    'qual_level': {
+                        'type': 'field',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Qualification Level',
+                        'sort_index': 70,
+                    },
+                    'user_agent': {
+                        'type': 'string',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Browser User-Agent',
+                        'max_length': 255,
+                        'sort_index': 80,
+                    },
+                    'ip_address': {
+                        'type': 'string',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'IP Address',
+                        'sort_index': 90,
+                    },
+                    'http_referrer': {
+                        'type': 'url',
+                        'required': False,
+                        'read_only': False,
+                        'label': 'Referrer',
+                        'max_length': 200,
+                        'sort_index': 100,
+                    },
                 }
-            }
+            },
         }
-    })
+    )
 
 
 async def enquiry_post_view(request):
@@ -280,7 +278,7 @@ async def grecaptcha_post_view(request):
         d = {
             'success': True,
             'challenge_ts': datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'),
-            'hostname': request.app['grecaptcha_host']
+            'hostname': request.app['grecaptcha_host'],
         }
     else:
         d = {'success': False, 'error-codes': ['invalid-input-response']}
@@ -300,10 +298,7 @@ async def geocoding_view(request):
                     'formatted_address': 'Lower Grosvenor Pl, Westminster, London SW1W 0EN, UK',
                     'geometry': {
                         'bounds': None,
-                        'location': {
-                            'lat': 51.4980603,
-                            'lng': -0.14505,
-                        },
+                        'location': {'lat': 51.4980603, 'lng': -0.14505},
                         'location_type': 'APPROXIMATE',
                         'viewport': None,
                     },
@@ -343,12 +338,7 @@ async def _fix_redis(settings):
 @pytest.yield_fixture(name='worker_ctx')
 async def _fix_worker_ctx(redis, settings, db_conn):
     session = ClientSession(timeout=ClientTimeout(total=10))
-    ctx = dict(
-        settings=settings,
-        pg_engine=MockEngine(db_conn),
-        session=session,
-        redis=redis,
-    )
+    ctx = dict(settings=settings, pg_engine=MockEngine(db_conn), session=session, redis=redis)
 
     yield ctx
 
@@ -357,9 +347,7 @@ async def _fix_worker_ctx(redis, settings, db_conn):
 
 @pytest.yield_fixture(name='worker')
 async def _fix_worker(redis, worker_ctx):
-    worker = Worker(
-        functions=WorkerSettings.functions, redis_pool=redis, burst=True, poll_delay=0.01, ctx=worker_ctx
-    )
+    worker = Worker(functions=WorkerSettings.functions, redis_pool=redis, burst=True, poll_delay=0.01, ctx=worker_ctx)
 
     yield worker
 
@@ -378,9 +366,7 @@ def other_server(loop, aiohttp_server):
     app.router.add_post('/grecaptcha', grecaptcha_post_view)
     app.router.add_get('/geocode', geocoding_view)
     app.update(
-        request_log=[],
-        grecaptcha_host='example.com',
-        extra={},
+        request_log=[], grecaptcha_host='example.com', extra={},
     )
     server = loop.run_until_complete(aiohttp_server(app))
     app['extra']['server_name'] = f'http://localhost:{server.port}'
@@ -395,7 +381,7 @@ def image_download_url(other_server):
 @pytest.fixture
 def settings(tmpdir, other_server):
     return Settings(
-        pg_name=DB_NAME,
+        pg_dsn=os.getenv('DATABASE_URL', DB_DSN),
         redis_database=7,
         master_key=MASTER_KEY,
         grecaptcha_secret='X' * 30,
@@ -408,10 +394,8 @@ def settings(tmpdir, other_server):
 
 @pytest.yield_fixture(scope='session')
 def db():
-    settings_: Settings = Settings(pg_name=DB_NAME)
-    with psycopg2_cursor(settings_) as cur:
-        cur.execute(f'DROP DATABASE IF EXISTS {settings_.pg_name}')
-        cur.execute(f'CREATE DATABASE {settings_.pg_name}')
+    settings_ = Settings(pg_dsn=os.getenv('DATABASE_URL', DB_DSN))
+    prepare_database(True, settings_)
 
     engine = sa_create_engine(settings_.pg_dsn)
     populate_db(engine)
@@ -483,8 +467,7 @@ def cli(loop, aiohttp_client, db_conn, settings):
 
 async def create_company(db_conn, public_key, private_key, name='foobar', domains=['example.com']):
     v = await db_conn.execute(
-        sa_companies
-        .insert()
+        sa_companies.insert()
         .values(name=name, public_key=public_key, private_key=private_key, domains=domains)
         .returning(sa_companies.c.id)
     )
@@ -523,10 +506,7 @@ async def select_set(db_conn, *fields, select_from=None):
 
 
 async def get(db_conn, model, *where):
-    v = await db_conn.execute(
-        select([c for c in model.c])
-        .where(*where)
-    )
+    v = await db_conn.execute(select([c for c in model.c]).where(*where))
     v = [r async for r in v]
     if len(v) != 1:
         raise RuntimeError(f'get got wrong number of results: {len(v)} != 1, model: {model}')
@@ -535,29 +515,27 @@ async def get(db_conn, model, *where):
 
 async def create_con_skills(db_conn, *con_ids):
     await db_conn.execute(
-        sa_subjects
-        .insert()
-        .values([
-            {'id': 1, 'name': 'Mathematics', 'category': 'Maths'},
-            {'id': 2, 'name': 'Language', 'category': 'English'},
-            {'id': 3, 'name': 'Literature', 'category': 'English'},
-        ])
+        sa_subjects.insert().values(
+            [
+                {'id': 1, 'name': 'Mathematics', 'category': 'Maths'},
+                {'id': 2, 'name': 'Language', 'category': 'English'},
+                {'id': 3, 'name': 'Literature', 'category': 'English'},
+            ]
+        )
     )
     await db_conn.execute(
-        sa_qual_levels
-        .insert()
-        .values([
-            {'id': 11, 'name': 'GCSE', 'ranking': 16},
-            {'id': 12, 'name': 'A Level', 'ranking': 18},
-            {'id': 13, 'name': 'Degree', 'ranking': 21},
-        ])
+        sa_qual_levels.insert().values(
+            [
+                {'id': 11, 'name': 'GCSE', 'ranking': 16},
+                {'id': 12, 'name': 'A Level', 'ranking': 18},
+                {'id': 13, 'name': 'Degree', 'ranking': 21},
+            ]
+        )
     )
     skill_ids = [(1, 11), (2, 12)]
 
     await db_conn.execute(
-        sa_con_skills
-        .insert()
-        .values(
+        sa_con_skills.insert().values(
             [{'contractor': con_id, 'subject': s[0], 'qual_level': s[1]} for con_id, s in product(con_ids, skill_ids)]
         )
     )
@@ -569,12 +547,7 @@ async def create_appointment(db_conn, company, create_service=True, service_extr
         company=company.id,
         name='testing service',
         extra_attributes=[
-            {
-                'name': 'Foobar',
-                'type': 'text_short',
-                'machine_name': 'foobar',
-                'value': 'this is the value of foobar',
-            }
+            {'name': 'Foobar', 'type': 'text_short', 'machine_name': 'foobar', 'value': 'this is the value of foobar'}
         ],
         colour='#abc',
     )

@@ -37,18 +37,21 @@ async def test_favicon(cli, mocker):
 
 async def test_list_contractors(cli, db_conn):
     v = await db_conn.execute(
-        sa_companies
-        .insert()
+        sa_companies.insert()
         .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
         .returning(sa_companies.c.id)
     )
     r = await v.first()
     company_id = r.id
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(id=1, company=company_id, first_name='Fred', last_name='Bloggs',
-                last_updated=datetime.now(), photo_hash='abc')
+        sa_contractors.insert().values(
+            id=1,
+            company=company_id,
+            first_name='Fred',
+            last_name='Bloggs',
+            last_updated=datetime.now(),
+            photo_hash='abc',
+        )
     )
     headers = {
         'HOST': 'www.example.com',
@@ -75,46 +78,48 @@ async def test_list_contractors(cli, db_conn):
 
 async def test_list_contractors_name(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+        sa_contractors.insert().values(
+            id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()
+        )
     )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
     assert r.status == 200, await r.text()
     assert (await r.json())['results'][0]['link'] == '1-fred-b'
     assert (await r.json())['results'][0]['name'] == 'Fred B'
 
-    await db_conn.execute((
-        update(sa_companies)
-        .values({'name_display': NameOptions.first_name})
-        .where(sa_companies.c.public_key == company.public_key)
-    ))
+    await db_conn.execute(
+        (
+            update(sa_companies)
+            .values({'name_display': NameOptions.first_name})
+            .where(sa_companies.c.public_key == company.public_key)
+        )
+    )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
     assert r.status == 200, await r.text()
     assert (await r.json())['results'][0]['link'] == '1-fred'
     assert (await r.json())['results'][0]['name'] == 'Fred'
 
-    await db_conn.execute((
-        update(sa_companies)
-        .values({'name_display': NameOptions.full_name})
-        .where(sa_companies.c.public_key == company.public_key)
-    ))
+    await db_conn.execute(
+        (
+            update(sa_companies)
+            .values({'name_display': NameOptions.full_name})
+            .where(sa_companies.c.public_key == company.public_key)
+        )
+    )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'))
     assert r.status == 200, await r.text()
     assert (await r.json())['results'][0]['link'] == '1-fred-bloggs'
     assert (await r.json())['results'][0]['name'] == 'Fred Bloggs'
 
 
-@pytest.mark.parametrize('headers, newline_count', [
-    ({'Accept': 'application/json'}, 0),
-    ({'Accept': '*/*'}, 18),
-    (None, 18),
-])
+@pytest.mark.parametrize(
+    'headers, newline_count', [({'Accept': 'application/json'}, 0), ({'Accept': '*/*'}, 18), (None, 18)]
+)
 async def test_json_encoding(cli, db_conn, company, headers, newline_count):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now())
+        sa_contractors.insert().values(
+            id=1, company=company.id, first_name='Fred', last_name='Bloggs', last_updated=datetime.now()
+        )
     )
     r = await cli.get(cli.server.app.router['contractor-list'].url_for(company='thepublickey'), headers=headers)
     assert r.status == 200
@@ -123,27 +128,21 @@ async def test_json_encoding(cli, db_conn, company, headers, newline_count):
 
 async def test_get_contractor(cli, db_conn):
     v = await db_conn.execute(
-        sa_companies
-        .insert()
+        sa_companies.insert()
         .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
         .returning(sa_companies.c.id)
     )
     r = await v.first()
     company_id = r.id
     v = await db_conn.execute(
-        sa_contractors
-        .insert()
+        sa_contractors.insert()
         .values(
             id=1,
             company=company_id,
             first_name='Fred',
             last_name='Bloggs',
             last_updated=datetime.now(),
-            extra_attributes=[
-                {'sort_index': 5, 'foo': 'bar'},
-                {'foo': 'apple'},
-                {'sort_index': 1, 'foo': 'spam'},
-            ]
+            extra_attributes=[{'sort_index': 5, 'foo': 'bar'}, {'foo': 'apple'}, {'sort_index': 1, 'foo': 'spam'}],
         )
         .returning(sa_contractors.c.id)
     )
@@ -158,11 +157,7 @@ async def test_get_contractor(cli, db_conn):
         'name': 'Fred B',
         'town': None,
         'country': None,
-        'extra_attributes': [
-            {'sort_index': 1, 'foo': 'spam'},
-            {'sort_index': 5, 'foo': 'bar'},
-            {'foo': 'apple'},
-        ],
+        'extra_attributes': [{'sort_index': 1, 'foo': 'spam'}, {'sort_index': 5, 'foo': 'bar'}, {'foo': 'apple'}],
         'labels': [],
         'tag_line': None,
         'photo': '/media/thepublickey/1.jpg?h=-',
@@ -170,24 +165,15 @@ async def test_get_contractor(cli, db_conn):
         'review_duration': None,
         'review_rating': None,
         'skills': [
-            {
-                'category': 'English',
-                'qual_levels': ['A Level'],
-                'subject': 'Language'
-            },
-            {
-                'category': 'Maths',
-                'qual_levels': ['GCSE'],
-                'subject': 'Mathematics'
-            }
+            {'category': 'English', 'qual_levels': ['A Level'], 'subject': 'Language'},
+            {'category': 'Maths', 'qual_levels': ['GCSE'], 'subject': 'Mathematics'},
         ],
     } == obj
 
 
 async def test_get_contractor_doesnt_exist(cli, db_conn):
     await db_conn.execute(
-        sa_companies
-        .insert()
+        sa_companies.insert()
         .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
         .returning(sa_companies.c.id)
     )
@@ -212,17 +198,18 @@ async def test_url_trailing_slash(cli, company):
 
 async def test_view_labels(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now()))
+        sa_contractors.insert().values(
+            dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now())
+        )
     )
     url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='1', slug='x')
     r = await cli.get(url)
     assert r.status == 200
     assert (await r.json())['labels'] == []
 
-    await db_conn.execute(update(sa_contractors).values(labels=['apple', 'banana', 'carrot'])
-                          .where(sa_contractors.c.id == 1))
+    await db_conn.execute(
+        update(sa_contractors).values(labels=['apple', 'banana', 'carrot']).where(sa_contractors.c.id == 1)
+    )
 
     r = await cli.get(url)
     assert r.status == 200
@@ -237,10 +224,17 @@ async def test_view_labels(cli, db_conn, company):
 
 async def test_review_display(cli, db_conn, company):
     await db_conn.execute(
-        sa_contractors
-        .insert()
-        .values(dict(id=1, company=company.id, first_name='Anne', last_name='x', last_updated=datetime.now(),
-                     review_rating=4.249, review_duration=7200))
+        sa_contractors.insert().values(
+            dict(
+                id=1,
+                company=company.id,
+                first_name='Anne',
+                last_name='x',
+                last_updated=datetime.now(),
+                review_rating=4.249,
+                review_duration=7200,
+            )
+        )
     )
     url = cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='1', slug='x')
     r = await cli.get(url)

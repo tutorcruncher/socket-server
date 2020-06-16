@@ -27,22 +27,15 @@ async def test_create(cli, db_conn):
     result = await curr.first()
     assert result.name == 'foobar'
     assert response_data == {
-        'details': {
-            'name': 'foobar',
-            'public_key': result.public_key,
-            'private_key': result.private_key,
-        },
-        'status': 'success'
+        'details': {'name': 'foobar', 'public_key': result.public_key, 'private_key': result.private_key},
+        'status': 'success',
     }
 
 
 async def test_create_with_url_public_key(cli, db_conn):
-    payload = json.dumps({
-        'name': 'foobar',
-        'domains': ['www.example.com'],
-        'public_key': 'X' * 20,
-        '_request_time': int(time()),
-    })
+    payload = json.dumps(
+        {'name': 'foobar', 'domains': ['www.example.com'], 'public_key': 'X' * 20, '_request_time': int(time())}
+    )
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
@@ -59,12 +52,8 @@ async def test_create_with_url_public_key(cli, db_conn):
     assert result.public_key == 'X' * 20
     assert result.domains == ['www.example.com']
     assert response_data == {
-        'details': {
-            'name': 'foobar',
-            'public_key': 'X' * 20,
-            'private_key': result.private_key,
-        },
-        'status': 'success'
+        'details': {'name': 'foobar', 'public_key': 'X' * 20, 'private_key': result.private_key},
+        'status': 'success',
     }
 
 
@@ -85,7 +74,8 @@ async def test_create_with_keys(cli, db_conn, worker):
     assert result.name == 'foobar'
     await worker.run_check()
     assert {(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())} == {
-        (22, 'James', 'Higgins'), (23, None, 'Person 2')
+        (22, 'James', 'Higgins'),
+        (23, None, 'Person 2'),
     }
 
 
@@ -109,12 +99,9 @@ async def test_create_bad_auth(cli):
     assert r.status == 401
 
 
-@pytest.mark.parametrize('request_time', [
-    lambda: 10,
-    lambda: int(time()) - 20,
-    lambda: int(time()) + 5,
-    lambda: 'foobar'
-])
+@pytest.mark.parametrize(
+    'request_time', [lambda: 10, lambda: int(time()) - 20, lambda: int(time()) + 5, lambda: 'foobar']
+)
 async def test_create_bad_body_time(cli, request_time):
     _request_time = request_time()
     data = {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40, '_request_time': _request_time}
@@ -130,7 +117,7 @@ async def test_create_bad_body_time(cli, request_time):
     assert r.status == 403
     assert {
         'details': f"request time '{_request_time}' not in the last 10 seconds",
-        'status': 'invalid request time'
+        'status': 'invalid request time',
     } == await r.json()
 
 
@@ -142,8 +129,9 @@ async def test_create_duplicate_name(cli, company):
 
 
 async def test_create_duplicate_public_key(cli, db_conn):
-    payload = json.dumps({'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40,
-                          '_request_time': int(time())})
+    payload = json.dumps(
+        {'name': 'foobar', 'public_key': 'x' * 20, 'private_key': 'y' * 40, '_request_time': int(time())}
+    )
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
 
@@ -154,8 +142,9 @@ async def test_create_duplicate_public_key(cli, db_conn):
     r = await cli.post('/companies/create', data=payload, headers=headers)
     assert r.status == 201
 
-    payload = json.dumps({'name': 'foobar 2', 'public_key': 'x' * 20, 'private_key': 'z' * 40,
-                          '_request_time': int(time())})
+    payload = json.dumps(
+        {'name': 'foobar 2', 'public_key': 'x' * 20, 'private_key': 'z' * 40, '_request_time': int(time())}
+    )
     b_payload = payload.encode()
     m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
     headers = {
@@ -193,13 +182,16 @@ async def test_list(cli, company):
     ] == response_data
 
 
-@pytest.mark.parametrize('payload_func, name', [
-    (lambda: (datetime.now() - timedelta(seconds=12)).strftime('%s'), 'now - 12s'),
-    (lambda: (datetime.now() + timedelta(seconds=2)).strftime('%s'), 'now + 2s'),
-    (lambda: '10000', 'long long ago'),
-    (lambda: '-1', 'just before 1970'),
-    (lambda: 'null', 'no time'),
-])
+@pytest.mark.parametrize(
+    'payload_func, name',
+    [
+        (lambda: (datetime.now() - timedelta(seconds=12)).strftime('%s'), 'now - 12s'),
+        (lambda: (datetime.now() + timedelta(seconds=2)).strftime('%s'), 'now + 2s'),
+        (lambda: '10000', 'long long ago'),
+        (lambda: '-1', 'just before 1970'),
+        (lambda: 'null', 'no time'),
+    ],
+)
 async def test_list_invalid_time(cli, company, payload_func, name):
     payload = payload_func()
     b_payload = payload.encode()
@@ -277,7 +269,7 @@ async def test_update_company(cli, db_conn, company, other_server, worker):
                 'terms_link': 'https://terms.com/',
                 'distance_units': 'km',
                 'currency': {'code': 'USD', 'symbol': '$'},
-            }
+            },
         },
         'company_domains': ['changed.com'],
         'status': 'success',
@@ -327,10 +319,7 @@ async def test_update_company_clear_domain(cli, db_conn, company, other_server):
     assert other_server.app['request_log'] == []
 
     r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/options',
-        signing_key_='this is the master key',
-        domains=None,
+        cli, f'/{company.public_key}/webhook/options', signing_key_='this is the master key', domains=None,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
@@ -347,11 +336,7 @@ async def test_update_company_no_data(cli, db_conn, company, other_server):
     assert result.domains == ['example.com']
     assert other_server.app['request_log'] == []
 
-    r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/options',
-        signing_key_='this is the master key',
-    )
+    r = await signed_request(cli, f'/{company.public_key}/webhook/options', signing_key_='this is the master key')
     assert r.status == 200, await r.text()
     response_data = await r.json()
     assert response_data == {

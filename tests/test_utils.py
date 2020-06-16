@@ -13,20 +13,11 @@ from tcsocket.app.worker import startup
 
 
 def test_universal_encoder():
-    d = {
-        'dt': datetime(2032, 1, 1),
-        'bytes': b'hello'
-    }
-    assert (
-        '{\n'
-        '  "bytes": "hello",\n'
-        '  "dt": "2032-01-01T00:00:00"\n'
-        '}\n'
-    ) == pretty_lenient_json(d)
+    d = {'dt': datetime(2032, 1, 1), 'bytes': b'hello'}
+    assert ('{\n' '  "bytes": "hello",\n' '  "dt": "2032-01-01T00:00:00"\n' '}\n') == pretty_lenient_json(d)
 
 
 def test_universal_encoder_error():
-
     class Foo:
         pass
 

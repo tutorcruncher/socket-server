@@ -19,11 +19,7 @@ VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipie
 async def clear_enquiry(request):
     redis = request.app['redis']
     v = await redis.delete(REDIS_ENQUIRY_CACHE_KEY % request['company'].id)
-    return json_response(
-        request,
-        status='success',
-        data_existed=bool(v)
-    )
+    return json_response(request, status='success', data_existed=bool(v))
 
 
 async def enquiry(request):
@@ -120,24 +116,19 @@ def _convert_field(name, value, prefix=None):
     if ftype is None:
         return None
     value_.pop('read_only')
-    return dict(
-        field=name,
-        type=ftype,
-        prefix=prefix,
-        **value_
-    )
+    return dict(field=name, type=ftype, prefix=prefix, **value_)
 
 
 async def enquiry_get(request, company, enquiry_options):
     # make the enquiry form data easier to render for js
-    visible = filter(bool, [
-        _convert_field(f, enquiry_options[f]) for f in VISIBLE_FIELDS
-    ] + [
-        _convert_field(k, v, 'attributes') for k, v in enquiry_options['attributes'].get('children', {}).items()
-    ])
+    visible = filter(
+        bool,
+        [_convert_field(f, enquiry_options[f]) for f in VISIBLE_FIELDS]
+        + [_convert_field(k, v, 'attributes') for k, v in enquiry_options['attributes'].get('children', {}).items()],
+    )
 
     return json_response(
         request,
-        visible=sorted(visible, key=itemgetter('sort_index', )),
+        visible=sorted(visible, key=itemgetter('sort_index',)),
         hidden={'contractor': _convert_field('contractor', enquiry_options['contractor'])},
     )

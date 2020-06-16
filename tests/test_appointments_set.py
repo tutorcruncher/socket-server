@@ -22,11 +22,7 @@ async def create_apt(cli, company, url=None, **kwargs):
         location='Whatever',
     )
     data.update(kwargs)
-    return await signed_request(
-        cli,
-        url or f'/{company.public_key}/webhook/appointments/123',
-        **data
-    )
+    return await signed_request(cli, url or f'/{company.public_key}/webhook/appointments/123', **data)
 
 
 async def test_create(cli, db_conn, company):
@@ -128,25 +124,10 @@ async def test_create_conflict(cli, db_conn, company):
 
 async def test_extra_attrs(cli, db_conn, company):
     extra_attrs = [
-        {
-            'name': 'Foobar',
-            'type': 'checkbox',
-            'machine_name': 'foobar',
-            'value': False,
-            'sort_index': 124,
-        },
-        {
-            'name': 'Smash',
-            'type': 'text_short',
-            'machine_name': 'smash',
-            'value': 'I love to party',
-            'sort_index': 123
-        },
+        {'name': 'Foobar', 'type': 'checkbox', 'machine_name': 'foobar', 'value': False, 'sort_index': 124},
+        {'name': 'Smash', 'type': 'text_short', 'machine_name': 'smash', 'value': 'I love to party', 'sort_index': 123},
     ]
-    r = await create_apt(
-        cli,
-        company,
-        extra_attributes=extra_attrs)
+    r = await create_apt(cli, company, extra_attributes=extra_attrs)
     assert r.status == 200, await r.text()
 
     curr = await db_conn.execute(sa_services.select())
@@ -159,26 +140,33 @@ async def test_extra_attrs(cli, db_conn, company):
 
 async def test_delete_old_appointments(db_conn, company, settings):
     n = datetime.utcnow()
-    await create_appointment(db_conn, company, appointment_extra={'id': 1, 'start': n},
-                             service_extra={'id': 1})
+    await create_appointment(db_conn, company, appointment_extra={'id': 1, 'start': n}, service_extra={'id': 1})
 
-    await create_appointment(db_conn, company, appointment_extra={'id': 2, 'start': n - timedelta(days=8)},
-                             service_extra={'id': 2})
+    await create_appointment(
+        db_conn, company, appointment_extra={'id': 2, 'start': n - timedelta(days=8)}, service_extra={'id': 2}
+    )
 
-    await create_appointment(db_conn, company, appointment_extra={'id': 3, 'start': n - timedelta(days=6)},
-                             service_extra={'id': 3})  # not old enough
-    await create_appointment(db_conn, company, appointment_extra={'id': 4, 'start': n - timedelta(days=365)},
-                             service_extra={'id': 3}, create_service=False)
+    await create_appointment(
+        db_conn, company, appointment_extra={'id': 3, 'start': n - timedelta(days=6)}, service_extra={'id': 3}
+    )  # not old enough
+    await create_appointment(
+        db_conn,
+        company,
+        appointment_extra={'id': 4, 'start': n - timedelta(days=365)},
+        service_extra={'id': 3},
+        create_service=False,
+    )
 
     ctx = {'settings': settings}
     await startup(ctx)
     ctx['pg_engine'] = MockEngine(db_conn)
 
-    assert {(1, 1), (2, 2), (3, 3), (4, 3)} == await select_set(db_conn, sa_appointments.c.id,
-                                                                sa_appointments.c.service)
-    assert {(1,), (2,), (3,)} == await select_set(db_conn, sa_services.c.id)
+    assert {(1, 1), (2, 2), (3, 3), (4, 3)} == await select_set(
+        db_conn, sa_appointments.c.id, sa_appointments.c.service
+    )
+    assert {(1), (2), (3)} == await select_set(db_conn, sa_services.c.id)
 
     await delete_old_appointments(ctx)
 
     assert {(1, 1), (3, 3)} == await select_set(db_conn, sa_appointments.c.id, sa_appointments.c.service)
-    assert {(1,), (3,)} == await select_set(db_conn, sa_services.c.id)
+    assert {(1), (3)} == await select_set(db_conn, sa_services.c.id)

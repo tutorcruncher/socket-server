@@ -1,25 +1,18 @@
 from pathlib import Path
+from typing import Optional
+from urllib.parse import urlparse
 
 from arq.connections import RedisSettings
 from pydantic import BaseSettings, validator
-from pydantic.utils import make_dsn
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR.parent
 
 
 class Settings(BaseSettings):
-    pg_name = 'socket'
-    pg_user = 'postgres'
-    pg_password: str = None
-    pg_host = 'localhost'
-    pg_port = '5432'
-    pg_driver = 'postgresql'
-
-    redis_host = 'localhost'
-    redis_port = 6379
-    redis_database = 0
-    redis_password: str = None
+    pg_dsn: Optional[str] = 'postgres://postgres@localhost:5432/socket'
+    redis_settings: RedisSettings = 'redis://localhost:6379'
+    redis_database: int = 0
 
     master_key = b'this is a secret'
 
@@ -43,23 +36,34 @@ class Settings(BaseSettings):
             raise ValueError(f'"{path}" is not a directory')
         return str(path)
 
-    @property
-    def redis_settings(self) -> RedisSettings:
+    @validator('redis_settings', always=True, pre=True)
+    def parse_redis_settings(cls, v):
+        conf = urlparse(v)
         return RedisSettings(
-            host=self.redis_host,
-            port=self.redis_port,
-            database=self.redis_database,
-            password=self.redis_password,
+            host=conf.hostname, port=conf.port, password=conf.password, database=int((conf.path or '0').strip('/')),
         )
 
     @property
-    def pg_dsn(self) -> str:
-        return make_dsn(
-            driver=self.pg_driver,
-            user=self.pg_user,
-            password=self.pg_password,
-            host=self.pg_host,
-            port=self.pg_port,
-            name=self.pg_name,
-            query=None,
-        )
+    def _pg_dsn_parsed(self):
+        return urlparse(self.pg_dsn)
+
+    @property
+    def pg_name(self):
+        return self._pg_dsn_parsed.path.lstrip('/')
+
+    @property
+    def pg_password(self):
+        return self._pg_dsn_parsed.password or None
+
+    @property
+    def pg_host(self):
+        return self._pg_dsn_parsed.hostname
+
+    @property
+    def pg_port(self):
+        return self._pg_dsn_parsed.port
+
+    class Config:
+        fields = {
+            'pg_dsn': {'env': 'DATABASE_URL'},
+        }

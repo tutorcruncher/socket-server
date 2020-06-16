@@ -72,8 +72,9 @@ async def get_image(ctx, company_key, contractor_id, url):
     with TemporaryFile() as f:
         async with ctx['session'].get(url) as r:
             if r.status != 200:
-                logger.warning('company %s, contractor %d, unable to download %s: %d',
-                               company_key, contractor_id, url, r.status)
+                logger.warning(
+                    'company %s, contractor %d, unable to download %s: %d', company_key, contractor_id, url, r.status
+                )
                 return r.status
             while True:
                 chunk = await r.content.read(CHUNK_SIZE)
@@ -86,9 +87,7 @@ async def get_image(ctx, company_key, contractor_id, url):
     image_hash = hashlib.md5(image_path_thumb.read_bytes()).hexdigest()
     async with ctx['pg_engine'].acquire() as conn:
         await conn.execute(
-            update(sa_contractors)
-            .values(photo_hash=image_hash[:6])
-            .where(sa_contractors.c.id == contractor_id)
+            update(sa_contractors).values(photo_hash=image_hash[:6]).where(sa_contractors.c.id == contractor_id)
         )
     return 200
 
@@ -124,11 +123,7 @@ async def update_contractors(ctx, company):
     async with ctx['pg_engine'].acquire() as conn:
         async for contractor in _get_from_api(ctx['session'], api_contractors, ContractorModel, company):
             await contractor_set(
-                conn=conn,
-                ctx=ctx,
-                company=company,
-                contractor=contractor,
-                skip_deleted=True,
+                conn=conn, ctx=ctx, company=company, contractor=contractor, skip_deleted=True,
             )
             cons_created += 1
     return cons_created
@@ -169,16 +164,21 @@ async def post_data(session, url, data, company):
     response_data = response_data.decode()
     logger.info('%s: response: %d, %s', url, r.status, response_data)
     if r.status not in {200, 201}:
-        logger.error('%d response posting to %s', r.status, url, extra={
-            'data': {
-                'company': company,
-                'request_headers': headers,
-                'request_url': url,
-                'request_data': data,
-                'response_headers': dict(r.headers),
-                'response_data': response_data,
-            }
-        })
+        logger.error(
+            '%d response posting to %s',
+            r.status,
+            url,
+            extra={
+                'data': {
+                    'company': company,
+                    'request_headers': headers,
+                    'request_url': url,
+                    'request_data': data,
+                    'response_headers': dict(r.headers),
+                    'response_data': response_data,
+                }
+            },
+        )
     return r.status
 
 
@@ -197,10 +197,7 @@ async def _check_grecaptcha(settings, session, company, grecaptcha_response, cli
     if grecaptcha_response == 'mock-grecaptcha:{[private_key]}'.format(company):
         logger.info('skipping recaptcha using company private key')
         return True
-    data = dict(
-        secret=settings.grecaptcha_secret,
-        response=grecaptcha_response,
-    )
+    data = dict(secret=settings.grecaptcha_secret, response=grecaptcha_response,)
     if client_ip:
         data['remoteip'] = client_ip
     data = urlencode(data).encode()
@@ -223,10 +220,7 @@ async def submit_booking(ctx, company, data):
 async def delete_old_appointments(ctx):
     async with ctx['pg_engine'].acquire() as conn:
         old = datetime.utcnow() - timedelta(days=7)
-        v = await conn.execute(
-            sa_appointments.delete()
-            .where(sa_appointments.c.start < old)
-        )
+        v = await conn.execute(sa_appointments.delete().where(sa_appointments.c.start < old))
         logger.info('%d old appointments deleted', v.rowcount)
 
 

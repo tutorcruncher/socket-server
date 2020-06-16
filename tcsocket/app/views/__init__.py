@@ -27,10 +27,7 @@ async def favicon(request):
 async def _sub_qual_list(request, q):
     q = q.where(sa_contractors.c.company == request['company'].id)
     conn = await request['conn_manager'].get_connection()
-    return json_response(
-        request,
-        list_=[dict(s, link=f'{s.id}-{slugify(s.name)}') async for s in conn.execute(q)]
-    )
+    return json_response(request, list_=[dict(s, link=f'{s.id}-{slugify(s.name)}') async for s in conn.execute(q)])
 
 
 async def subject_list(request):
@@ -54,12 +51,6 @@ async def qual_level_list(request):
 
 
 async def labels_list(request):
-    q = (
-        select([sa_labels.c.name, sa_labels.c.machine_name])
-        .where(sa_labels.c.company == request['company'].id)
-    )
+    q = select([sa_labels.c.name, sa_labels.c.machine_name]).where(sa_labels.c.company == request['company'].id)
     conn = await request['conn_manager'].get_connection()
-    return json_response(
-        request,
-        **{s.machine_name: s.name async for s in conn.execute(q)}
-    )
+    return json_response(request, **{s.machine_name: s.name async for s in conn.execute(q)})

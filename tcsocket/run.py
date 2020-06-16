@@ -75,11 +75,11 @@ def web():
 
     check_app()
 
+    bind = os.getenv('BIND_IP', '127.0.0.1') + f":{os.getenv('PORT', '8000')}"
+    logger.info('Starting Web, binding to %s', bind)
+
     config = dict(
-        worker_class='aiohttp.worker.GunicornUVLoopWebWorker',
-        bind=os.getenv('BIND', '127.0.0.1:8000'),
-        max_requests=5000,
-        max_requests_jitter=500,
+        worker_class='aiohttp.worker.GunicornUVLoopWebWorker', bind=bind, max_requests=5000, max_requests_jitter=500,
     )
 
     class Application(BaseApplication):
@@ -132,10 +132,9 @@ EXEC_LINES = [
     'engine = create_engine(settings.pg_dsn)',
     'conn = engine.connect()',
 ]
-EXEC_LINES += (
-    ['print("\\n    Python {v.major}.{v.minor}.{v.micro}\\n".format(v=sys.version_info))'] +
-    [f'print("    {line}")' for line in EXEC_LINES]
-)
+EXEC_LINES += ['print("\\n    Python {v.major}.{v.minor}.{v.micro}\\n".format(v=sys.version_info))'] + [
+    f'print("    {line}")' for line in EXEC_LINES
+]
 
 
 @cli.command()
@@ -145,6 +144,7 @@ def shell():
     """
     from IPython import start_ipython
     from IPython.terminal.ipapp import load_default_config
+
     c = load_default_config()
 
     c.TerminalIPythonApp.display_banner = False

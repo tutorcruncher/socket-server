@@ -30,12 +30,16 @@ async def company_create(request):
     new_company = await v.first()
     if new_company is None:
         raise HTTPConflictJson(
-            status='duplicate',
-            details='the supplied data conflicts with an existing company',
+            status='duplicate', details='the supplied data conflicts with an existing company',
         )
     else:
-        logger.info('created company "%s", id %d, public key %s, private key %s',
-                    new_company.name, new_company.id, new_company.public_key, new_company.private_key)
+        logger.info(
+            'created company "%s", id %d, public key %s, private key %s',
+            new_company.name,
+            new_company.id,
+            new_company.public_key,
+            new_company.private_key,
+        )
         if existing_company:
             await request.app['redis'].enqueue_job('update_contractors', company=dict(new_company))
         return json_response(
@@ -46,13 +50,23 @@ async def company_create(request):
                 'name': new_company.name,
                 'public_key': new_company.public_key,
                 'private_key': new_company.private_key,
-            }
+            },
         )
 
 
 OPTIONS_FIELDS = {
-    'show_stars', 'display_mode', 'router_mode', 'show_hours_reviewed', 'show_labels', 'show_location_search',
-    'show_subject_filter', 'terms_link', 'sort_on', 'pagination', 'auth_url', 'distance_units'
+    'show_stars',
+    'display_mode',
+    'router_mode',
+    'show_hours_reviewed',
+    'show_labels',
+    'show_location_search',
+    'show_subject_filter',
+    'terms_link',
+    'sort_on',
+    'pagination',
+    'auth_url',
+    'distance_units',
 }
 
 
@@ -77,11 +91,7 @@ async def company_update(request):
     public_key = request['company'].public_key
     c = sa_companies.c
     if data:
-        await conn.execute(
-            update(sa_companies)
-            .values(**data)
-            .where(c.public_key == public_key)
-        )
+        await conn.execute(update(sa_companies).values(**data).where(c.public_key == public_key))
         logger.info('company "%s" updated, %s', public_key, data)
 
     select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domains
@@ -90,13 +100,7 @@ async def company_update(request):
     company = dict(await result.first())
 
     await request.app['redis'].enqueue_job('update_contractors', company=company)
-    return json_response(
-        request,
-        status_=200,
-        status='success',
-        details=data,
-        company_domains=company['domains'],
-    )
+    return json_response(request, status_=200, status='success', details=data, company_domains=company['domains'],)
 
 
 async def company_list(request):
@@ -116,8 +120,6 @@ async def company_options(request):
     Get a companies options
     """
     opts = CompanyOptionsModel(
-        name=request['company'].name,
-        name_display=request['company'].name_display,
-        **(request['company'].options or {})
+        name=request['company'].name, name_display=request['company'].name_display, **(request['company'].options or {})
     )
     return json_response(request, **opts.dict())

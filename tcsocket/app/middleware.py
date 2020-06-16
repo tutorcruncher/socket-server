@@ -37,24 +37,28 @@ PUBLIC_VIEWS = {
 
 
 async def log_extra(request, response=None):
-    return {'data': dict(
-        request_url=str(request.rel_url),
-        request_query=dict(request.query),
-        request_method=request.method,
-        request_host=request.host,
-        request_headers=dict(request.headers),
-        request_text=await request.text(),
-        response_status=getattr(response, 'status', None),
-        response_headers=dict(getattr(response, 'headers', {})),
-        response_text=getattr(response, 'text', None)
-    )}
+    return {
+        'data': dict(
+            request_url=str(request.rel_url),
+            request_query=dict(request.query),
+            request_method=request.method,
+            request_host=request.host,
+            request_headers=dict(request.headers),
+            request_text=await request.text(),
+            response_status=getattr(response, 'status', None),
+            response_headers=dict(getattr(response, 'headers', {})),
+            response_text=getattr(response, 'text', None),
+        )
+    }
 
 
 async def log_warning(request, response):
-    request_logger.warning('%s %d', request.rel_url, response.status, extra={
-        'fingerprint': [request.rel_url, str(response.status)],
-        'data': await log_extra(request, response)
-    })
+    request_logger.warning(
+        '%s %d',
+        request.rel_url,
+        response.status,
+        extra={'fingerprint': [request.rel_url, str(response.status)], 'data': await log_extra(request, response)},
+    )
 
 
 @middleware
@@ -76,10 +80,12 @@ async def error_middleware(request, handler):
             await log_warning(request, e)
         raise
     except BaseException as e:
-        request_logger.exception('%s: %s', e.__class__.__name__, e, extra={
-            'fingerprint': [e.__class__.__name__, str(e)],
-            'data': await log_extra(request)
-        })
+        request_logger.exception(
+            '%s: %s',
+            e.__class__.__name__,
+            e,
+            extra={'fingerprint': [e.__class__.__name__, str(e)], 'data': await log_extra(request)},
+        )
         raise HTTPInternalServerError()
     else:
         if r.status > 310:
@@ -92,6 +98,7 @@ class ConnectionManager:
     Copies engine.acquire()'s context manager but is lazy in that you need to call get_connection()
     for a connection to be found, otherwise does nothing.
     """
+
     def __init__(self, engine):
         self._engine = engine
         self._conn = None
@@ -124,15 +131,12 @@ async def pg_conn_middleware(request, handler):
 
 
 def domain_allowed(allow_domains, current_domain):
-    return (
-        current_domain and
-        (
-            current_domain.endswith('tutorcruncher.com') or
-            any(
-                allow_domain == current_domain or
-                (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
-                for allow_domain in allow_domains
-            )
+    return current_domain and (
+        current_domain.endswith('tutorcruncher.com')
+        or any(
+            allow_domain == current_domain
+            or (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
+            for allow_domain in allow_domains
         )
     )
 
@@ -160,8 +164,7 @@ async def company_middleware(request, handler):
                 request['company'] = company
             else:
                 raise HTTPNotFoundJson(
-                    status='company not found',
-                    details=f'No company found for key {public_key}',
+                    status='company not found', details=f'No company found for key {public_key}',
                 )
         return await handler(request)
     except CancelledError:
@@ -187,8 +190,7 @@ async def json_request_middleware(request, handler):
 
         if error_details:
             raise HTTPBadRequestJson(
-                status='invalid request data',
-                details=error_details,
+                status='invalid request data', details=error_details,
             )
     return await handler(request)
 
@@ -200,8 +202,7 @@ def _check_timestamp(ts: str, now):
             raise ValueError()
     except (TypeError, ValueError):
         raise HTTPForbiddenJson(
-            status='invalid request time',
-            details=f"request time '{ts}' not in the last 10 seconds",
+            status='invalid request time', details=f"request time '{ts}' not in the last 10 seconds",
         )
 
 
@@ -220,8 +221,7 @@ async def authenticate(request, api_key=None):
         if _api_key and signature == hmac.new(_api_key, body, hashlib.sha256).hexdigest():
             return
     raise HTTPUnauthorizedJson(
-        status='invalid signature',
-        details=f'Signature header "{signature}" does not match computed signature',
+        status='invalid signature', details=f'Signature header "{signature}" does not match computed signature',
     )
 
 
