@@ -60,7 +60,6 @@ def check_app():
     logger.info('app started and stopped successfully, apparently configured correctly')
 
 
-@cli.command()
 def web():
     """
     Serve the application
@@ -95,7 +94,6 @@ def web():
     Application().run()
 
 
-@cli.command()
 def worker():
     """
     Run the worker
@@ -104,6 +102,24 @@ def worker():
     check_services_ready()
     settings = Settings()
     run_worker(WorkerSettings, redis_settings=settings.redis_settings, ctx={'settings': settings})
+
+
+@cli.command()
+def auto():
+    port_env = os.getenv('PORT')
+    dyno_env = os.getenv('DYNO')
+    if dyno_env:
+        logger.info('using environment variable DYNO=%r to infer command', dyno_env)
+        if dyno_env.lower().startswith('web'):
+            web()
+        else:
+            worker()
+    elif port_env and port_env.isdigit():
+        logger.info('using environment variable PORT=%s to infer command as web', port_env)
+        web()
+    else:
+        logger.info('no environment variable found to infer command, assuming worker')
+        worker()
 
 
 @cli.command()

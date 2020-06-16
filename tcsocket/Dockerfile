@@ -12,4 +12,4 @@ ADD ./run.py /home/root/run.py
 ENV PYTHONUNBUFFERED 1
 WORKDIR /home/root
 ENTRYPOINT ["./run.py"]
-CMD ["web"]
+CMD ["auto"]
