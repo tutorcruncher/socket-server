@@ -14,7 +14,7 @@ from app.management import prepare_database, run_patch
 from app.settings import Settings
 from app.worker import WorkerSettings
 
-logger = logging.getLogger('socket.run')
+logger = logging.getLogger('socket')
 
 
 @click.group()
