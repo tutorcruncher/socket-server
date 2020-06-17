@@ -68,4 +68,5 @@ class Settings(BaseSettings):
             'port': {'env': 'PORT'},
             'pg_dsn': {'env': 'DATABASE_URL'},
             'redis_settings': {'env': 'REDISCLOUD_URL'},
+            'tc_api_root': {'env': 'TC_API_ROOT'},
         }
