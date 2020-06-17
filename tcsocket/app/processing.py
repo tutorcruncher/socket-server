@@ -180,6 +180,7 @@ async def contractor_set(
     await _set_labels(conn, company['id'], contractor.labels)
     if contractor.photo:
         # Sometimes creating the contractor is already done on a job, so don't need another one.
+        logger.info('Getting image, redis=%s', redis)
         if redis:
             await redis.enqueue_job(
                 'get_image', company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo
