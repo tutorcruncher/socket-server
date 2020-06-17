@@ -81,7 +81,7 @@ async def get_image(ctx, company_key, contractor_id, url):
                 if not chunk:
                     break
                 f.write(chunk)
-        logger.info('Saving photo for company %s', contractor_id)
+        logger.info('Saving photo for company %s under %s', contractor_id, save_dir)
         save_image(f, image_path_main, image_path_thumb)
 
     image_hash = hashlib.md5(image_path_thumb.read_bytes()).hexdigest()
