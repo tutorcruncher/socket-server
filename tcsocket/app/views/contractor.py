@@ -12,7 +12,7 @@ from ..processing import contractor_set as _contractor_set
 from ..utils import HTTPNotFoundJson, get_arg, get_pagination, json_response, route_url, slugify
 from ..validation import ContractorModel
 
-logger = logging.getLogger('socket.views')
+logger = logging.getLogger('socket')
 
 
 async def contractor_set(request):

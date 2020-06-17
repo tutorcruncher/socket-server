@@ -28,7 +28,7 @@ SIZE_SMALL = 256, 256
 REDIS_ENQUIRY_CACHE_KEY = b'enquiry-data-%d'
 
 CT_JSON = 'application/json'
-logger = logging.getLogger('socket.worker')
+logger = logging.getLogger('socket')
 
 
 async def store_enquiry_data(redis, company, data):

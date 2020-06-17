@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, update
 from .models import Base, sa_companies
 from .settings import Settings
 
-logger = logging.getLogger('socket.management')
+logger = logging.getLogger('socket')
 
 
 SQL_PREPARE = """

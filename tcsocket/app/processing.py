@@ -10,7 +10,7 @@ from .models import Action, sa_con_skills, sa_contractors, sa_labels, sa_qual_le
 from .utils import HTTPForbiddenJson, HTTPNotFoundJson
 from .validation import ContractorModel, ExtraAttributeModel
 
-logger = logging.getLogger('socket.processing')
+logger = logging.getLogger('socket')
 
 
 def _distinct(iter, key):
