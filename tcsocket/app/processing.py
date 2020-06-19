@@ -121,7 +121,7 @@ async def contractor_set(
     :param skip_deleted: whether or not to skip deleted contractors (or delete them in the db.)
     :return: Action: created, updated or deleted
     """
-    from .worker import get_image
+    from .worker import process_image
 
     if contractor.deleted:
         if not skip_deleted:
@@ -180,11 +180,10 @@ async def contractor_set(
     await _set_labels(conn, company['id'], contractor.labels)
     if contractor.photo:
         # Sometimes creating the contractor is already done on a job, so don't need another one.
+        job_kwargs = dict(company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo)
         if redis:
-            await redis.enqueue_job(
-                'get_image', company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo
-            )
+            await redis.enqueue_job('process_image', **job_kwargs)
         else:
-            await get_image(ctx, company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo)
+            await process_image(ctx, **job_kwargs)
     logger.info('%s contractor on %s', r.action, company['public_key'])
     return r.action

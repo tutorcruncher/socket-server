@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from time import time
 
+import boto3
 import pytest
 from PIL import Image
 
@@ -284,8 +285,29 @@ async def test_extra_attributes_null(cli, db_conn, company):
     assert result.primary_description is None
 
 
+def fake_s3_client(tmpdir):
+    class FakeS3Client:
+        def __init__(self, *args, **kwargs):
+            self.tmpdir = tmpdir
+
+        def upload_fileobj(self, Fileobj, Bucket, key):
+            split_key = key.split('/')
+            p_company, p_file = split_key[-2], split_key[-1]
+            path = Path(self.tmpdir / p_company)
+            path.mkdir(exist_ok=True)
+            Fileobj.save(Path(path / p_file), 'JPEG')
+
+        def resource(self, r):
+            return self
+
+    return FakeS3Client
+
+
 @pytest.mark.parametrize('image_format', ['JPEG', 'RGBA', 'P'])
-async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_server, image_format, worker):
+async def test_photo(
+    monkeypatch, cli, db_conn, company, image_download_url, tmpdir, other_server, image_format, worker
+):
+    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
     r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
@@ -298,19 +320,20 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_se
     assert other_server.app['request_log'] == [('test_image', image_format)]
 
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
-    path = Path(tmpdir / 'media' / company.public_key / '123.jpg')
+    path = Path(tmpdir / company.public_key / '123.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (1000, 1000)
         assert im.getpixel((1, 1)) == (128, 128, 128)
-    path = Path(tmpdir / 'media' / company.public_key / '123.thumb.jpg')
+    path = Path(tmpdir / company.public_key / '123.thumb.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (256, 256)
         assert im.getpixel((1, 1)) == (128, 128, 128)
 
 
-async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir, other_server, worker):
+async def test_photo_rotation(monkeypatch, cli, db_conn, company, image_download_url, tmpdir, other_server, worker):
+    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
     r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
@@ -323,12 +346,12 @@ async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir,
     assert other_server.app['request_log'] == [('test_image', None)]
 
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
-    path = Path(tmpdir / 'media' / company.public_key / '123.jpg')
+    path = Path(tmpdir / company.public_key / '123.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (1000, 1000)
         assert im.getpixel((1, 1)) == (50, 100, 149)  # image has been rotated
-    path = Path(tmpdir / 'media' / company.public_key / '123.thumb.jpg')
+    path = Path(tmpdir / company.public_key / '123.thumb.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (256, 256)
@@ -346,7 +369,8 @@ async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
 
 
-async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir, worker):
+async def test_photo_hash(monkeypatch, cli, db_conn, company, image_download_url, tmpdir, worker):
+    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
     r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
     assert r.status == 201, await r.text()
     await worker.run_check()
@@ -364,7 +388,7 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir, wor
     assert r.status == 201, await r.text()
     await worker.run_check()
 
-    path = Path(tmpdir / 'media' / company.public_key / '124.thumb.jpg')
+    path = Path(tmpdir / company.public_key / '124.thumb.jpg')
     assert path.exists()
 
     cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])

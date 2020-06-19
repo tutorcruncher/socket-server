@@ -54,7 +54,7 @@ def _get_name(name_display, row):
 
 def _photo_url(request, con, thumb):
     ext = '.thumb.jpg' if thumb else '.jpg'
-    return f'{request.app["settings"].media_url}/{request["company"].public_key}/{con.id}{ext}?h={con.photo_hash}'
+    return f'{request.app["settings"].aws_bucket_url}/{request["company"].public_key}/{con.id}{ext}?h={con.photo_hash}'
 
 
 async def contractor_list(request):  # noqa: C901 (ignore complexity)

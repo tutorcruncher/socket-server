@@ -9,6 +9,7 @@ from signal import SIGTERM
 from tempfile import TemporaryFile
 from urllib.parse import urlencode
 
+import boto3
 from aiohttp import ClientSession
 from aiopg.sa import create_engine
 from arq import create_pool, cron
@@ -20,6 +21,7 @@ from sqlalchemy import update
 from .middleware import domain_allowed
 from .models import sa_appointments, sa_contractors
 from .processing import contractor_set
+from .settings import Settings
 from .validation import ContractorModel
 
 CHUNK_SIZE = int(1e4)
@@ -36,7 +38,7 @@ async def store_enquiry_data(redis, company, data):
 
 
 async def startup(ctx, retries=5):
-    if ctx.get('session') and ctx.get('media') and ctx.get('pg_engine'):
+    if ctx.get('session') and ctx.get('pg_engine'):
         # happens if startup is called twice eg. in test setup
         return
     try:
@@ -51,7 +53,6 @@ async def startup(ctx, retries=5):
     else:
         logger.info('db engine created successfully')
         ctx['session'] = ClientSession()
-        ctx['media'] = Path(ctx['settings'].media_dir)
 
 
 async def shutdown(ctx):
@@ -64,11 +65,11 @@ async def shutdown(ctx):
         await session.close()
 
 
-async def get_image(ctx, company_key, contractor_id, url):
-    save_dir = Path(ctx['settings'].media_dir) / company_key
-    save_dir.mkdir(exist_ok=True)
-    image_path_main = save_dir / f'{contractor_id}.jpg'
-    image_path_thumb = save_dir / f'{contractor_id}.thumb.jpg'
+async def process_image(ctx, company_key, contractor_id, url):
+    settings: Settings = ctx['settings']
+    save_dir = f'{settings.aws_bucket_url}/{company_key}/'
+    image_path_main = save_dir + f'{contractor_id}.jpg'
+    image_path_thumb = save_dir + f'{contractor_id}.thumb.jpg'
     with TemporaryFile() as f:
         async with ctx['session'].get(url) as r:
             if r.status != 200:
@@ -82,9 +83,8 @@ async def get_image(ctx, company_key, contractor_id, url):
                     break
                 f.write(chunk)
         logger.info('Saving photo for company %s under %s', contractor_id, save_dir)
-        save_image(f, image_path_main, image_path_thumb)
+        image_hash = save_image(ctx['settings'], f, image_path_main, image_path_thumb)
 
-    image_hash = hashlib.md5(image_path_thumb.read_bytes()).hexdigest()
     async with ctx['pg_engine'].acquire() as conn:
         await conn.execute(
             update(sa_contractors).values(photo_hash=image_hash[:6]).where(sa_contractors.c.id == contractor_id)
@@ -231,7 +231,7 @@ async def kill_worker(ctx):
 
 
 class WorkerSettings:
-    functions = [get_image, submit_booking, submit_enquiry, update_contractors, update_enquiry_options]
+    functions = [process_image, submit_booking, submit_enquiry, update_contractors, update_enquiry_options]
     cron_jobs = [
         cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21}, minute=0),
         cron(kill_worker, hour=3, minute=0),
@@ -248,8 +248,14 @@ rotations = {
 }
 
 
-def save_image(file, image_path_main, image_path_thumb):
+def save_image(settings: Settings, file, image_path_main, image_path_thumb):
     file.seek(0)
+    if not settings.aws_access_key:
+        return
+    s3_client = boto3.client(
+        aws_access_key_id=settings.aws_access_key, aws_secret_access_key=settings.aws_secret_key
+    ).resource('s3')
+
     with Image.open(file) as img:
         # could use more of https://piexif.readthedocs.io/en/latest/sample.html#rotate-image-by-exif-orientation
         if hasattr(img, '_getexif'):
@@ -261,7 +267,7 @@ def save_image(file, image_path_main, image_path_thumb):
 
         img = img.convert('RGB')
         img_large = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
-        img_large.save(image_path_main, 'JPEG')
-
+        s3_client.upload_fileobj(Fileobj=img_large, Bucket=settings.aws_bucket_url, key=image_path_main)
         img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
-        img_thumb.save(image_path_thumb, 'JPEG')
+        s3_client.upload_fileobj(Fileobj=img_thumb, Bucket=settings.aws_bucket_url, key=image_path_thumb)
+        return hashlib.md5(img.tobytes()).hexdigest()

@@ -10,14 +10,15 @@ BASE_DIR = THIS_DIR.parent
 
 
 class Settings(BaseSettings):
-    pg_dsn: Optional[str] = 'postgres://postgres@localhost:5432/socket'
+    pg_dsn: Optional[str] = 'postgresql://postgres@localhost:5432/socket'
     redis_settings: RedisSettings = 'redis://localhost:6379'
     redis_database: int = 0
 
     master_key = b'this is a secret'
 
-    media_dir = Path('./media')
-    media_url = '/media'
+    aws_access_key: Optional[str] = None
+    aws_secret_key: Optional[str] = None
+    aws_bucket_url: Optional[str] = 'https://img.beta-socket.s3.amazonaws.com'
     tc_api_root = 'https://secure.tutorcruncher.com/api'
     grecaptcha_secret = 'required secret for google recaptcha'
     grecaptcha_url = 'https://www.google.com/recaptcha/api/siteverify'
@@ -27,14 +28,6 @@ class Settings(BaseSettings):
     tc_contractors_endpoint = '/public_contractors/'
     tc_enquiry_endpoint = '/enquiry/'
     tc_book_apt_endpoint = '/recipient_appointments/'
-
-    @validator('media_dir')
-    def check_media_dir(cls, p):
-        path = p.resolve()
-        path.mkdir(parents=True, exist_ok=True)
-        if not path.is_dir():
-            raise ValueError(f'"{path}" is not a directory')
-        return str(path)
 
     @validator('redis_settings', always=True, pre=True)
     def parse_redis_settings(cls, v):
@@ -69,4 +62,7 @@ class Settings(BaseSettings):
             'pg_dsn': {'env': 'DATABASE_URL'},
             'redis_settings': {'env': 'REDISCLOUD_URL'},
             'tc_api_root': {'env': 'TC_API_ROOT'},
+            'aws_access_key': {'env': 'AWS_ACCESS_KEY'},
+            'aws_secret_key': {'env': 'AWS_SECRET_KEY'},
+            'aws_image_bucket': {'env': 'AWS_IMAGE_BUCKET'},
         }
