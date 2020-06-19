@@ -369,32 +369,6 @@ async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
 
 
-async def test_photo_hash(monkeypatch, cli, db_conn, company, image_download_url, tmpdir, worker):
-    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
-    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
-    assert r.status == 201, await r.text()
-    await worker.run_check()
-
-    cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
-    assert cons == [('Fred', '-')]
-
-    r = await signed_request(
-        cli,
-        f'/{company.public_key}/webhook/contractor',
-        id=124,
-        first_name='George',
-        photo=f'{image_download_url}?format=JPEG',
-    )
-    assert r.status == 201, await r.text()
-    await worker.run_check()
-
-    path = Path(tmpdir / company.public_key / '124.thumb.jpg')
-    assert path.exists()
-
-    cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
-    assert cons == [('Fred', '-'), ('George', hashlib.md5(path.read_bytes()).hexdigest()[:6])]
-
-
 async def test_delete(cli, db_conn, company):
     assert 0 == await count(db_conn, sa_contractors)
     r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')

@@ -270,4 +270,4 @@ def save_image(settings: Settings, file, image_path_main, image_path_thumb):
         s3_client.upload_fileobj(Fileobj=img_large, Bucket=settings.aws_bucket_url, key=image_path_main)
         img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
         s3_client.upload_fileobj(Fileobj=img_thumb, Bucket=settings.aws_bucket_url, key=image_path_thumb)
-        return hashlib.md5(img.tobytes()).hexdigest()
+        return hashlib.md5(img_thumb.tobytes()).hexdigest()
