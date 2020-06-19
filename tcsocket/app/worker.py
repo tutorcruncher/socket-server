@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
-from pathlib import Path
+from io import BytesIO
 from signal import SIGTERM
 from tempfile import TemporaryFile
 from urllib.parse import urlencode
@@ -66,10 +66,8 @@ async def shutdown(ctx):
 
 
 async def process_image(ctx, company_key, contractor_id, url):
-    settings: Settings = ctx['settings']
-    save_dir = f'{settings.aws_bucket_url}/{company_key}/'
-    image_path_main = save_dir + f'{contractor_id}.jpg'
-    image_path_thumb = save_dir + f'{contractor_id}.thumb.jpg'
+    image_path_main = f'{company_key}/{contractor_id}.jpg'
+    image_path_thumb = f'{company_key}/{contractor_id}.thumb.jpg'
     with TemporaryFile() as f:
         async with ctx['session'].get(url) as r:
             if r.status != 200:
@@ -82,7 +80,6 @@ async def process_image(ctx, company_key, contractor_id, url):
                 if not chunk:
                     break
                 f.write(chunk)
-        logger.info('Saving photo for company %s under %s', contractor_id, save_dir)
         image_hash = save_image(ctx['settings'], f, image_path_main, image_path_thumb)
 
     async with ctx['pg_engine'].acquire() as conn:
@@ -253,9 +250,8 @@ def save_image(settings: Settings, file, image_path_main, image_path_thumb):
     if not settings.aws_access_key:
         return
     s3_client = boto3.client(
-        aws_access_key_id=settings.aws_access_key, aws_secret_access_key=settings.aws_secret_key
-    ).resource('s3')
-
+        's3', aws_access_key_id=settings.aws_access_key, aws_secret_access_key=settings.aws_secret_key
+    )
     with Image.open(file) as img:
         # could use more of https://piexif.readthedocs.io/en/latest/sample.html#rotate-image-by-exif-orientation
         if hasattr(img, '_getexif'):
@@ -267,7 +263,12 @@ def save_image(settings: Settings, file, image_path_main, image_path_thumb):
 
         img = img.convert('RGB')
         img_large = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
-        s3_client.upload_fileobj(Fileobj=img_large, Bucket=settings.aws_bucket_url, key=image_path_main)
+        img_large_stream = BytesIO()
+        img_large.save(img_large_stream, format='JPEG', optimize=True)
+        s3_client.upload_fileobj(Fileobj=img_large_stream, Bucket=settings.aws_bucket_name, Key=image_path_main)
+
         img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
-        s3_client.upload_fileobj(Fileobj=img_thumb, Bucket=settings.aws_bucket_url, key=image_path_thumb)
+        img_thumb_stream = BytesIO()
+        img_thumb.save(img_thumb_stream, format='JPEG', optimize=True)
+        s3_client.upload_fileobj(Fileobj=img_thumb_stream, Bucket=settings.aws_bucket_name, Key=image_path_thumb)
         return hashlib.md5(img_thumb.tobytes()).hexdigest()

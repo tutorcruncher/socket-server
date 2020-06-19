@@ -385,7 +385,6 @@ def settings(other_server):
         redis_database=7,
         master_key=MASTER_KEY,
         grecaptcha_secret='X' * 30,
-        aws_access_key='testing',
         grecaptcha_url=f'http://localhost:{other_server.port}/grecaptcha',
         tc_api_root=f'http://localhost:{other_server.port}/api',
         geocoding_url=f'http://localhost:{other_server.port}/geocode',

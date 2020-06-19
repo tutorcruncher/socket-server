@@ -16,9 +16,9 @@ class Settings(BaseSettings):
 
     master_key = b'this is a secret'
 
-    aws_access_key: Optional[str] = None
-    aws_secret_key: Optional[str] = None
-    aws_bucket_url: Optional[str] = 'https://img.beta-socket.s3.amazonaws.com'
+    aws_access_key: Optional[str] = 'testing'
+    aws_secret_key: Optional[str] = 'testing'
+    aws_bucket_name: str = 'socket-images-beta.tutorcruncher.com'
     tc_api_root = 'https://secure.tutorcruncher.com/api'
     grecaptcha_secret = 'required secret for google recaptcha'
     grecaptcha_url = 'https://www.google.com/recaptcha/api/siteverify'
@@ -35,6 +35,10 @@ class Settings(BaseSettings):
         return RedisSettings(
             host=conf.hostname, port=conf.port, password=conf.password, database=int((conf.path or '0').strip('/')),
         )
+
+    @property
+    def images_url(self):
+        return f'https://{self.aws_bucket_name}'
 
     @property
     def _pg_dsn_parsed(self):
@@ -64,5 +68,5 @@ class Settings(BaseSettings):
             'tc_api_root': {'env': 'TC_API_ROOT'},
             'aws_access_key': {'env': 'AWS_ACCESS_KEY'},
             'aws_secret_key': {'env': 'AWS_SECRET_KEY'},
-            'aws_image_bucket': {'env': 'AWS_IMAGE_BUCKET'},
+            'aws_bucket_name': {'env': 'AWS_BUCKET_NAME'},
         }

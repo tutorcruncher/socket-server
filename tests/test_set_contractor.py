@@ -6,6 +6,7 @@ from time import time
 
 import boto3
 import pytest
+import requests
 from PIL import Image
 
 from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
@@ -290,15 +291,12 @@ def fake_s3_client(tmpdir):
         def __init__(self, *args, **kwargs):
             self.tmpdir = tmpdir
 
-        def upload_fileobj(self, Fileobj, Bucket, key):
-            split_key = key.split('/')
+        def upload_fileobj(self, Fileobj, Bucket, Key):
+            split_key = Key.split('/')
             p_company, p_file = split_key[-2], split_key[-1]
             path = Path(self.tmpdir / p_company)
             path.mkdir(exist_ok=True)
             Fileobj.save(Path(path / p_file), 'JPEG')
-
-        def resource(self, r):
-            return self
 
     return FakeS3Client
 
@@ -367,6 +365,33 @@ async def test_update(cli, db_conn, company):
     r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='George')
     assert r.status == 200
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
+
+
+async def test_real_s3_test(cli, db_conn, company, image_download_url, tmpdir, worker, settings):
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+
+    cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
+    assert cons == [('Fred', '-')]
+
+    r = await signed_request(
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=124,
+        first_name='George',
+        photo=f'{image_download_url}?format=JPEG',
+    )
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+
+    # Checking URL is accessible
+    r = requests.get(f'{settings.images_url}/{company.public_key}/124.jpg')
+    assert r.status_code == 200
+    s3_client = boto3.Session(aws_access_key_id=settings.aws_access_key, aws_secret_access_key=settings.aws_secret_key)
+    bucket = s3_client.resource('s3').Bucket(settings.aws_bucket_name)
+    r = bucket.objects.filter(Prefix=f'{company.public_key}/').delete()
+    assert len(r[0].get('Deleted')) == 2
 
 
 async def test_delete(cli, db_conn, company):
