@@ -263,12 +263,15 @@ def save_image(settings: Settings, file, image_path_main, image_path_thumb):
 
         img = img.convert('RGB')
         img_large = ImageOps.fit(img, SIZE_LARGE, Image.LANCZOS)
-        img_large_stream = BytesIO()
-        img_large.save(img_large_stream, format='JPEG', optimize=True)
-        s3_client.upload_fileobj(Fileobj=img_large_stream, Bucket=settings.aws_bucket_name, Key=image_path_main)
+        with BytesIO() as temp_file:
+            img_large.save(temp_file, format='JPEG', optimize=True)
+            temp_file.seek(0)
+            s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=image_path_main)
 
         img_thumb = ImageOps.fit(img, SIZE_SMALL, Image.LANCZOS)
-        img_thumb_stream = BytesIO()
-        img_thumb.save(img_thumb_stream, format='JPEG', optimize=True)
-        s3_client.upload_fileobj(Fileobj=img_thumb_stream, Bucket=settings.aws_bucket_name, Key=image_path_thumb)
-        return hashlib.md5(img_thumb.tobytes()).hexdigest()
+        with BytesIO() as temp_file:
+            img_thumb.save(temp_file, format='JPEG', optimize=True)
+            temp_file.seek(0)
+            s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=image_path_thumb)
+
+    return hashlib.md5(img_thumb.tobytes()).hexdigest()

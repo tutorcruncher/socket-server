@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+from io import BytesIO
 from pathlib import Path
 from time import time
 
@@ -291,14 +292,14 @@ def fake_s3_client(tmpdir):
         def __init__(self, *args, **kwargs):
             self.tmpdir = tmpdir
 
-        def upload_fileobj(self, Fileobj, Bucket, Key):
+        def upload_fileobj(self, Fileobj: BytesIO, Bucket: str, Key: str):
             split_key = Key.split('/')
             p_company, p_file = split_key[-2], split_key[-1]
             path = Path(self.tmpdir / p_company)
             path.mkdir(exist_ok=True)
 
-            with open(Path(path / p_file), 'w+') as f:
-                f.write(Fileobj.read().decode())
+            with open(Path(path / p_file), 'wb+') as f:
+                f.write(Fileobj.getbuffer())
 
     return FakeS3Client
 
