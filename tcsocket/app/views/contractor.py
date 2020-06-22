@@ -12,7 +12,7 @@ from ..processing import contractor_set as _contractor_set
 from ..utils import HTTPNotFoundJson, get_arg, get_pagination, json_response, route_url, slugify
 from ..validation import ContractorModel
 
-logger = logging.getLogger('socket.views')
+logger = logging.getLogger('socket')
 
 
 async def contractor_set(request):
@@ -54,7 +54,7 @@ def _get_name(name_display, row):
 
 def _photo_url(request, con, thumb):
     ext = '.thumb.jpg' if thumb else '.jpg'
-    return f'{request.app["settings"].media_url}/{request["company"].public_key}/{con.id}{ext}?h={con.photo_hash}'
+    return f'{request.app["settings"].images_url}/{request["company"].public_key}/{con.id}{ext}?h={con.photo_hash}'
 
 
 async def contractor_list(request):  # noqa: C901 (ignore complexity)

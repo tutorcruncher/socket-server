@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.6
 import asyncio
 import logging
 import os
@@ -14,7 +13,7 @@ from app.management import prepare_database, run_patch
 from app.settings import Settings
 from app.worker import WorkerSettings
 
-logger = logging.getLogger('socket.run')
+logger = logging.getLogger('socket')
 
 
 @click.group()
@@ -24,29 +23,6 @@ def cli(verbose):
     Run TutorCruncher socket
     """
     setup_logging(verbose)
-
-
-async def _check_port_open(host, port, loop):
-    steps, delay = 100, 0.1
-    for i in range(steps):
-        try:
-            await loop.create_connection(lambda: asyncio.Protocol(), host=host, port=port)
-        except OSError:
-            await asyncio.sleep(delay, loop=loop)
-        else:
-            logger.info('Connected successfully to %s:%s after %0.2fs', host, port, delay * i)
-            return
-    raise RuntimeError(f'Unable to connect to {host}:{port} after {steps * delay}s')
-
-
-def check_services_ready():
-    settings = Settings()
-    loop = asyncio.get_event_loop()
-    coros = [
-        _check_port_open(settings.pg_host, settings.pg_port, loop),
-        _check_port_open(settings.redis_host, settings.redis_port, loop),
-    ]
-    loop.run_until_complete(asyncio.gather(*coros, loop=loop))
 
 
 def check_app():
@@ -60,16 +36,12 @@ def check_app():
     logger.info('app started and stopped successfully, apparently configured correctly')
 
 
-@cli.command()
 def web():
     """
     Serve the application
 
     If the database doesn't already exist it will be created.
     """
-    logger.info('waiting for postgres and redis to come up...')
-    check_services_ready()
-
     logger.info('preparing the database...')
     prepare_database(False)
 
@@ -95,15 +67,31 @@ def web():
     Application().run()
 
 
-@cli.command()
 def worker():
     """
     Run the worker
     """
     logger.info('waiting for redis to come up...')
-    check_services_ready()
     settings = Settings()
     run_worker(WorkerSettings, redis_settings=settings.redis_settings, ctx={'settings': settings})
+
+
+@cli.command()
+def auto():
+    port_env = os.getenv('PORT')
+    dyno_env = os.getenv('DYNO')
+    if dyno_env:
+        logger.info('using environment variable DYNO=%r to infer command', dyno_env)
+        if dyno_env.lower().startswith('web'):
+            web()
+        else:
+            worker()
+    elif port_env and port_env.isdigit():
+        logger.info('using environment variable PORT=%s to infer command as web', port_env)
+        web()
+    else:
+        logger.info('no environment variable found to infer command, assuming worker')
+        worker()
 
 
 @cli.command()

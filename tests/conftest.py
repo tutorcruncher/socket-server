@@ -26,7 +26,7 @@ from tcsocket.app.settings import Settings
 from tcsocket.app.worker import WorkerSettings, startup
 
 MASTER_KEY = 'this is the master key'
-DB_DSN = 'postgres://postgres@localhost:5432/socket_test'
+DB_DSN = 'postgresql://postgres@localhost:5432/socket_test'
 
 
 async def test_image_view(request):
@@ -350,7 +350,8 @@ async def _fix_worker(redis, worker_ctx):
 
     yield worker
 
-    worker.pool = None
+    # Sets the pool to use our settings RedisSettings instead of ArqRedis
+    worker._pool = None
     await worker.close()
 
 
@@ -378,13 +379,12 @@ def image_download_url(other_server):
 
 
 @pytest.fixture
-def settings(tmpdir, other_server):
+def settings(other_server):
     return Settings(
         pg_dsn=os.getenv('DATABASE_URL', DB_DSN),
         redis_database=7,
         master_key=MASTER_KEY,
         grecaptcha_secret='X' * 30,
-        media_dir=str(tmpdir / 'media'),
         grecaptcha_url=f'http://localhost:{other_server.port}/grecaptcha',
         tc_api_root=f'http://localhost:{other_server.port}/api',
         geocoding_url=f'http://localhost:{other_server.port}/geocode',

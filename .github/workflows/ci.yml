@@ -48,6 +48,9 @@ jobs:
 
     - name: test
       run: make test
+      env:
+        AWS_ACCESS_KEY: ${{ secrets.AWS_ACCESS_KEY }}
+        AWS_SECRET_KEY: ${{ secrets.AWS_SECRET_KEY }}
 
     - name: codecov
       run: bash <(curl -s https://codecov.io/bash)

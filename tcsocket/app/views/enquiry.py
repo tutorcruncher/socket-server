@@ -12,7 +12,7 @@ from ..geo import get_ip
 from ..utils import HTTPBadRequestJson, json_response
 from ..worker import REDIS_ENQUIRY_CACHE_KEY, get_enquiry_options, store_enquiry_data
 
-logger = logging.getLogger('socket.views')
+logger = logging.getLogger('socket')
 VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'
 
 

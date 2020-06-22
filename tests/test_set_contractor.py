@@ -1,10 +1,13 @@
 import hashlib
 import hmac
 import json
+from io import BytesIO
 from pathlib import Path
 from time import time
 
+import boto3
 import pytest
+import requests
 from PIL import Image
 
 from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
@@ -284,8 +287,28 @@ async def test_extra_attributes_null(cli, db_conn, company):
     assert result.primary_description is None
 
 
+def fake_s3_client(tmpdir):
+    class FakeS3Client:
+        def __init__(self, *args, **kwargs):
+            self.tmpdir = tmpdir
+
+        def upload_fileobj(self, Fileobj: BytesIO, Bucket: str, Key: str):
+            split_key = Key.split('/')
+            p_company, p_file = split_key[-2], split_key[-1]
+            path = Path(self.tmpdir / p_company)
+            path.mkdir(exist_ok=True)
+
+            with open(Path(path / p_file), 'wb+') as f:
+                f.write(Fileobj.getbuffer())
+
+    return FakeS3Client
+
+
 @pytest.mark.parametrize('image_format', ['JPEG', 'RGBA', 'P'])
-async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_server, image_format, worker):
+async def test_photo(
+    monkeypatch, cli, db_conn, company, image_download_url, tmpdir, other_server, image_format, worker
+):
+    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
     r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
@@ -298,19 +321,20 @@ async def test_photo(cli, db_conn, company, image_download_url, tmpdir, other_se
     assert other_server.app['request_log'] == [('test_image', image_format)]
 
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
-    path = Path(tmpdir / 'media' / company.public_key / '123.jpg')
+    path = Path(tmpdir / company.public_key / '123.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (1000, 1000)
         assert im.getpixel((1, 1)) == (128, 128, 128)
-    path = Path(tmpdir / 'media' / company.public_key / '123.thumb.jpg')
+    path = Path(tmpdir / company.public_key / '123.thumb.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (256, 256)
         assert im.getpixel((1, 1)) == (128, 128, 128)
 
 
-async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir, other_server, worker):
+async def test_photo_rotation(monkeypatch, cli, db_conn, company, image_download_url, tmpdir, other_server, worker):
+    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
     r = await signed_request(
         cli,
         f'/{company.public_key}/webhook/contractor',
@@ -323,12 +347,12 @@ async def test_photo_rotation(cli, db_conn, company, image_download_url, tmpdir,
     assert other_server.app['request_log'] == [('test_image', None)]
 
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['Fred']
-    path = Path(tmpdir / 'media' / company.public_key / '123.jpg')
+    path = Path(tmpdir / company.public_key / '123.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (1000, 1000)
         assert im.getpixel((1, 1)) == (50, 100, 149)  # image has been rotated
-    path = Path(tmpdir / 'media' / company.public_key / '123.thumb.jpg')
+    path = Path(tmpdir / company.public_key / '123.thumb.jpg')
     assert path.exists()
     with Image.open(str(path)) as im:
         assert im.size == (256, 256)
@@ -346,7 +370,7 @@ async def test_update(cli, db_conn, company):
     assert [cs.first_name async for cs in await db_conn.execute(sa_contractors.select())] == ['George']
 
 
-async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir, worker):
+async def test_real_s3_test(cli, db_conn, company, image_download_url, tmpdir, worker, settings):
     r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='Fred')
     assert r.status == 201, await r.text()
     await worker.run_check()
@@ -364,11 +388,13 @@ async def test_photo_hash(cli, db_conn, company, image_download_url, tmpdir, wor
     assert r.status == 201, await r.text()
     await worker.run_check()
 
-    path = Path(tmpdir / 'media' / company.public_key / '124.thumb.jpg')
-    assert path.exists()
-
-    cons = sorted([(cs.first_name, cs.photo_hash) async for cs in await db_conn.execute(sa_contractors.select())])
-    assert cons == [('Fred', '-'), ('George', hashlib.md5(path.read_bytes()).hexdigest()[:6])]
+    # Checking URL is accessible
+    r = requests.get(f'{settings.images_url}/{company.public_key}/124.jpg')
+    assert r.status_code == 200
+    s3_client = boto3.Session(aws_access_key_id=settings.aws_access_key, aws_secret_access_key=settings.aws_secret_key)
+    bucket = s3_client.resource('s3').Bucket(settings.aws_bucket_name)
+    r = bucket.objects.filter(Prefix=f'{company.public_key}/').delete()
+    assert len(r[0].get('Deleted')) == 2
 
 
 async def test_delete(cli, db_conn, company):

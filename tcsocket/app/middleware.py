@@ -16,7 +16,7 @@ from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson
 from .validation import VIEW_MODELS
 
-request_logger = logging.getLogger('socket.request')
+request_logger = logging.getLogger('socket')
 
 PUBLIC_VIEWS = {
     'index',
