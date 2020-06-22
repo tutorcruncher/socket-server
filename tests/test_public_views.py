@@ -35,7 +35,7 @@ async def test_favicon(cli, mocker):
     assert middleware.log_warning.call_count == 0
 
 
-async def test_list_contractors(cli, db_conn):
+async def test_list_contractors(cli, db_conn, settings):
     v = await db_conn.execute(
         sa_companies.insert()
         .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
@@ -65,7 +65,7 @@ async def test_list_contractors(cli, db_conn):
             'id': 1,
             'link': '1-fred-b',
             'name': 'Fred B',
-            'photo': 'https://img.beta-socket.s3.amazonaws.com/thepublickey/1.thumb.jpg?h=abc',
+            'photo': f'{settings.images_url}/thepublickey/1.thumb.jpg?h=abc',
             'tag_line': None,
             'primary_description': None,
             'town': None,
@@ -126,7 +126,7 @@ async def test_json_encoding(cli, db_conn, company, headers, newline_count):
     assert (await r.text()).count('\n') == newline_count
 
 
-async def test_get_contractor(cli, db_conn):
+async def test_get_contractor(cli, db_conn, settings):
     v = await db_conn.execute(
         sa_companies.insert()
         .values(name='testing', public_key='thepublickey', private_key='theprivatekey')
@@ -160,7 +160,7 @@ async def test_get_contractor(cli, db_conn):
         'extra_attributes': [{'sort_index': 1, 'foo': 'spam'}, {'sort_index': 5, 'foo': 'bar'}, {'foo': 'apple'}],
         'labels': [],
         'tag_line': None,
-        'photo': 'https://img.beta-socket.s3.amazonaws.com/thepublickey/1.jpg?h=-',
+        'photo': f'{settings.images_url}/thepublickey/1.jpg?h=-',
         'primary_description': None,
         'review_duration': None,
         'review_rating': None,

@@ -296,7 +296,9 @@ def fake_s3_client(tmpdir):
             p_company, p_file = split_key[-2], split_key[-1]
             path = Path(self.tmpdir / p_company)
             path.mkdir(exist_ok=True)
-            Fileobj.save(Path(path / p_file), 'JPEG')
+
+            with open(Path(path / p_file), 'w+') as f:
+                f.write(Fileobj.read().decode())
 
     return FakeS3Client
 
