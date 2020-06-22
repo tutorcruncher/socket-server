@@ -7,7 +7,7 @@ from ..models import sa_companies
 from ..utils import HTTPConflictJson, json_response
 from ..validation import CompanyCreateModal, CompanyOptionsModel, CompanyUpdateModel
 
-logger = logging.getLogger('socket.views')
+logger = logging.getLogger('socket')
 
 
 async def company_create(request):

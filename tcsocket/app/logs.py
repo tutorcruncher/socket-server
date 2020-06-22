@@ -15,9 +15,9 @@ def setup_logging(verbose: bool = False):
     config = {
         'version': 1,
         'disable_existing_loggers': False,
-        'formatters': {'socket.default': {'format': '%(levelname)s %(name)s %(message)s'}},
+        'formatters': {'socket': {'format': '%(levelname)s %(name)s %(message)s'}},
         'handlers': {
-            'socket.default': {'level': log_level, 'class': 'logging.StreamHandler', 'formatter': 'socket.default'},
+            'socket': {'level': log_level, 'class': 'logging.StreamHandler', 'formatter': 'socket'},
             'sentry': {
                 'level': 'WARNING',
                 'class': 'raven.handlers.logging.SentryHandler',
@@ -27,9 +27,9 @@ def setup_logging(verbose: bool = False):
             },
         },
         'loggers': {
-            'socket': {'handlers': ['socket.default', 'sentry'], 'level': log_level},
+            'socket': {'handlers': ['socket', 'sentry'], 'level': log_level},
             'gunicorn.error': {'handlers': ['sentry'], 'level': 'ERROR'},
-            'arq': {'handlers': ['socket.default', 'sentry'], 'level': log_level},
+            'arq': {'handlers': ['socket', 'sentry'], 'level': log_level},
         },
     }
     logging.config.dictConfig(config)

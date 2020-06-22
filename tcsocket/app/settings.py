@@ -10,14 +10,15 @@ BASE_DIR = THIS_DIR.parent
 
 
 class Settings(BaseSettings):
-    pg_dsn: Optional[str] = 'postgres://postgres@localhost:5432/socket'
+    pg_dsn: Optional[str] = 'postgresql://postgres@localhost:5432/socket'
     redis_settings: RedisSettings = 'redis://localhost:6379'
     redis_database: int = 0
 
     master_key = b'this is a secret'
 
-    media_dir = Path('./media')
-    media_url = '/media'
+    aws_access_key: Optional[str] = 'testing'
+    aws_secret_key: Optional[str] = 'testing'
+    aws_bucket_name: str = 'socket-images-beta.tutorcruncher.com'
     tc_api_root = 'https://secure.tutorcruncher.com/api'
     grecaptcha_secret = 'required secret for google recaptcha'
     grecaptcha_url = 'https://www.google.com/recaptcha/api/siteverify'
@@ -28,20 +29,16 @@ class Settings(BaseSettings):
     tc_enquiry_endpoint = '/enquiry/'
     tc_book_apt_endpoint = '/recipient_appointments/'
 
-    @validator('media_dir')
-    def check_media_dir(cls, p):
-        path = p.resolve()
-        path.mkdir(parents=True, exist_ok=True)
-        if not path.is_dir():
-            raise ValueError(f'"{path}" is not a directory')
-        return str(path)
-
     @validator('redis_settings', always=True, pre=True)
     def parse_redis_settings(cls, v):
         conf = urlparse(v)
         return RedisSettings(
             host=conf.hostname, port=conf.port, password=conf.password, database=int((conf.path or '0').strip('/')),
         )
+
+    @property
+    def images_url(self):
+        return f'https://{self.aws_bucket_name}'
 
     @property
     def _pg_dsn_parsed(self):
@@ -65,5 +62,11 @@ class Settings(BaseSettings):
 
     class Config:
         fields = {
+            'port': {'env': 'PORT'},
             'pg_dsn': {'env': 'DATABASE_URL'},
+            'redis_settings': {'env': 'REDISCLOUD_URL'},
+            'tc_api_root': {'env': 'TC_API_ROOT'},
+            'aws_access_key': {'env': 'AWS_ACCESS_KEY'},
+            'aws_secret_key': {'env': 'AWS_SECRET_KEY'},
+            'aws_bucket_name': {'env': 'AWS_BUCKET_NAME'},
         }

@@ -25,7 +25,7 @@ from ..utils import (
 )
 from ..validation import AppointmentModel, BookingModel
 
-logger = logging.getLogger('socket.views')
+logger = logging.getLogger('socket')
 apt_c = sa_appointments.c
 ser_c = sa_services.c
 

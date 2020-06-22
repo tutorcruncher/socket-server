@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, update
 from .models import Base, sa_companies
 from .settings import Settings
 
-logger = logging.getLogger('socket.management')
+logger = logging.getLogger('socket')
 
 
 SQL_PREPARE = """
@@ -34,7 +34,7 @@ CREATE TRIGGER service_delete AFTER DELETE ON appointments FOR EACH ROW EXECUTE 
 
 def lenient_connection(settings: Settings, retries=5):
     try:
-        return psycopg2.connect(password=settings.pg_password, dsn=settings.pg_dsn,)
+        return psycopg2.connect(password=settings.pg_password, dsn=settings.pg_dsn)
     except psycopg2.Error as e:
         if retries <= 0:
             raise

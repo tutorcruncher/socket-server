@@ -24,9 +24,10 @@ lint:
 test:
 	pytest --cov=tcsocket
 
-.PHONY: testcov
-testcov: test
-	coverage html
+.PHONY: build
+build:
+	docker build tcsocket/ -t tcsocket
 
-.PHONY: all
-all: testcov lint
+.PHONY: prod-push
+prod-push:
+	git push heroku `git rev-parse --abbrev-ref HEAD`:master

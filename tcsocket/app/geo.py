@@ -9,7 +9,7 @@ NINETY_DAYS = ONE_HOUR * 24 * 90
 IP_HEADER = 'X-Forwarded-For'
 COUNTRY_HEADER = 'CF-IPCountry'
 MAX_GEOCODE_PER_HOUR = 20
-logger = logging.getLogger('socket.geo')
+logger = logging.getLogger('socket')
 
 
 def get_ip(request):

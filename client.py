@@ -1,4 +1,3 @@
-#!/usr/bin/env python3.6
 import asyncio
 import json
 import os
@@ -109,10 +108,7 @@ CON_DATA = {
     'last_name': 'Howell',
     'town': 'Edinburgh',
     'country': 'United Kingdom',
-    'location': {
-        'latitude': None,
-        'longitude': None
-    },
+    'location': {'latitude': None, 'longitude': None},
     'photo': 'http://unsplash.com/photos/vltMzn0jqsA/download',
     'extra_attributes': [
         {
@@ -121,9 +117,9 @@ CON_DATA = {
             'type': 'text_extended',
             'sort_index': 0,
             'value': 'The returned group is itself an iterator that shares the underlying iterable with groupby(). '
-                     'Because the source is shared, when the groupby() object is advanced, the previous group is no '
-                     'longer visible. So, if that data is needed later, it should be stored as a list:',
-            'id': 195
+            'Because the source is shared, when the groupby() object is advanced, the previous group is no '
+            'longer visible. So, if that data is needed later, it should be stored as a list:',
+            'id': 195,
         },
         {
             'machine_name': None,
@@ -131,45 +127,20 @@ CON_DATA = {
             'type': 'text_short',
             'sort_index': 0,
             'value': 'Harvard',
-            'id': 196
+            'id': 196,
         },
     ],
     'skills': [
-        {
-            'qual_level': 'A Level',
-            'subject': 'Mathematics',
-            'qual_level_ranking': 18.0,
-            'category': 'Maths'
-        },
-        {
-            'qual_level': 'GCSE',
-            'subject': 'Mathematics',
-            'qual_level_ranking': 16.0,
-            'category': 'Maths'
-        },
-        {
-            'qual_level': 'GCSE',
-            'subject': 'Algebra',
-            'qual_level_ranking': 16.0,
-            'category': 'Maths'
-        },
-        {
-            'qual_level': 'KS3',
-            'subject': 'Language',
-            'qual_level_ranking': 13.0,
-            'category': 'English'
-        },
-        {
-            'qual_level': 'Degree',
-            'subject': 'Mathematics',
-            'qual_level_ranking': 21.0,
-            'category': 'Maths'
-        },
+        {'qual_level': 'A Level', 'subject': 'Mathematics', 'qual_level_ranking': 18.0, 'category': 'Maths'},
+        {'qual_level': 'GCSE', 'subject': 'Mathematics', 'qual_level_ranking': 16.0, 'category': 'Maths'},
+        {'qual_level': 'GCSE', 'subject': 'Algebra', 'qual_level_ranking': 16.0, 'category': 'Maths'},
+        {'qual_level': 'KS3', 'subject': 'Language', 'qual_level_ranking': 13.0, 'category': 'English'},
+        {'qual_level': 'Degree', 'subject': 'Mathematics', 'qual_level_ranking': 21.0, 'category': 'Maths'},
     ],
     'labels': [],
     'last_updated': '2017-01-08T12:20:46.244Z',
     'created': '2015-01-19',
-    'release_timestamp': '2017-01-08T12:27:07.541165Z'
+    'release_timestamp': '2017-01-08T12:27:07.541165Z',
 }
 
 
