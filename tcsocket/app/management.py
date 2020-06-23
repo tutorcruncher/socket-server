@@ -1,12 +1,16 @@
 import logging
 from contextlib import contextmanager
+from io import BytesIO
 from time import sleep
 from typing import Union
 
+import boto3
 import psycopg2
-from sqlalchemy import create_engine, update
+import requests
+from sqlalchemy import create_engine, select, update
+from sqlalchemy.sql import functions
 
-from .models import Base, sa_companies
+from .models import Base, sa_companies, sa_contractors
 from .settings import Settings
 
 logger = logging.getLogger('socket')
@@ -260,3 +264,39 @@ def run_sql_prepare(conn):
     run SQL_PREPARE code to (re)create procedures and triggers
     """
     conn.execute(SQL_PREPARE)
+
+
+@patch
+def update_socket_images(conn):
+    """
+    Downloading images from server on EC2 and uploading them to S3
+    """
+    con_c = sa_contractors.c
+    company_c = sa_companies.c
+    base_url = 'https://socket.tutorcruncher.com/media'
+    q_iter = select([con_c.id, company_c.public_key]).select_from(sa_contractors.join(sa_companies))
+    session = requests.Session()
+    settings = Settings()
+    s3_client = boto3.client(
+        's3', aws_access_key_id=settings.aws_access_key, aws_secret_access_key=settings.aws_secret_key
+    )
+    count = conn.execute(select([functions.count(con_c.id)]).select_from(sa_contractors))
+    print(f'Processing images for {count.first()[0]} contractors')
+    for row in conn.execute(q_iter):
+        img_key = f'{row.public_key}/{row.id}.jpg'
+        r = session.get(f'{base_url}/{img_key}')
+        r.raise_for_status()
+        with BytesIO() as temp_file:
+            temp_file.write(r.content)
+            temp_file.seek(0)
+            s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=img_key)
+        print(f'Uploading image {img_key}')
+
+        img_thumb_key = f'{row.public_key}/{row.id}.thumb.jpg'
+        r = session.get(f'{base_url}/{img_thumb_key}')
+        r.raise_for_status()
+        with BytesIO() as temp_file:
+            temp_file.write(r.content)
+            temp_file.seek(0)
+            s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=img_thumb_key)
+        print(f'Uploading image {img_thumb_key}')
