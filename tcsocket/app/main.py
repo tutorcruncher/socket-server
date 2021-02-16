@@ -12,10 +12,11 @@ from .views import favicon, index, labels_list, qual_level_list, robots_txt, sub
 from .views.appointments import (
     appointment_list,
     appointment_webhook,
+    appointment_webhook_clear,
     appointment_webhook_delete,
     book_appointment,
     check_client,
-    service_list, appointment_webhook_clear,
+    service_list,
 )
 from .views.company import company_create, company_list, company_options, company_update
 from .views.contractor import contractor_get, contractor_list, contractor_set
