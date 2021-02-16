@@ -80,6 +80,12 @@ async def appointment_webhook_delete(request):
     return json_response(request, status='success' if v.rowcount else 'appointment not found')
 
 
+async def appointment_webhook_clear(request):
+    conn = await request['conn_manager'].get_connection()
+    v = await conn.execute(sa_appointments.delete().where(ser_c.company == request['company'].id))
+    return json_response(request, status='success' if v.rowcount else 'appointments not found')
+
+
 APT_LIST_FIELDS = (
     apt_c.id,
     apt_c.topic,

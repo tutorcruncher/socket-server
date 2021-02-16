@@ -15,7 +15,7 @@ from .views.appointments import (
     appointment_webhook_delete,
     book_appointment,
     check_client,
-    service_list,
+    service_list, appointment_webhook_clear,
 )
 from .views.company import company_create, company_list, company_options, company_update
 from .views.contractor import contractor_get, contractor_list, contractor_set
@@ -55,6 +55,9 @@ def setup_routes(app):
     app.router.add_delete(
         r'/{company}/webhook/appointments/{id:\d+}', appointment_webhook_delete, name='webhook-appointment-delete'
     )
+    app.router.add_delete(r'/{company}/webhook/appointments/clear', appointment_webhook_clear,
+                          name='webhook-appointment-clear'
+                          )
 
     app.router.add_get(r'/{company}/contractors', contractor_list, name='contractor-list')
     app.router.add_get(r'/{company}/contractors/{id:\d+}', contractor_get, name='contractor-get')
