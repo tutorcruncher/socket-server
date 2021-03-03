@@ -227,6 +227,32 @@ async def test_mass_apts(cli, db_conn, company):
     assert 11 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_services)
 
+    data = dict()
+    for i in range(9):
+        data[str(i + 2)] = dict(
+            service_id=1,
+            service_name='test service',
+            extra_attributes=[],
+            colour='#000000',
+            appointment_topic='testing appointment',
+            attendees_max=42,
+            attendees_count=4,
+            attendees_current_ids=[1, 2, 3],
+            start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
+            finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
+            price=123.45,
+            location='Whatever',
+        )
+    data['10'] = {}
+    data['11'] = {}
+    url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
+    r = await signed_request(cli, url, **data)
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+
+    assert 9 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
+
 
 async def test_mass_apts_and_services(cli, db_conn, company):
     await create_appointment(db_conn, company, appointment_extra={'id': 1})
