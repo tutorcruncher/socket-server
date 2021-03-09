@@ -77,7 +77,7 @@ async def appointment_webhook_mass(request):
     if data['_request_time']:
         del data['_request_time']
     for apt_id, apt in data.items():
-        if apt != {}:
+        if apt['ss_method'] == 'POST':
             appointment: AppointmentModel = apt
 
             v = await conn.execute(select([ser_c.company]).where(ser_c.id == appointment['service_id']))
@@ -123,10 +123,12 @@ async def appointment_webhook_mass(request):
                 .values(id=apt_id, service=appointment['service_id'], **apt_insert_update)
                 .on_conflict_do_update(index_elements=[apt_c.id], where=apt_c.id == apt_id, set_=apt_insert_update,)
             )
-        else:
+        elif apt['ss_method'] == 'DELETE':
             await conn.execute(
                 sa_appointments.delete().where(and_(apt_c.id == apt_id, ser_c.company == request['company'].id))
             )
+        else:
+            return
     return json_response(request, status='success')
 
 
