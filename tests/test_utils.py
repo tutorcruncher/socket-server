@@ -92,7 +92,7 @@ async def test_500_error(aiohttp_client, caplog):
     r = await client.get('/')
     assert r.status == 500
     assert '500: Internal Server Error' == await r.text()
-    assert 'ERROR    socket.request:middleware.py:81 RuntimeError: snap' in caplog.text
+    assert 'ERROR    socket.request:middleware.py:79 RuntimeError: snap' in caplog.text
 
 
 async def test_401_return_error(aiohttp_client, mocker):
