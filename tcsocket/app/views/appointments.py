@@ -71,6 +71,67 @@ async def appointment_webhook(request):
     return json_response(request, status='success')
 
 
+async def appointment_webhook_mass(request):
+    conn = await request['conn_manager'].get_connection()
+    data = await request.json()
+    if data['_request_time']:
+        del data['_request_time']
+    for apt_id, apt in data.items():
+        if apt['ss_method'] == 'POST':
+            appointment: AppointmentModel = apt
+
+            v = await conn.execute(select([ser_c.company]).where(ser_c.id == appointment['service_id']))
+            r = await v.first()
+            if r and r.company != request['company'].id:
+                raise HTTPConflictJson(
+                    status='service conflict',
+                    details=f'service {appointment["service_id"]} already exists'
+                            ' and is associated with another company',
+                )
+
+            service_insert_update = dict(
+                name=appointment['service_name'],
+                colour=appointment['colour'],
+                extra_attributes=[
+                    ea.dict(exclude={'sort_index'})
+                    for ea in sorted(appointment['extra_attributes'], key=attrgetter('sort_index'))
+                ],
+            )
+
+            await conn.execute(
+                pg_insert(sa_services)
+                .values(id=appointment['service_id'], company=request['company'].id, **service_insert_update)
+                .on_conflict_do_update(
+                    index_elements=[ser_c.id], where=ser_c.id == appointment['service_id'], set_=service_insert_update,
+                )
+            )
+            apt_insert_keys = [
+                'attendees_max',
+                'attendees_count',
+                'attendees_current_ids',
+                'start',
+                'finish',
+                'price',
+                'location',
+            ]
+
+            apt_insert_update = {key: value for key, value in apt.items() if key in apt_insert_keys}
+            apt_insert_update['topic'] = appointment['appointment_topic']
+
+            await conn.execute(
+                pg_insert(sa_appointments)
+                .values(id=apt_id, service=appointment['service_id'], **apt_insert_update)
+                .on_conflict_do_update(index_elements=[apt_c.id], where=apt_c.id == apt_id, set_=apt_insert_update,)
+            )
+        elif apt['ss_method'] == 'DELETE':
+            await conn.execute(
+                sa_appointments.delete().where(and_(apt_c.id == apt_id, ser_c.company == request['company'].id))
+            )
+        else:
+            return
+    return json_response(request, status='success')
+
+
 async def appointment_webhook_delete(request):
     apt_id = request.match_info['id']
     conn = await request['conn_manager'].get_connection()
@@ -78,6 +139,13 @@ async def appointment_webhook_delete(request):
         sa_appointments.delete().where(and_(apt_c.id == apt_id, ser_c.company == request['company'].id))
     )
     return json_response(request, status='success' if v.rowcount else 'appointment not found')
+
+
+async def appointment_webhook_clear(request):
+    conn = await request['conn_manager'].get_connection()
+    v = await conn.execute(sa_appointments.delete().where(ser_c.company == request['company'].id))
+    r = await conn.execute(sa_services.delete().where(ser_c.company == request['company'].id))
+    return json_response(request, status='success' if r.rowcount or v.rowcount else 'appointments not found')
 
 
 APT_LIST_FIELDS = (

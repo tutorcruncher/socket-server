@@ -12,7 +12,9 @@ from .views import favicon, index, labels_list, qual_level_list, robots_txt, sub
 from .views.appointments import (
     appointment_list,
     appointment_webhook,
+    appointment_webhook_clear,
     appointment_webhook_delete,
+    appointment_webhook_mass,
     book_appointment,
     check_client,
     service_list,
@@ -52,8 +54,14 @@ def setup_routes(app):
     app.router.add_post(r'/{company}/webhook/contractor', contractor_set, name='webhook-contractor')
     app.router.add_post(r'/{company}/webhook/clear-enquiry', clear_enquiry, name='webhook-clear-enquiry')
     app.router.add_post(r'/{company}/webhook/appointments/{id:\d+}', appointment_webhook, name='webhook-appointment')
+    app.router.add_post(
+        r'/{company}/webhook/appointments/mass', appointment_webhook_mass, name='webhook-appointment-mass'
+    )
     app.router.add_delete(
         r'/{company}/webhook/appointments/{id:\d+}', appointment_webhook_delete, name='webhook-appointment-delete'
+    )
+    app.router.add_delete(
+        r'/{company}/webhook/appointments/clear', appointment_webhook_clear, name='webhook-appointment-clear'
     )
 
     app.router.add_get(r'/{company}/contractors', contractor_list, name='contractor-list')
