@@ -181,7 +181,6 @@ async def contractor_set(
     if contractor.photo:
         # Sometimes creating the contractor is already done on a job, so don't need another one.
         job_kwargs = dict(company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo)
-        print(redis)
         if redis:
             await redis.enqueue_job('process_image', **job_kwargs)
         else:
