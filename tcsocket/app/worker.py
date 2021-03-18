@@ -247,6 +247,7 @@ rotations = {
 
 def save_image(settings: Settings, file, image_path_main, image_path_thumb):
     file.seek(0)
+
     if not settings.aws_access_key:
         return
     s3_client = boto3.client(
