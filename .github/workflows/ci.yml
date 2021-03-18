@@ -29,7 +29,7 @@ jobs:
         options: --entrypoint redis-server
 
     env:
-      DATABASE_URL: 'postgres://postgres:postgres@localhost:5432/socket_test'
+      DATABASE_URL: 'postgres://postgres:postgres@127.0.0.1:5432/socket_test'
 
     steps:
     - uses: actions/checkout@v2
