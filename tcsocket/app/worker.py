@@ -247,7 +247,6 @@ rotations = {
 
 def save_image(settings: Settings, file, image_path_main, image_path_thumb):
     file.seek(0)
-    print(bool(settings.aws_access_key))
     if not settings.aws_access_key:
         return
     s3_client = boto3.client(
@@ -275,6 +274,4 @@ def save_image(settings: Settings, file, image_path_main, image_path_thumb):
             temp_file.seek(0)
             s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=image_path_thumb)
 
-    print(img_thumb)
-    print(hashlib.md5(img_thumb.tobytes()).hexdigest())
     return hashlib.md5(img_thumb.tobytes()).hexdigest()
