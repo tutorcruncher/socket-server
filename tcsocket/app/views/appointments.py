@@ -78,31 +78,31 @@ async def appointment_webhook_mass(request):
         del data['_request_time']
     for apt_id, apt in data.items():
         if apt['ss_method'] == 'POST':
-            appointment: AppointmentModel = apt
+            appointment = AppointmentModel(**apt)
 
-            v = await conn.execute(select([ser_c.company]).where(ser_c.id == appointment['service_id']))
+            v = await conn.execute(select([ser_c.company]).where(ser_c.id == appointment.service_id))
             r = await v.first()
             if r and r.company != request['company'].id:
                 raise HTTPConflictJson(
                     status='service conflict',
-                    details=f'service {appointment["service_id"]} already exists'
+                    details=f'service {appointment.service_id} already exists'
                             ' and is associated with another company',
                 )
 
             service_insert_update = dict(
-                name=appointment['service_name'],
-                colour=appointment['colour'],
+                name=appointment.service_name,
+                colour=appointment.colour,
                 extra_attributes=[
                     ea.dict(exclude={'sort_index'})
-                    for ea in sorted(appointment['extra_attributes'], key=attrgetter('sort_index'))
+                    for ea in sorted(appointment.extra_attributes, key=attrgetter('sort_index'))
                 ],
             )
 
             await conn.execute(
                 pg_insert(sa_services)
-                .values(id=appointment['service_id'], company=request['company'].id, **service_insert_update)
+                .values(id=appointment.service_id, company=request['company'].id, **service_insert_update)
                 .on_conflict_do_update(
-                    index_elements=[ser_c.id], where=ser_c.id == appointment['service_id'], set_=service_insert_update,
+                    index_elements=[ser_c.id], where=ser_c.id == appointment.service_id, set_=service_insert_update,
                 )
             )
             apt_insert_keys = [
@@ -116,11 +116,11 @@ async def appointment_webhook_mass(request):
             ]
 
             apt_insert_update = {key: value for key, value in apt.items() if key in apt_insert_keys}
-            apt_insert_update['topic'] = appointment['appointment_topic']
+            apt_insert_update['topic'] = appointment.appointment_topic
 
             await conn.execute(
                 pg_insert(sa_appointments)
-                .values(id=apt_id, service=appointment['service_id'], **apt_insert_update)
+                .values(id=apt_id, service=appointment.service_id, **apt_insert_update)
                 .on_conflict_do_update(index_elements=[apt_c.id], where=apt_c.id == apt_id, set_=apt_insert_update,)
             )
         elif apt['ss_method'] == 'DELETE':
