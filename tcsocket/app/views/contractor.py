@@ -54,11 +54,8 @@ async def contractor_set_mass(request):
 
     # starting image processing here due to conflicting db connections on tests
     redis = request.app['redis']
-    for contractor in contractors:
-        if contractor.photo:
-            await redis.enqueue_job(
-                'process_image', company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo
-            )
+    if con_details := {(contractor.id, contractor.photo) for contractor in contractors if contractor.photo}:
+        await redis.enqueue_job('process_image_mass', company_key=company['public_key'], con_details=con_details)
     return json_response(request, status='success')
 
 
