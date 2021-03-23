@@ -55,7 +55,9 @@ async def appointment_webhook(request):
         pg_insert(sa_services)
         .values(id=appointment.service_id, company=request['company'].id, **service_insert_update)
         .on_conflict_do_update(
-            index_elements=[ser_c.id], where=ser_c.id == appointment.service_id, set_=service_insert_update,
+            index_elements=[ser_c.id],
+            where=ser_c.id == appointment.service_id,
+            set_=service_insert_update,
         )
     )
     apt_insert_update = appointment.dict(
@@ -66,7 +68,11 @@ async def appointment_webhook(request):
     await conn.execute(
         pg_insert(sa_appointments)
         .values(id=apt_id, service=appointment.service_id, **apt_insert_update)
-        .on_conflict_do_update(index_elements=[apt_c.id], where=apt_c.id == apt_id, set_=apt_insert_update,)
+        .on_conflict_do_update(
+            index_elements=[apt_c.id],
+            where=apt_c.id == apt_id,
+            set_=apt_insert_update,
+        )
     )
     return json_response(request, status='success')
 
@@ -86,7 +92,7 @@ async def appointment_webhook_mass(request):
                 raise HTTPConflictJson(
                     status='service conflict',
                     details=f'service {appointment.service_id} already exists'
-                            ' and is associated with another company',
+                    ' and is associated with another company',
                 )
 
             service_insert_update = dict(
@@ -102,7 +108,9 @@ async def appointment_webhook_mass(request):
                 pg_insert(sa_services)
                 .values(id=appointment.service_id, company=request['company'].id, **service_insert_update)
                 .on_conflict_do_update(
-                    index_elements=[ser_c.id], where=ser_c.id == appointment.service_id, set_=service_insert_update,
+                    index_elements=[ser_c.id],
+                    where=ser_c.id == appointment.service_id,
+                    set_=service_insert_update,
                 )
             )
             apt_insert_keys = [
@@ -121,7 +129,11 @@ async def appointment_webhook_mass(request):
             await conn.execute(
                 pg_insert(sa_appointments)
                 .values(id=apt_id, service=appointment.service_id, **apt_insert_update)
-                .on_conflict_do_update(index_elements=[apt_c.id], where=apt_c.id == apt_id, set_=apt_insert_update,)
+                .on_conflict_do_update(
+                    index_elements=[apt_c.id],
+                    where=apt_c.id == apt_id,
+                    set_=apt_insert_update,
+                )
             )
         elif apt['ss_method'] == 'DELETE':
             await conn.execute(
@@ -208,7 +220,11 @@ async def appointment_list(request):
     q_count = select([sql_f.count()]).select_from(sa_appointments.join(sa_services)).where(and_(*where))
     cur_count = await conn.execute(q_count)
 
-    return json_response(request, results=results, count=(await cur_count.first())[0],)
+    return json_response(
+        request,
+        results=results,
+        count=(await cur_count.first())[0],
+    )
 
 
 async def service_list(request):
@@ -240,7 +256,11 @@ async def service_list(request):
         select([sql_f.count(distinct(ser_c.id))]).select_from(sa_appointments.join(sa_services)).where(and_(*where))
     )
 
-    return json_response(request, results=results, count=(await cur_count.first())[0],)
+    return json_response(
+        request,
+        results=results,
+        count=(await cur_count.first())[0],
+    )
 
 
 class SSOData(BaseModel):
@@ -273,7 +293,8 @@ def _get_sso_data(request, company) -> SSOData:
         sso_data: SSOData = SSOData.parse_raw(sso_data_, proto=Protocol.json)
     except ValidationError as e:
         raise HTTPBadRequestJson(
-            status='invalid request data', details=e.errors(),
+            status='invalid request data',
+            details=e.errors(),
         )
     else:
         if sso_data.expires < datetime.astimezone(datetime.now(), timezone.utc):
@@ -318,7 +339,13 @@ async def book_appointment(request):
     v = await conn.execute(
         select([apt_c.attendees_current_ids])
         .select_from(sa_appointments.join(sa_services))
-        .where(and_(ser_c.company == company.id, apt_c.start > datetime.utcnow(), apt_c.id == booking.appointment,))
+        .where(
+            and_(
+                ser_c.company == company.id,
+                apt_c.start > datetime.utcnow(),
+                apt_c.id == booking.appointment,
+            )
+        )
     )
     r = await v.first()
     if not r:

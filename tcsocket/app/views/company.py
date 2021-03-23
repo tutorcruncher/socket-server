@@ -30,7 +30,8 @@ async def company_create(request):
     new_company = await v.first()
     if new_company is None:
         raise HTTPConflictJson(
-            status='duplicate', details='the supplied data conflicts with an existing company',
+            status='duplicate',
+            details='the supplied data conflicts with an existing company',
         )
     else:
         logger.info(
@@ -100,7 +101,13 @@ async def company_update(request):
     company = dict(await result.first())
 
     await request.app['redis'].enqueue_job('update_contractors', company=company)
-    return json_response(request, status_=200, status='success', details=data, company_domains=company['domains'],)
+    return json_response(
+        request,
+        status_=200,
+        status='success',
+        details=data,
+        company_domains=company['domains'],
+    )
 
 
 async def company_list(request):

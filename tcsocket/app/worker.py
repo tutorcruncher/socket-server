@@ -194,7 +194,10 @@ async def _check_grecaptcha(settings, session, company, grecaptcha_response, cli
     if grecaptcha_response == 'mock-grecaptcha:{[private_key]}'.format(company):
         logger.info('skipping recaptcha using company private key')
         return True
-    data = dict(secret=settings.grecaptcha_secret, response=grecaptcha_response,)
+    data = dict(
+        secret=settings.grecaptcha_secret,
+        response=grecaptcha_response,
+    )
     if client_ip:
         data['remoteip'] = client_ip
     data = urlencode(data).encode()

@@ -319,7 +319,10 @@ async def test_update_company_clear_domain(cli, db_conn, company, other_server):
     assert other_server.app['request_log'] == []
 
     r = await signed_request(
-        cli, f'/{company.public_key}/webhook/options', signing_key_='this is the master key', domains=None,
+        cli,
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
+        domains=None,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()

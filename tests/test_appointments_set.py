@@ -218,7 +218,7 @@ async def test_mass_apts(cli, db_conn, company):
             finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
             price=123.45,
             location='Whatever',
-            ss_method='POST'
+            ss_method='POST',
         )
     url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
     r = await signed_request(cli, url, **data)
@@ -243,7 +243,7 @@ async def test_mass_apts(cli, db_conn, company):
             finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
             price=123.45,
             location='Whatever',
-            ss_method='POST'
+            ss_method='POST',
         )
     data['10'] = {'ss_method': 'DELETE'}
     data['11'] = {'ss_method': 'DELETE'}
@@ -276,7 +276,7 @@ async def test_mass_apts_and_services(cli, db_conn, company):
             finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
             price=123.45,
             location='Whatever',
-            ss_method='POST'
+            ss_method='POST',
         )
     url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
     r = await signed_request(cli, url, **data)
