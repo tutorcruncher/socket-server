@@ -189,6 +189,7 @@ class EnquiryModal(BaseModel):
 
 
 class AppointmentModel(BaseModel):
+    id: int
     service_id: int
     service_name: str
     extra_attributes: List[ExtraAttributeModel]
