@@ -11,7 +11,6 @@ import requests
 from PIL import Image
 
 from tcsocket.app.models import sa_con_skills, sa_contractors, sa_labels, sa_qual_levels, sa_subjects
-from tcsocket.app.settings import Settings
 
 from .conftest import count, get, select_set, signed_request
 

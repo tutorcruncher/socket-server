@@ -119,9 +119,7 @@ async def update_contractors(ctx, company):
     api_contractors = ctx['settings'].tc_api_root + ctx['settings'].tc_contractors_endpoint
     async with ctx['pg_engine'].acquire() as conn:
         async for contractor in _get_from_api(ctx['session'], api_contractors, ContractorModel, company):
-            await contractor_set(
-                conn=conn, ctx=ctx, company=company, contractor=contractor, skip_deleted=True,
-            )
+            await contractor_set(conn=conn, ctx=ctx, company=company, contractor=contractor, skip_deleted=True)
             cons_created += 1
     return cons_created
 
