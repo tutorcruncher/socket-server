@@ -46,10 +46,11 @@ async def contractor_set_mass(request):
     Create or update all of companies contractors
     """
     data = await request.json()
+    conn = await request['conn_manager'].get_connection()
     for con_data in data['contractors']:
         contractor = ContractorModel(**con_data)
         await _contractor_set(
-            conn=await request['conn_manager'].get_connection(),
+            conn=conn,
             redis=request.app['redis'],
             company=request['company'],
             contractor=contractor,
