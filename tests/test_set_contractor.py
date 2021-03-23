@@ -710,8 +710,18 @@ async def test_mass_contractor_create(cli, db_conn, company, image_download_url,
     await worker.run_check()
 
     curr = await db_conn.execute(sa_contractors.select())
+    all_cons = await curr.fetchall()
+    assert all(con_id in tuple(c.id for c in all_cons) for con_id in (123, 246))
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 123))
     result = await curr.first()
     assert result.id == 123
+    assert result.first_name == 'Fred'
+    assert not result.last_name
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 246))
+    result = await curr.first()
+    assert result.id == 246
     assert result.first_name == 'Fred'
     assert not result.last_name
 
@@ -758,7 +768,23 @@ async def test_mass_contractor_create(cli, db_conn, company, image_download_url,
     await worker.run_check()
 
     curr = await db_conn.execute(sa_contractors.select())
+    all_cons = await curr.fetchall()
+    assert all(con_id in tuple(c.id for c in all_cons) for con_id in (123, 246, 369))
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 123))
     result = await curr.first()
     assert result.id == 123
     assert result.first_name == 'Fred'
     assert result.last_name == 'Bob'
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 246))
+    result = await curr.first()
+    assert result.id == 246
+    assert result.first_name == 'Fred'
+    assert result.last_name == 'Bob'
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 369))
+    result = await curr.first()
+    assert result.id == 369
+    assert result.first_name == 'Jim'
+    assert result.last_name == 'Bell'

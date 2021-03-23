@@ -47,14 +47,18 @@ async def contractor_set_mass(request):
     """
     data = await request.json()
     conn = await request['conn_manager'].get_connection()
-    for con_data in data['contractors']:
-        contractor = ContractorModel(**con_data)
-        await _contractor_set(
-            conn=conn,
-            redis=request.app['redis'],
-            company=request['company'],
-            contractor=contractor,
-        )
+    company = request['company']
+    contractors = [ContractorModel(**con_data) for con_data in data['contractors']]
+    for contractor in contractors:
+        await _contractor_set(conn=conn, company=company, contractor=contractor, process_profile_pic=False)
+
+    # starting image processing here due to conflicting db connections on tests
+    redis = request.app['redis']
+    for contractor in contractors:
+        if contractor.photo:
+            await redis.enqueue_job(
+                'process_image', company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo
+            )
     return json_response(request, status='success')
 
 

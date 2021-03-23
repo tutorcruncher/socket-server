@@ -112,6 +112,7 @@ async def contractor_set(
     conn,
     company,
     contractor: ContractorModel,
+    process_profile_pic=True,
     skip_deleted=False,
     redis=None,
     ctx=None,
@@ -125,6 +126,7 @@ async def contractor_set(
     :param company: dict with company info, including id and public_key
     :param contractor: data about contractor
     :param skip_deleted: whether or not to skip deleted contractors (or delete them in the db.)
+    :param process_profile_pic: whether or not to run process_image
     :return: Action: created, updated or deleted
     """
     from .worker import process_image
@@ -186,7 +188,7 @@ async def contractor_set(
         )
     await _set_skills(conn, contractor.id, contractor.skills)
     await _set_labels(conn, company['id'], contractor.labels)
-    if contractor.photo:
+    if process_profile_pic and contractor.photo:
         # Sometimes creating the contractor is already done on a job, so don't need another one.
         job_kwargs = dict(company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo)
         if redis:
