@@ -79,6 +79,61 @@ async def test_create_with_keys(cli, db_conn, worker):
     }
 
 
+async def test_create_with_keys_update_contractors_false(cli, db_conn, worker):
+    data = {
+        'name': 'foobar',
+        'public_key': 'x' * 20,
+        'private_key': 'y' * 40,
+        '_request_time': int(time()),
+        'update_contractors': False,
+    }
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 201
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.name == 'foobar'
+    await worker.run_check()
+    assert {
+        (cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())
+    } == set()
+
+
+async def test_create_with_keys_update_contractors_true(cli, db_conn, worker):
+    data = {
+        'name': 'foobar',
+        'public_key': 'x' * 20,
+        'private_key': 'y' * 40,
+        '_request_time': int(time()),
+        'update_contractors': True,
+    }
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 201
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.name == 'foobar'
+    await worker.run_check()
+    assert {(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())} == {
+        (22, 'James', 'Higgins'),
+        (23, None, 'Person 2'),
+    }
+
+
 async def test_create_not_auth(cli):
     data = json.dumps({'name': 'foobar', '_request_time': int(time())})
     headers = {'Content-Type': 'application/json'}
@@ -319,7 +374,10 @@ async def test_update_company_clear_domain(cli, db_conn, company, other_server):
     assert other_server.app['request_log'] == []
 
     r = await signed_request(
-        cli, f'/{company.public_key}/webhook/options', signing_key_='this is the master key', domains=None,
+        cli,
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
+        domains=None,
     )
     assert r.status == 200, await r.text()
     response_data = await r.json()
@@ -344,3 +402,159 @@ async def test_update_company_no_data(cli, db_conn, company, other_server):
         'details': {},
         'status': 'success',
     }
+
+
+async def test_update_company_update_contractors_false(cli, db_conn, company, other_server, worker):
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domains == ['example.com']
+    assert other_server.app['request_log'] == []
+
+    r = await signed_request(
+        cli,
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
+        domains=['changed.com'],
+        display_mode='enquiry-modal',
+        show_location_search=False,
+        pagination=20,
+        sort_on='review_rating',
+        auth_url='https://foobar.com/whatever',
+        terms_link='https://terms.com/',
+        distance_units='km',
+        currency={'code': 'USD', 'symbol': '$'},
+        update_contractors=False,
+    )
+    assert r.status == 200, await r.text()
+    response_data = await r.json()
+    assert response_data == {
+        'details': {
+            'domains': ['changed.com'],
+            'options': {
+                'display_mode': 'enquiry-modal',
+                'show_location_search': False,
+                'pagination': 20,
+                'sort_on': 'review_rating',
+                'auth_url': 'https://foobar.com/whatever',
+                'terms_link': 'https://terms.com/',
+                'distance_units': 'km',
+                'currency': {'code': 'USD', 'symbol': '$'},
+            },
+        },
+        'company_domains': ['changed.com'],
+        'status': 'success',
+    }
+    await worker.run_check()
+    assert other_server.app['request_log'] == []
+
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domains == ['changed.com']
+    assert result.options == {
+        'display_mode': 'enquiry-modal',
+        'pagination': 20,
+        'show_location_search': False,
+        'sort_on': 'review_rating',
+        'auth_url': 'https://foobar.com/whatever',
+        'terms_link': 'https://terms.com/',
+        'distance_units': 'km',
+        'currency': {'code': 'USD', 'symbol': '$'},
+    }
+
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert {
+        'display_mode': 'enquiry-modal',
+        'name': 'foobar',
+        'name_display': 'first_name_initial',
+        'pagination': 20,
+        'router_mode': 'hash',
+        'show_hours_reviewed': True,
+        'show_labels': True,
+        'show_location_search': False,
+        'show_stars': True,
+        'show_subject_filter': True,
+        'sort_on': 'review_rating',
+        'auth_url': 'https://foobar.com/whatever',
+        'terms_link': 'https://terms.com/',
+        'distance_units': 'km',
+        'currency': {'code': 'USD', 'symbol': '$'},
+    } == await r.json()
+
+
+async def test_update_company_update_contractors_true(cli, db_conn, company, other_server, worker):
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domains == ['example.com']
+    assert other_server.app['request_log'] == []
+
+    r = await signed_request(
+        cli,
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
+        domains=['changed.com'],
+        display_mode='enquiry-modal',
+        show_location_search=False,
+        pagination=20,
+        sort_on='review_rating',
+        auth_url='https://foobar.com/whatever',
+        terms_link='https://terms.com/',
+        distance_units='km',
+        currency={'code': 'USD', 'symbol': '$'},
+        update_contractors=True,
+    )
+    assert r.status == 200, await r.text()
+    response_data = await r.json()
+    assert response_data == {
+        'details': {
+            'domains': ['changed.com'],
+            'options': {
+                'display_mode': 'enquiry-modal',
+                'show_location_search': False,
+                'pagination': 20,
+                'sort_on': 'review_rating',
+                'auth_url': 'https://foobar.com/whatever',
+                'terms_link': 'https://terms.com/',
+                'distance_units': 'km',
+                'currency': {'code': 'USD', 'symbol': '$'},
+            },
+        },
+        'company_domains': ['changed.com'],
+        'status': 'success',
+    }
+    await worker.run_check()
+    assert other_server.app['request_log'] == [('contractor_list', None), ('contractor_list', '2')]
+
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.domains == ['changed.com']
+    assert result.options == {
+        'display_mode': 'enquiry-modal',
+        'pagination': 20,
+        'show_location_search': False,
+        'sort_on': 'review_rating',
+        'auth_url': 'https://foobar.com/whatever',
+        'terms_link': 'https://terms.com/',
+        'distance_units': 'km',
+        'currency': {'code': 'USD', 'symbol': '$'},
+    }
+
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert {
+        'display_mode': 'enquiry-modal',
+        'name': 'foobar',
+        'name_display': 'first_name_initial',
+        'pagination': 20,
+        'router_mode': 'hash',
+        'show_hours_reviewed': True,
+        'show_labels': True,
+        'show_location_search': False,
+        'show_stars': True,
+        'show_subject_filter': True,
+        'sort_on': 'review_rating',
+        'auth_url': 'https://foobar.com/whatever',
+        'terms_link': 'https://terms.com/',
+        'distance_units': 'km',
+        'currency': {'code': 'USD', 'symbol': '$'},
+    } == await r.json()

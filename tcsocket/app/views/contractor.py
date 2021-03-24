@@ -27,11 +27,36 @@ async def contractor_set(request):
         contractor=contractor,
     )
     if action == Action.deleted:
-        return json_response(request, status='success', details='contractor deleted',)
+        return json_response(
+            request,
+            status='success',
+            details='contractor deleted',
+        )
     else:
         return json_response(
-            request, status_=201 if action == Action.created else 200, status='success', details=f'contractor {action}',
+            request,
+            status_=201 if action == Action.created else 200,
+            status='success',
+            details=f'contractor {action}',
         )
+
+
+async def contractor_set_mass(request):
+    """
+    Create or update all of companies contractors
+    """
+    data = await request.json()
+    conn = await request['conn_manager'].get_connection()
+    company = request['company']
+    contractors = [ContractorModel(**con_data) for con_data in data['contractors']]
+    for contractor in contractors:
+        await _contractor_set(conn=conn, company=company, contractor=contractor, process_profile_pic=False)
+
+    # starting image processing here due to conflicting db connections on tests
+    redis = request.app['redis']
+    if con_details := {(contractor.id, contractor.photo) for contractor in contractors if contractor.photo}:
+        await redis.enqueue_job('process_image_mass', company_key=company['public_key'], con_details=con_details)
+    return json_response(request, status='success')
 
 
 c = sa_contractors.c
@@ -113,7 +138,12 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
     inc_distance = None
     if location:
         if location.get('error'):
-            return json_response(request, location=location, results=[], count=0,)
+            return json_response(
+                request,
+                location=location,
+                results=[],
+                count=0,
+            )
         max_distance = get_arg(request, 'max_distance', default=80_000)
         inc_distance = True
         request_loc = func.ll_to_earth(location['lat'], location['lng'])
@@ -166,7 +196,12 @@ async def contractor_list(request):  # noqa: C901 (ignore complexity)
         results.append(con)
 
     cur_count = await conn.execute(q_count)
-    return json_response(request, location=location, results=results, count=(await cur_count.first())[0],)
+    return json_response(
+        request,
+        location=location,
+        results=results,
+        count=(await cur_count.first())[0],
+    )
 
 
 def _group_skills(skills):

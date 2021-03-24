@@ -181,7 +181,10 @@ def sig_sso_data(company, **kwargs):
 async def test_check_client_data(cli, company, db_conn):
     await create_appointment(db_conn, company, appointment_extra={'id': 42, 'attendees_current_ids': [384924]})
     await create_appointment(
-        db_conn, company, appointment_extra={'id': 43, 'attendees_current_ids': [384924, 123]}, create_service=False,
+        db_conn,
+        company,
+        appointment_extra={'id': 43, 'attendees_current_ids': [384924, 123]},
+        create_service=False,
     )
     await create_appointment(
         db_conn,
@@ -190,7 +193,10 @@ async def test_check_client_data(cli, company, db_conn):
         create_service=False,
     )
     await create_appointment(
-        db_conn, company, appointment_extra={'id': 45, 'attendees_current_ids': [8, 9]}, create_service=False,
+        db_conn,
+        company,
+        appointment_extra={'id': 45, 'attendees_current_ids': [8, 9]},
+        create_service=False,
     )
 
     sso_args = sig_sso_data(company, srs={'384924': 'Frank Foobar', '123': 'Other Studnets'})

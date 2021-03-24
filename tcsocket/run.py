@@ -50,7 +50,10 @@ def web():
     logger.info('Starting Web, binding to %s', bind)
 
     config = dict(
-        worker_class='aiohttp.worker.GunicornUVLoopWebWorker', bind=bind, max_requests=5000, max_requests_jitter=500,
+        worker_class='aiohttp.worker.GunicornUVLoopWebWorker',
+        bind=bind,
+        max_requests=5000,
+        max_requests_jitter=500,
     )
 
     class Application(BaseApplication):

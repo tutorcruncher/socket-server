@@ -366,7 +366,9 @@ def other_server(loop, aiohttp_server):
     app.router.add_post('/grecaptcha', grecaptcha_post_view)
     app.router.add_get('/geocode', geocoding_view)
     app.update(
-        request_log=[], grecaptcha_host='example.com', extra={},
+        request_log=[],
+        grecaptcha_host='example.com',
+        extra={},
     )
     server = loop.run_until_complete(aiohttp_server(app))
     app['extra']['server_name'] = f'http://localhost:{server.port}'

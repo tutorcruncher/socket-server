@@ -20,7 +20,7 @@ from .views.appointments import (
     service_list,
 )
 from .views.company import company_create, company_list, company_options, company_update
-from .views.contractor import contractor_get, contractor_list, contractor_set
+from .views.contractor import contractor_get, contractor_list, contractor_set, contractor_set_mass
 from .views.enquiry import clear_enquiry, enquiry
 
 
@@ -28,7 +28,9 @@ async def startup(app: web.Application):
     settings: Settings = app['settings']
     redis = await create_pool(settings.redis_settings)
     app.update(
-        pg_engine=await create_engine(settings.pg_dsn), redis=redis, session=ClientSession(),
+        pg_engine=await create_engine(settings.pg_dsn),
+        redis=redis,
+        session=ClientSession(),
     )
 
 
@@ -52,6 +54,7 @@ def setup_routes(app):
     # to work with tutorcruncher websockets
     app.router.add_post(r'/{company}/webhook/options', company_update, name='company-update')
     app.router.add_post(r'/{company}/webhook/contractor', contractor_set, name='webhook-contractor')
+    app.router.add_post(r'/{company}/webhook/contractor/mass', contractor_set_mass, name='webhook-contractor-mass')
     app.router.add_post(r'/{company}/webhook/clear-enquiry', clear_enquiry, name='webhook-clear-enquiry')
     app.router.add_post(r'/{company}/webhook/appointments/{id:\d+}', appointment_webhook, name='webhook-appointment')
     app.router.add_post(

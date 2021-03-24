@@ -16,6 +16,8 @@ async def company_create(request):
 
     Authentication and json parsing are done by middleware.
     """
+    data = await request.json()
+    update_contractors = data.pop('update_contractors', True)
     company: CompanyCreateModal = request['model']
     existing_company = bool(company.private_key)
     data = company.dict()
@@ -30,7 +32,8 @@ async def company_create(request):
     new_company = await v.first()
     if new_company is None:
         raise HTTPConflictJson(
-            status='duplicate', details='the supplied data conflicts with an existing company',
+            status='duplicate',
+            details='the supplied data conflicts with an existing company',
         )
     else:
         logger.info(
@@ -40,7 +43,7 @@ async def company_create(request):
             new_company.public_key,
             new_company.private_key,
         )
-        if existing_company:
+        if update_contractors and existing_company:
             await request.app['redis'].enqueue_job('update_contractors', company=dict(new_company))
         return json_response(
             request,
@@ -74,6 +77,8 @@ async def company_update(request):
     """
     Modify a company.
     """
+    data = await request.json()
+    update_contractors = data.pop('update_contractors', True)
     company: CompanyUpdateModel = request['model']
     data = company.dict(include={'name', 'public_key', 'private_key', 'name_display'})
     data = {k: v for k, v in data.items() if v is not None}
@@ -97,10 +102,17 @@ async def company_update(request):
     select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domains
     q = select(select_fields).where(c.public_key == public_key)
     result = await conn.execute(q)
-    company = dict(await result.first())
+    company: dict = dict(await result.first())
 
-    await request.app['redis'].enqueue_job('update_contractors', company=company)
-    return json_response(request, status_=200, status='success', details=data, company_domains=company['domains'],)
+    if update_contractors:
+        await request.app['redis'].enqueue_job('update_contractors', company=company)
+    return json_response(
+        request,
+        status_=200,
+        status='success',
+        details=data,
+        company_domains=company['domains'],
+    )
 
 
 async def company_list(request):

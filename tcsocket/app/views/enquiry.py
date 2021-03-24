@@ -129,6 +129,11 @@ async def enquiry_get(request, company, enquiry_options):
 
     return json_response(
         request,
-        visible=sorted(visible, key=itemgetter('sort_index',)),
+        visible=sorted(
+            visible,
+            key=itemgetter(
+                'sort_index',
+            ),
+        ),
         hidden={'contractor': _convert_field('contractor', enquiry_options['contractor'])},
     )

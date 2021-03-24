@@ -164,7 +164,8 @@ async def company_middleware(request, handler):
                 request['company'] = company
             else:
                 raise HTTPNotFoundJson(
-                    status='company not found', details=f'No company found for key {public_key}',
+                    status='company not found',
+                    details=f'No company found for key {public_key}',
                 )
         return await handler(request)
     except CancelledError:
@@ -190,7 +191,8 @@ async def json_request_middleware(request, handler):
 
         if error_details:
             raise HTTPBadRequestJson(
-                status='invalid request data', details=error_details,
+                status='invalid request data',
+                details=error_details,
             )
     return await handler(request)
 
@@ -202,7 +204,8 @@ def _check_timestamp(ts: str, now):
             raise ValueError()
     except (TypeError, ValueError):
         raise HTTPForbiddenJson(
-            status='invalid request time', details=f"request time '{ts}' not in the last 10 seconds",
+            status='invalid request time',
+            details=f"request time '{ts}' not in the last 10 seconds",
         )
 
 
@@ -221,7 +224,8 @@ async def authenticate(request, api_key=None):
         if _api_key and signature == hmac.new(_api_key, body, hashlib.sha256).hexdigest():
             return
     raise HTTPUnauthorizedJson(
-        status='invalid signature', details=f'Signature header "{signature}" does not match computed signature',
+        status='invalid signature',
+        details=f'Signature header "{signature}" does not match computed signature',
     )
 
 

@@ -8,6 +8,7 @@ from .conftest import MockEngine, count, create_appointment, create_company, sel
 
 async def create_apt(cli, company, url=None, **kwargs):
     data = dict(
+        id=123,
         service_id=123,
         service_name='testing service',
         extra_attributes=[],
@@ -203,22 +204,25 @@ async def test_mass_apts(cli, db_conn, company):
     assert 1 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_services)
 
-    data = dict()
+    data = {'appointments': []}
     for i in range(10):
-        data[str(i + 2)] = dict(
-            service_id=1,
-            service_name='test service',
-            extra_attributes=[],
-            colour='#000000',
-            appointment_topic='testing appointment',
-            attendees_max=42,
-            attendees_count=4,
-            attendees_current_ids=[1, 2, 3],
-            start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
-            finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
-            price=123.45,
-            location='Whatever',
-            ss_method='POST'
+        data['appointments'].append(
+            dict(
+                id=i + 2,
+                service_id=1,
+                service_name='test service',
+                extra_attributes=[],
+                colour='#000000',
+                appointment_topic='testing appointment',
+                attendees_max=42,
+                attendees_count=4,
+                attendees_current_ids=[1, 2, 3],
+                start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
+                finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
+                price=123.45,
+                location='Whatever',
+                ss_method='POST',
+            )
         )
     url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
     r = await signed_request(cli, url, **data)
@@ -228,25 +232,28 @@ async def test_mass_apts(cli, db_conn, company):
     assert 11 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_services)
 
-    data = dict()
+    data = {'appointments': []}
     for i in range(9):
-        data[str(i + 2)] = dict(
-            service_id=1,
-            service_name='test service',
-            extra_attributes=[],
-            colour='#000000',
-            appointment_topic='testing appointment',
-            attendees_max=42,
-            attendees_count=4,
-            attendees_current_ids=[1, 2, 3],
-            start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
-            finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
-            price=123.45,
-            location='Whatever',
-            ss_method='POST'
+        data['appointments'].append(
+            dict(
+                id=i + 2,
+                service_id=1,
+                service_name='test service',
+                extra_attributes=[],
+                colour='#000000',
+                appointment_topic='testing appointment',
+                attendees_max=42,
+                attendees_count=4,
+                attendees_current_ids=[1, 2, 3],
+                start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
+                finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
+                price=123.45,
+                location='Whatever',
+                ss_method='POST',
+            )
         )
-    data['10'] = {'ss_method': 'DELETE'}
-    data['11'] = {'ss_method': 'DELETE'}
+    data['appointments'].append({'id': 10, 'ss_method': 'DELETE'})
+    data['appointments'].append({'id': 11, 'ss_method': 'DELETE'})
     url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
     r = await signed_request(cli, url, **data)
     assert r.status == 200
@@ -261,22 +268,25 @@ async def test_mass_apts_and_services(cli, db_conn, company):
     assert 1 == await count(db_conn, sa_appointments)
     assert 1 == await count(db_conn, sa_services)
 
-    data = dict()
+    data = {'appointments': []}
     for i in range(10):
-        data[str(i + 2)] = dict(
-            service_id=i + 2,
-            service_name='test service',
-            extra_attributes=[],
-            colour='#000000',
-            appointment_topic='testing appointment',
-            attendees_max=42,
-            attendees_count=4,
-            attendees_current_ids=[1, 2, 3],
-            start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
-            finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
-            price=123.45,
-            location='Whatever',
-            ss_method='POST'
+        data['appointments'].append(
+            dict(
+                id=i + 2,
+                service_id=i + 2,
+                service_name='test service',
+                extra_attributes=[],
+                colour='#000000',
+                appointment_topic='testing appointment',
+                attendees_max=42,
+                attendees_count=4,
+                attendees_current_ids=[1, 2, 3],
+                start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
+                finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
+                price=123.45,
+                location='Whatever',
+                ss_method='POST',
+            )
         )
     url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
     r = await signed_request(cli, url, **data)
