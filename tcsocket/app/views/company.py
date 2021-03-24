@@ -77,6 +77,8 @@ async def company_update(request):
     """
     Modify a company.
     """
+    data = await request.json()
+    update_contractors = data.pop('update_contractors', True)
     company: CompanyUpdateModel = request['model']
     data = company.dict(include={'name', 'public_key', 'private_key', 'name_display'})
     data = {k: v for k, v in data.items() if v is not None}
@@ -100,9 +102,10 @@ async def company_update(request):
     select_fields = c.id, c.public_key, c.private_key, c.name_display, c.domains
     q = select(select_fields).where(c.public_key == public_key)
     result = await conn.execute(q)
-    company = dict(await result.first())
+    company: dict = dict(await result.first())
 
-    await request.app['redis'].enqueue_job('update_contractors', company=company)
+    if update_contractors:
+        await request.app['redis'].enqueue_job('update_contractors', company=company)
     return json_response(
         request,
         status_=200,
