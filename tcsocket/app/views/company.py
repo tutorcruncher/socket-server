@@ -16,6 +16,8 @@ async def company_create(request):
 
     Authentication and json parsing are done by middleware.
     """
+    data = await request.json()
+    update_contractors = data.get('update_contractors', True)
     company: CompanyCreateModal = request['model']
     existing_company = bool(company.private_key)
     data = company.dict()
@@ -41,7 +43,7 @@ async def company_create(request):
             new_company.public_key,
             new_company.private_key,
         )
-        if existing_company:
+        if update_contractors and existing_company:
             await request.app['redis'].enqueue_job('update_contractors', company=dict(new_company))
         return json_response(
             request,

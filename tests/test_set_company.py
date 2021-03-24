@@ -79,6 +79,61 @@ async def test_create_with_keys(cli, db_conn, worker):
     }
 
 
+async def test_create_with_keys_update_contractors_false(cli, db_conn, worker):
+    data = {
+        'name': 'foobar',
+        'public_key': 'x' * 20,
+        'private_key': 'y' * 40,
+        '_request_time': int(time()),
+        'update_contractors': False,
+    }
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 201
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.name == 'foobar'
+    await worker.run_check()
+    assert {
+        (cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())
+    } == set()
+
+
+async def test_create_with_keys_update_contractors_true(cli, db_conn, worker):
+    data = {
+        'name': 'foobar',
+        'public_key': 'x' * 20,
+        'private_key': 'y' * 40,
+        '_request_time': int(time()),
+        'update_contractors': True,
+    }
+    payload = json.dumps(data)
+    b_payload = payload.encode()
+    m = hmac.new(b'this is the master key', b_payload, hashlib.sha256)
+
+    headers = {
+        'Webhook-Signature': m.hexdigest(),
+        'Content-Type': 'application/json',
+    }
+    r = await cli.post('/companies/create', data=payload, headers=headers)
+    assert r.status == 201
+    curr = await db_conn.execute(sa_companies.select())
+    result = await curr.first()
+    assert result.name == 'foobar'
+    await worker.run_check()
+    assert {(cs.id, cs.first_name, cs.last_name) async for cs in await db_conn.execute(sa_contractors.select())} == {
+        (22, 'James', 'Higgins'),
+        (23, None, 'Person 2'),
+    }
+
+
 async def test_create_not_auth(cli):
     data = json.dumps({'name': 'foobar', '_request_time': int(time())})
     headers = {'Content-Type': 'application/json'}
