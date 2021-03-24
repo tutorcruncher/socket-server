@@ -132,8 +132,8 @@ class ExtraAttributeModel(BaseModel):
 class ContractorModel(BaseModel):
     id: int
     deleted: bool = False
-    first_name: constr(max_length=63) = None
-    last_name: constr(max_length=63) = None
+    first_name: constr(max_length=255) = None
+    last_name: constr(max_length=255) = None
     town: constr(max_length=63) = None
     country: constr(max_length=63) = None
     last_updated: datetime = None

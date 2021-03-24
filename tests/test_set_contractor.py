@@ -506,15 +506,15 @@ async def test_missing_company(cli, company):
 
 
 async def test_invalid_input(cli, db_conn, company):
-    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='x' * 100)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='x' * 256)
     assert r.status == 400, await r.text()
     data = await r.json()
     assert data == {
         'details': [
             {
-                'ctx': {'limit_value': 63},
+                'ctx': {'limit_value': 255},
                 'loc': ['first_name'],
-                'msg': 'ensure this value has at most 63 characters',
+                'msg': 'ensure this value has at most 255 characters',
                 'type': 'value_error.any_str.max_length',
             }
         ],

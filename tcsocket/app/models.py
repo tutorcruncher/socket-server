@@ -44,8 +44,8 @@ class Contractor(Base):
     id = Column(Integer, primary_key=True, autoincrement=False, nullable=False)
     company = Column(Integer, ForeignKey('companies.id'), nullable=False)
 
-    first_name = Column(String(63), index=True)
-    last_name = Column(String(63))
+    first_name = Column(String(255), index=True)
+    last_name = Column(String(255))
 
     town = Column(String(63))
     country = Column(String(63))
