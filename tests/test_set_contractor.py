@@ -788,3 +788,115 @@ async def test_mass_contractor_create(cli, db_conn, company, image_download_url,
     assert result.id == 369
     assert result.first_name == 'Jim'
     assert result.last_name == 'Bell'
+
+
+async def test_mass_contractor_process_images_false(cli, db_conn, other_server, company, image_download_url, worker):
+    data = {'contractors': [], 'process_images': False}
+    eas = [
+        {
+            'machine_name': 'terms',
+            'type': 'checkbox',
+            'name': 'Terms and Conditions agreement',
+            'value': True,
+            'sort_index': 0,
+        },
+        {'machine_name': 'bio', 'type': 'integer', 'name': 'Teaching Experience', 'value': 123, 'sort_index': 0.123},
+        {'machine_name': 'date', 'type': 'date', 'name': 'The Date', 'value': '2032-06-01', 'sort_index': 0.123},
+    ]
+    for i in range(1, 3):
+        data['contractors'].append(
+            dict(
+                id=123 * i,
+                first_name='Fred',
+                skills=[
+                    {
+                        'subject_id': 1,
+                        'qual_level_id': 1,
+                        'qual_level': 'GCSE',
+                        'subject': 'Algebra',
+                        'qual_level_ranking': 16.0,
+                        'category': 'Maths',
+                    },
+                    {
+                        'subject_id': 2,
+                        'qual_level_id': 1,
+                        'qual_level': 'GCSE',
+                        'subject': 'Language',
+                        'qual_level_ranking': 16.0,
+                        'category': 'English',
+                    },
+                ],
+                location=dict(latitude=12.345, longitude=56.789),
+                review_rating=3.5,
+                review_duration=7200,
+                labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+                photo=f'{image_download_url}?format=JPEG',
+                extra_attributes=eas,
+            )
+        )
+    r = await signed_request(
+        cli, f'/{company.public_key}/webhook/contractor/mass', signing_key_='this is the master key', **data
+    )
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+    assert 2 == await count(db_conn, sa_contractors)
+    await worker.run_check()
+    assert other_server.app['request_log'] == []
+
+
+async def test_mass_contractor_process_images_true(
+    cli, db_conn, other_server, company, image_download_url, monkeypatch, tmpdir, worker
+):
+    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
+
+    data = {'contractors': [], 'process_images': True}
+    eas = [
+        {
+            'machine_name': 'terms',
+            'type': 'checkbox',
+            'name': 'Terms and Conditions agreement',
+            'value': True,
+            'sort_index': 0,
+        },
+        {'machine_name': 'bio', 'type': 'integer', 'name': 'Teaching Experience', 'value': 123, 'sort_index': 0.123},
+        {'machine_name': 'date', 'type': 'date', 'name': 'The Date', 'value': '2032-06-01', 'sort_index': 0.123},
+    ]
+    for i in range(1, 3):
+        data['contractors'].append(
+            dict(
+                id=123 * i,
+                first_name='Fred',
+                skills=[
+                    {
+                        'subject_id': 1,
+                        'qual_level_id': 1,
+                        'qual_level': 'GCSE',
+                        'subject': 'Algebra',
+                        'qual_level_ranking': 16.0,
+                        'category': 'Maths',
+                    },
+                    {
+                        'subject_id': 2,
+                        'qual_level_id': 1,
+                        'qual_level': 'GCSE',
+                        'subject': 'Language',
+                        'qual_level_ranking': 16.0,
+                        'category': 'English',
+                    },
+                ],
+                location=dict(latitude=12.345, longitude=56.789),
+                review_rating=3.5,
+                review_duration=7200,
+                labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+                photo=f'{image_download_url}?format=JPEG',
+                extra_attributes=eas,
+            )
+        )
+    r = await signed_request(
+        cli, f'/{company.public_key}/webhook/contractor/mass', signing_key_='this is the master key', **data
+    )
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+    assert 2 == await count(db_conn, sa_contractors)
+    await worker.run_check()
+    assert other_server.app['request_log'] == [('test_image', 'JPEG'), ('test_image', 'JPEG')]
