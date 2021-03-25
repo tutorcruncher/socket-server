@@ -285,18 +285,27 @@ def update_socket_images(conn):
     for row in conn.execute(q_iter):
         img_key = f'{row.public_key}/{row.id}.jpg'
         r = session.get(f'{base_url}/{img_key}')
-        r.raise_for_status()
-        with BytesIO() as temp_file:
-            temp_file.write(r.content)
-            temp_file.seek(0)
-            s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=img_key)
-        print(f'Uploading image {img_key}')
+        if r.status_code == 200:
+            with BytesIO() as temp_file:
+                temp_file.write(r.content)
+                temp_file.seek(0)
+                s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=img_key)
+            print(f'Uploading image {img_key}')
+        elif r.status_code == 404:
+            print(f'Unable to find {img_key}, returned 404')
+        else:
+            r.raise_for_status()
 
         img_thumb_key = f'{row.public_key}/{row.id}.thumb.jpg'
         r = session.get(f'{base_url}/{img_thumb_key}')
         r.raise_for_status()
-        with BytesIO() as temp_file:
-            temp_file.write(r.content)
-            temp_file.seek(0)
-            s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=img_thumb_key)
-        print(f'Uploading image {img_thumb_key}')
+        if r.status_code == 200:
+            with BytesIO() as temp_file:
+                temp_file.write(r.content)
+                temp_file.seek(0)
+                s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=img_thumb_key)
+            print(f'Uploading image {img_thumb_key}')
+        elif r.status_code == 404:
+            print(f'Unable to find {img_key}, returned 404')
+        else:
+            r.raise_for_status()
