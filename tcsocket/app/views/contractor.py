@@ -46,6 +46,7 @@ async def contractor_set_mass(request):
     Create or update all of companies contractors
     """
     data = await request.json()
+    process_images = data.pop('process_images', True)
     conn = await request['conn_manager'].get_connection()
     company = request['company']
     contractors = [ContractorModel(**con_data) for con_data in data['contractors']]
@@ -54,7 +55,8 @@ async def contractor_set_mass(request):
 
     # starting image processing here due to conflicting db connections on tests
     redis = request.app['redis']
-    if con_details := {(contractor.id, contractor.photo) for contractor in contractors if contractor.photo}:
+    con_details = {(contractor.id, contractor.photo) for contractor in contractors if contractor.photo}
+    if process_images and con_details:
         await redis.enqueue_job('process_image_mass', company_key=company['public_key'], con_details=con_details)
     return json_response(request, status='success')
 
