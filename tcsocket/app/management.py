@@ -298,7 +298,6 @@ def update_socket_images(conn):
 
         img_thumb_key = f'{row.public_key}/{row.id}.thumb.jpg'
         r = session.get(f'{base_url}/{img_thumb_key}')
-        r.raise_for_status()
         if r.status_code == 200:
             with BytesIO() as temp_file:
                 temp_file.write(r.content)
