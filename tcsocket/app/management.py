@@ -306,6 +306,6 @@ def update_socket_images(conn):
                 s3_client.upload_fileobj(Fileobj=temp_file, Bucket=settings.aws_bucket_name, Key=img_thumb_key)
             print(f'Uploading image {img_thumb_key}')
         elif r.status_code == 404:
-            print(f'Unable to find {img_key}, returned 404')
+            print(f'Unable to find {img_thumb_key}, returned 404')
         else:
             r.raise_for_status()
