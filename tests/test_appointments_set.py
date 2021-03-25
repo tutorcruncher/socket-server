@@ -8,6 +8,7 @@ from .conftest import MockEngine, count, create_appointment, create_company, sel
 
 async def create_apt(cli, company, url=None, **kwargs):
     data = dict(
+        id=123,
         service_id=123,
         service_name='testing service',
         extra_attributes=[],
@@ -170,3 +171,135 @@ async def test_delete_old_appointments(db_conn, company, settings):
 
     assert {(1, 1), (3, 3)} == await select_set(db_conn, sa_appointments.c.id, sa_appointments.c.service)
     assert {(1,), (3,)} == await select_set(db_conn, sa_services.c.id)
+
+
+async def test_clear_apts(cli, db_conn, company):
+    await create_appointment(db_conn, company, appointment_extra={'id': 1})
+    for i in range(10):
+        await create_appointment(
+            db_conn,
+            company,
+            create_service=False,
+            appointment_extra=dict(
+                id=i + 2,
+                start=datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1),
+                finish=datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1),
+            ),
+        )
+
+    assert 11 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
+
+    url = cli.server.app.router['webhook-appointment-clear'].url_for(company='thepublickey')
+    r = await signed_request(cli, url, method_='DELETE')
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+
+    assert 0 == await count(db_conn, sa_appointments)
+    assert 0 == await count(db_conn, sa_services)
+
+
+async def test_mass_apts(cli, db_conn, company):
+    await create_appointment(db_conn, company, appointment_extra={'id': 1})
+    assert 1 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
+
+    data = {'appointments': []}
+    for i in range(10):
+        data['appointments'].append(
+            dict(
+                id=i + 2,
+                service_id=1,
+                service_name='test service',
+                extra_attributes=[],
+                colour='#000000',
+                appointment_topic='testing appointment',
+                attendees_max=42,
+                attendees_count=4,
+                attendees_current_ids=[1, 2, 3],
+                start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
+                finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
+                price=123.45,
+                location='Whatever',
+                ss_method='POST',
+            )
+        )
+    url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
+    r = await signed_request(cli, url, **data)
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+
+    assert 11 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
+
+    data = {'appointments': []}
+    for i in range(9):
+        data['appointments'].append(
+            dict(
+                id=i + 2,
+                service_id=1,
+                service_name='test service',
+                extra_attributes=[],
+                colour='#000000',
+                appointment_topic='testing appointment',
+                attendees_max=42,
+                attendees_count=4,
+                attendees_current_ids=[1, 2, 3],
+                start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
+                finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
+                price=123.45,
+                location='Whatever',
+                ss_method='POST',
+            )
+        )
+    data['appointments'].append({'id': 10, 'ss_method': 'DELETE'})
+    data['appointments'].append({'id': 11, 'ss_method': 'DELETE'})
+    url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
+    r = await signed_request(cli, url, **data)
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+
+    assert 9 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
+
+
+async def test_mass_apts_and_services(cli, db_conn, company):
+    await create_appointment(db_conn, company, appointment_extra={'id': 1})
+    assert 1 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
+
+    data = {'appointments': []}
+    for i in range(10):
+        data['appointments'].append(
+            dict(
+                id=i + 2,
+                service_id=i + 2,
+                service_name='test service',
+                extra_attributes=[],
+                colour='#000000',
+                appointment_topic='testing appointment',
+                attendees_max=42,
+                attendees_count=4,
+                attendees_current_ids=[1, 2, 3],
+                start=str(datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1)),
+                finish=str(datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1)),
+                price=123.45,
+                location='Whatever',
+                ss_method='POST',
+            )
+        )
+    url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
+    r = await signed_request(cli, url, **data)
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+
+    assert 11 == await count(db_conn, sa_appointments)
+    assert 11 == await count(db_conn, sa_services)
+
+    url = cli.server.app.router['webhook-appointment-clear'].url_for(company='thepublickey')
+    r = await signed_request(cli, url, method_='DELETE')
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+
+    assert 0 == await count(db_conn, sa_appointments)
+    assert 0 == await count(db_conn, sa_services)

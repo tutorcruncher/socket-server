@@ -108,7 +108,14 @@ def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine
 
 
 async def contractor_set(
-    *, conn, company, contractor: ContractorModel, skip_deleted=False, redis=None, ctx=None,
+    *,
+    conn,
+    company,
+    contractor: ContractorModel,
+    process_profile_pic=True,
+    skip_deleted=False,
+    redis=None,
+    ctx=None,
 ) -> Action:
     """
     Create or update a contractor.
@@ -119,6 +126,7 @@ async def contractor_set(
     :param company: dict with company info, including id and public_key
     :param contractor: data about contractor
     :param skip_deleted: whether or not to skip deleted contractors (or delete them in the db.)
+    :param process_profile_pic: whether or not to run process_image
     :return: Action: created, updated or deleted
     """
     from .worker import process_image
@@ -132,7 +140,8 @@ async def contractor_set(
             )
             if not await curr.first():
                 raise HTTPNotFoundJson(
-                    status='not found', details=f'contractor with id {contractor.id} not found',
+                    status='not found',
+                    details=f'contractor with id {contractor.id} not found',
                 )
         return Action.deleted
 
@@ -174,11 +183,12 @@ async def contractor_set(
     if r is None:
         # the contractor already exists but on another company
         raise HTTPForbiddenJson(
-            status='permission denied', details=f'you do not have permission to update contractor {contractor.id}',
+            status='permission denied',
+            details=f'you do not have permission to update contractor {contractor.id}',
         )
     await _set_skills(conn, contractor.id, contractor.skills)
     await _set_labels(conn, company['id'], contractor.labels)
-    if contractor.photo:
+    if process_profile_pic and contractor.photo:
         # Sometimes creating the contractor is already done on a job, so don't need another one.
         job_kwargs = dict(company_key=company['public_key'], contractor_id=contractor.id, url=contractor.photo)
         if redis:

@@ -89,6 +89,11 @@ async def process_image(ctx, company_key, contractor_id, url):
     return 200
 
 
+async def process_image_mass(ctx, company_key, con_details):
+    for con_id, url in con_details:
+        await process_image(ctx, company_key, con_id, url)
+
+
 def request_headers(company, extra=None):
     return dict(accept=CT_JSON, authorization=f'Token {company["private_key"]}', **(extra or {}))
 
@@ -119,9 +124,7 @@ async def update_contractors(ctx, company):
     api_contractors = ctx['settings'].tc_api_root + ctx['settings'].tc_contractors_endpoint
     async with ctx['pg_engine'].acquire() as conn:
         async for contractor in _get_from_api(ctx['session'], api_contractors, ContractorModel, company):
-            await contractor_set(
-                conn=conn, ctx=ctx, company=company, contractor=contractor, skip_deleted=True,
-            )
+            await contractor_set(conn=conn, ctx=ctx, company=company, contractor=contractor, skip_deleted=True)
             cons_created += 1
     return cons_created
 
@@ -194,7 +197,10 @@ async def _check_grecaptcha(settings, session, company, grecaptcha_response, cli
     if grecaptcha_response == 'mock-grecaptcha:{[private_key]}'.format(company):
         logger.info('skipping recaptcha using company private key')
         return True
-    data = dict(secret=settings.grecaptcha_secret, response=grecaptcha_response,)
+    data = dict(
+        secret=settings.grecaptcha_secret,
+        response=grecaptcha_response,
+    )
     if client_ip:
         data['remoteip'] = client_ip
     data = urlencode(data).encode()
@@ -228,7 +234,14 @@ async def kill_worker(ctx):
 
 
 class WorkerSettings:
-    functions = [process_image, submit_booking, submit_enquiry, update_contractors, update_enquiry_options]
+    functions = [
+        process_image,
+        process_image_mass,
+        submit_booking,
+        submit_enquiry,
+        update_contractors,
+        update_enquiry_options,
+    ]
     cron_jobs = [
         cron(delete_old_appointments, hour={0, 3, 6, 9, 12, 15, 18, 21}, minute=0),
         cron(kill_worker, hour=3, minute=0),

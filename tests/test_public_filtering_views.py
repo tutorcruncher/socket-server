@@ -39,7 +39,10 @@ async def test_list_contractors_origin(cli, company):
 )
 async def test_list_contractors_domains(cli, company, domains, origin, response):
     r = await signed_request(
-        cli, f'/{company.public_key}/webhook/options', signing_key_='this is the master key', domains=domains,
+        cli,
+        f'/{company.public_key}/webhook/options',
+        signing_key_='this is the master key',
+        domains=domains,
     )
     assert r.status == 200, await r.text()
 

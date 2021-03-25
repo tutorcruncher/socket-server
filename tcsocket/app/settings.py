@@ -33,7 +33,10 @@ class Settings(BaseSettings):
     def parse_redis_settings(cls, v):
         conf = urlparse(v)
         return RedisSettings(
-            host=conf.hostname, port=conf.port, password=conf.password, database=int((conf.path or '0').strip('/')),
+            host=conf.hostname,
+            port=conf.port,
+            password=conf.password,
+            database=int((conf.path or '0').strip('/')),
         )
 
     @property

@@ -4,14 +4,13 @@ import os
 from functools import partial
 
 import click
-from arq import run_worker
-from gunicorn.app.base import BaseApplication
-
 from app.logs import setup_logging
 from app.main import create_app
 from app.management import prepare_database, run_patch
 from app.settings import Settings
 from app.worker import WorkerSettings
+from arq import run_worker
+from gunicorn.app.base import BaseApplication
 
 logger = logging.getLogger('socket')
 
@@ -51,7 +50,10 @@ def web():
     logger.info('Starting Web, binding to %s', bind)
 
     config = dict(
-        worker_class='aiohttp.worker.GunicornUVLoopWebWorker', bind=bind, max_requests=5000, max_requests_jitter=500,
+        worker_class='aiohttp.worker.GunicornUVLoopWebWorker',
+        bind=bind,
+        max_requests=5000,
+        max_requests_jitter=500,
     )
 
     class Application(BaseApplication):

@@ -506,15 +506,15 @@ async def test_missing_company(cli, company):
 
 
 async def test_invalid_input(cli, db_conn, company):
-    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='x' * 100)
+    r = await signed_request(cli, f'/{company.public_key}/webhook/contractor', id=123, first_name='x' * 256)
     assert r.status == 400, await r.text()
     data = await r.json()
     assert data == {
         'details': [
             {
-                'ctx': {'limit_value': 63},
+                'ctx': {'limit_value': 255},
                 'loc': ['first_name'],
-                'msg': 'ensure this value has at most 63 characters',
+                'msg': 'ensure this value has at most 255 characters',
                 'type': 'value_error.any_str.max_length',
             }
         ],
@@ -540,7 +540,10 @@ async def test_create_labels(cli, db_conn, company):
 
 async def test_delete_all_labels(cli, db_conn, company):
     r = await signed_request(
-        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=123,
+        labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     assert 1 == await count(db_conn, sa_contractors)
@@ -558,7 +561,10 @@ async def test_delete_all_labels(cli, db_conn, company):
 
 async def test_delete_some_labels(cli, db_conn, company):
     r = await signed_request(
-        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=123,
+        labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
@@ -582,7 +588,10 @@ async def test_delete_some_labels(cli, db_conn, company):
 
 async def test_labels_conflict(cli, db_conn, company):
     r = await signed_request(
-        cli, f'/{company.public_key}/webhook/contractor', id=123, labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+        cli,
+        f'/{company.public_key}/webhook/contractor',
+        id=123,
+        labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
     )
     assert r.status == 201, await r.text()
     labels = await select_set(db_conn, sa_labels.c.machine_name, sa_labels.c.name)
@@ -644,3 +653,138 @@ async def test_add_location(cli, db_conn, company):
     assert result.review_duration == 0
     assert result.latitude == 12.345
     assert result.longitude == 56.789
+
+
+async def test_mass_contractor_create(cli, db_conn, company, image_download_url, monkeypatch, tmpdir, worker):
+    monkeypatch.setattr(boto3, 'client', fake_s3_client(tmpdir))
+
+    data = {'contractors': []}
+    eas = [
+        {
+            'machine_name': 'terms',
+            'type': 'checkbox',
+            'name': 'Terms and Conditions agreement',
+            'value': True,
+            'sort_index': 0,
+        },
+        {'machine_name': 'bio', 'type': 'integer', 'name': 'Teaching Experience', 'value': 123, 'sort_index': 0.123},
+        {'machine_name': 'date', 'type': 'date', 'name': 'The Date', 'value': '2032-06-01', 'sort_index': 0.123},
+    ]
+    for i in range(1, 3):
+        data['contractors'].append(
+            dict(
+                id=123 * i,
+                first_name='Fred',
+                skills=[
+                    {
+                        'subject_id': 1,
+                        'qual_level_id': 1,
+                        'qual_level': 'GCSE',
+                        'subject': 'Algebra',
+                        'qual_level_ranking': 16.0,
+                        'category': 'Maths',
+                    },
+                    {
+                        'subject_id': 2,
+                        'qual_level_id': 1,
+                        'qual_level': 'GCSE',
+                        'subject': 'Language',
+                        'qual_level_ranking': 16.0,
+                        'category': 'English',
+                    },
+                ],
+                location=dict(latitude=12.345, longitude=56.789),
+                review_rating=3.5,
+                review_duration=7200,
+                labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+                photo=f'{image_download_url}?format=JPEG',
+                extra_attributes=eas,
+            )
+        )
+    r = await signed_request(
+        cli, f'/{company.public_key}/webhook/contractor/mass', signing_key_='this is the master key', **data
+    )
+    assert r.status == 200
+    assert {'status': 'success'} == await r.json()
+    assert 2 == await count(db_conn, sa_contractors)
+    await worker.run_check()
+
+    curr = await db_conn.execute(sa_contractors.select())
+    all_cons = await curr.fetchall()
+    assert all(con_id in tuple(c.id for c in all_cons) for con_id in (123, 246))
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 123))
+    result = await curr.first()
+    assert result.id == 123
+    assert result.first_name == 'Fred'
+    assert not result.last_name
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 246))
+    result = await curr.first()
+    assert result.id == 246
+    assert result.first_name == 'Fred'
+    assert not result.last_name
+
+    for con in data['contractors']:
+        con['last_name'] = 'Bob'
+    data['contractors'].append(
+        dict(
+            id=123 * 3,
+            first_name='Jim',
+            last_name='Bell',
+            skills=[
+                {
+                    'subject_id': 1,
+                    'qual_level_id': 1,
+                    'qual_level': 'GCSE',
+                    'subject': 'Algebra',
+                    'qual_level_ranking': 16.0,
+                    'category': 'Maths',
+                },
+                {
+                    'subject_id': 2,
+                    'qual_level_id': 1,
+                    'qual_level': 'GCSE',
+                    'subject': 'Language',
+                    'qual_level_ranking': 16.0,
+                    'category': 'English',
+                },
+            ],
+            location=dict(latitude=12.345, longitude=56.789),
+            review_rating=3.5,
+            review_duration=7200,
+            labels=[{'machine_name': 'foobar', 'name': 'Foobar'}],
+            photo=f'{image_download_url}?format=JPEG',
+            extra_attributes=eas,
+        )
+    )
+
+    r = await signed_request(
+        cli, f'/{company.public_key}/webhook/contractor/mass', signing_key_='this is the master key', **data
+    )
+    assert r.status == 200, await r.text()
+    assert {'status': 'success'} == await r.json()
+    assert 3 == await count(db_conn, sa_contractors)
+    await worker.run_check()
+
+    curr = await db_conn.execute(sa_contractors.select())
+    all_cons = await curr.fetchall()
+    assert all(con_id in tuple(c.id for c in all_cons) for con_id in (123, 246, 369))
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 123))
+    result = await curr.first()
+    assert result.id == 123
+    assert result.first_name == 'Fred'
+    assert result.last_name == 'Bob'
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 246))
+    result = await curr.first()
+    assert result.id == 246
+    assert result.first_name == 'Fred'
+    assert result.last_name == 'Bob'
+
+    curr = await db_conn.execute(sa_contractors.select().where(sa_contractors.c.id == 369))
+    result = await curr.first()
+    assert result.id == 369
+    assert result.first_name == 'Jim'
+    assert result.last_name == 'Bell'
