@@ -1,6 +1,6 @@
 SQLAlchemy==1.3.23
 aiodns==2.0.0
-aiohttp==3.7.4
+aiohttp==3.7.4.post0
 aiopg==1.1.0
 arq==0.19.1
 boto3==1.17.62
