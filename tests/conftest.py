@@ -321,7 +321,7 @@ async def geocoding_view(request):
     return json_response(loc, status=status)
 
 
-@pytest.yield_fixture(name='redis')
+@pytest.fixture(name='redis')
 async def _fix_redis(settings):
     addr = settings.redis_settings.host, settings.redis_settings.port
 
@@ -334,7 +334,7 @@ async def _fix_redis(settings):
     await redis.wait_closed()
 
 
-@pytest.yield_fixture(name='worker_ctx')
+@pytest.fixture(name='worker_ctx')
 async def _fix_worker_ctx(redis, settings, db_conn):
     session = ClientSession(timeout=ClientTimeout(total=10))
     ctx = dict(settings=settings, pg_engine=MockEngine(db_conn), session=session, redis=redis)
@@ -344,7 +344,7 @@ async def _fix_worker_ctx(redis, settings, db_conn):
     await session.close()
 
 
-@pytest.yield_fixture(name='worker')
+@pytest.fixture(name='worker')
 async def _fix_worker(redis, worker_ctx):
     worker = Worker(functions=WorkerSettings.functions, redis_pool=redis, burst=True, poll_delay=0.01, ctx=worker_ctx)
 
@@ -383,7 +383,7 @@ def image_download_url(other_server):
 @pytest.fixture
 def settings(other_server):
     return Settings(
-        pg_dsn=os.getenv('DATABASE_URL', DB_DSN),
+        database_url=os.getenv('DATABASE_URL', DB_DSN),
         redis_database=7,
         master_key=MASTER_KEY,
         grecaptcha_secret='X' * 30,
@@ -393,9 +393,9 @@ def settings(other_server):
     )
 
 
-@pytest.yield_fixture(scope='session')
+@pytest.fixture(scope='session')
 def db():
-    settings_ = Settings(pg_dsn=os.getenv('DATABASE_URL', DB_DSN))
+    settings_ = Settings(database_url=os.getenv('DATABASE_URL', DB_DSN))
     prepare_database(True, settings_)
 
     engine = sa_create_engine(settings_.pg_dsn)
@@ -404,7 +404,7 @@ def db():
     engine.dispose()
 
 
-@pytest.yield_fixture
+@pytest.fixture
 def db_conn(loop, settings, db):
     engine = loop.run_until_complete(aio_create_engine(settings.pg_dsn, loop=loop))
     conn = loop.run_until_complete(engine.acquire())
