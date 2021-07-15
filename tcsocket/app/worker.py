@@ -153,6 +153,7 @@ async def update_enquiry_options(ctx, company):
     data['last_updated'] = timestamp_ms()
     redis = await create_pool(ctx['settings'].redis_settings)
     await store_enquiry_data(redis, company, data)
+    redis.close()
 
 
 async def post_data(session, url, data, company):
