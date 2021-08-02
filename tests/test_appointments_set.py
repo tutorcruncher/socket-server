@@ -216,7 +216,7 @@ async def test_clear_apts(cli, db_conn, company):
                 start=datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1),
                 finish=datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1),
             ),
-            service_extra=dict(id=2)
+            service_extra=dict(id=2),
         )
 
     assert 21 == await count(db_conn, sa_appointments)
