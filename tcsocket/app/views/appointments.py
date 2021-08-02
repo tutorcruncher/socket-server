@@ -153,8 +153,10 @@ async def appointment_webhook_delete(request):
 
 async def appointment_webhook_clear(request):
     conn = await request['conn_manager'].get_connection()
-    v = await conn.execute(sa_appointments.delete().where(ser_c.company == request['company'].id))
-    r = await conn.execute(sa_services.delete().where(ser_c.company == request['company'].id))
+    services = await conn.execute(select([ser_c.id]).where(ser_c.company == request['company'].id))
+    ids = [s[0] async for s in services]
+    v = await conn.execute(sa_appointments.delete().where(apt_c.service.in_(ids)))
+    r = await conn.execute(sa_services.delete().where(ser_c.id.in_(ids)))
     return json_response(request, status='success' if r.rowcount or v.rowcount else 'appointments not found')
 
 
