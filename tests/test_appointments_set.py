@@ -174,6 +174,25 @@ async def test_delete_old_appointments(db_conn, company, settings):
 
 
 async def test_clear_apts(cli, db_conn, company):
+    company2 = await create_company(db_conn, 'compan2_public', 'compan2_private', name='company2')
+    await db_conn.execute(
+        sa_services.insert().values(
+            **dict(
+                id=2,
+                company=company2.id,
+                name='testing service',
+                extra_attributes=[
+                    {
+                        'name': 'Foobar',
+                        'type': 'text_short',
+                        'machine_name': 'foobar',
+                        'value': 'this is the value of foobar',
+                    }
+                ],
+                colour='#abc',
+            )
+        )
+    )
     await create_appointment(db_conn, company, appointment_extra={'id': 1})
     for i in range(10):
         await create_appointment(
@@ -187,16 +206,29 @@ async def test_clear_apts(cli, db_conn, company):
             ),
         )
 
-    assert 11 == await count(db_conn, sa_appointments)
-    assert 1 == await count(db_conn, sa_services)
+    for i in range(11, 21):
+        await create_appointment(
+            db_conn,
+            company2,
+            create_service=False,
+            appointment_extra=dict(
+                id=i + 2,
+                start=datetime(2032, 1, 1, 12, 0, 0) + timedelta(days=i + 1),
+                finish=datetime(2032, 1, 1, 13, 0, 0) + timedelta(days=i + 1),
+            ),
+            service_extra=dict(id=2),
+        )
+
+    assert 21 == await count(db_conn, sa_appointments)
+    assert 2 == await count(db_conn, sa_services)
 
     url = cli.server.app.router['webhook-appointment-clear'].url_for(company='thepublickey')
     r = await signed_request(cli, url, method_='DELETE')
     assert r.status == 200
     assert {'status': 'success'} == await r.json()
 
-    assert 0 == await count(db_conn, sa_appointments)
-    assert 0 == await count(db_conn, sa_services)
+    assert 10 == await count(db_conn, sa_appointments)
+    assert 1 == await count(db_conn, sa_services)
 
 
 async def test_mass_apts(cli, db_conn, company):
