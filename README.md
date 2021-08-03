@@ -8,5 +8,15 @@ Backend application for [TutorCruncher's](https://tutorcruncher.com) web integra
 
 # LICENSE
 
-Copyright TutorCruncher ltd. 2017 - 2020.
+Copyright TutorCruncher ltd. 2017 - 2021.
 All rights reserved.
+
+## Deploying
+
+To deploy socket-server, please create a new tag/release, then run the following command:
+
+```
+git push heroku master
+```
+
+**Make sure you have checked out master and pulled all the recent changes.**
