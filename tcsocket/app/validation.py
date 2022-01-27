@@ -39,7 +39,7 @@ class SortOn(str, Enum):
 
 
 class CompanyCreateModal(BaseModel):
-    name: constr(min_length=3, max_length=63)
+    name: constr(min_length=3, max_length=255)
     domains: Optional[List[constr(max_length=255)]] = []
     name_display: NameOptions = NameOptions.first_name_initial
     public_key: constr(min_length=18, max_length=20) = None
@@ -55,7 +55,7 @@ class CompanyCreateModal(BaseModel):
 
 
 class CompanyUpdateModel(BaseModel):
-    name: constr(min_length=3, max_length=63) = None
+    name: constr(min_length=3, max_length=255) = None
     public_key: constr(min_length=18, max_length=20) = None
     private_key: constr(min_length=20, max_length=50) = None
 
