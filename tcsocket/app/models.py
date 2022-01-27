@@ -20,7 +20,7 @@ class Company(Base):
     public_key = Column(String(20), index=True, nullable=False, unique=True)
     private_key = Column(String(50), index=True, nullable=False)
 
-    name = Column(String(63), unique=True)
+    name = Column(String(255), unique=True)
     domains = Column(ARRAY(String(255)))
 
     name_display = Column(sa_enum(NameOptions), default=NameOptions.first_name_initial, nullable=False)

@@ -308,3 +308,11 @@ def update_socket_images(conn):
             print(f'Unable to find {img_thumb_key}, returned 404')
         else:
             r.raise_for_status()
+
+
+@patch
+def increase_company_name_field_length(conn):
+    """
+    increase company name length from 63 to 255 characters
+    """
+    conn.execute('ALTER TABLE companies ALTER COLUMN name TYPE VARCHAR(255)')
