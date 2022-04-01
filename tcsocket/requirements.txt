@@ -14,6 +14,6 @@ raven==6.10.0
 requests==2.27.1
 uvloop==0.16.0
 ipython==7.31.1
-pgcli==3.3.1
+pgcli==3.4.1
 ipython-sql==0.4.0
 yarl==1.7.2
