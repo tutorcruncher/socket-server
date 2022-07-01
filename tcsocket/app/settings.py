@@ -10,7 +10,7 @@ BASE_DIR = THIS_DIR.parent
 
 
 class Settings(BaseSettings):
-    pg_dsn: Optional[str] = 'postgresql://postgres@localhost:5432/socket'
+    database_url: Optional[str] = 'postgresql://postgres@localhost:5432/socket'
     redis_settings: RedisSettings = 'redis://localhost:6379'
     redis_database: int = 0
 
@@ -40,6 +40,10 @@ class Settings(BaseSettings):
         )
 
     @property
+    def pg_dsn(self):
+        return self.database_url.replace('gres://', 'gresql://')
+
+    @property
     def images_url(self):
         return f'https://{self.aws_bucket_name}'
 
@@ -66,7 +70,7 @@ class Settings(BaseSettings):
     class Config:
         fields = {
             'port': {'env': 'PORT'},
-            'pg_dsn': {'env': 'DATABASE_URL'},
+            'database_url': {'env': 'DATABASE_URL'},
             'redis_settings': {'env': 'REDISCLOUD_URL'},
             'tc_api_root': {'env': 'TC_API_ROOT'},
             'aws_access_key': {'env': 'AWS_ACCESS_KEY'},
