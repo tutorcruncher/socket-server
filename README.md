@@ -8,7 +8,7 @@ Backend application for [TutorCruncher's](https://tutorcruncher.com) web integra
 
 # LICENSE
 
-Copyright TutorCruncher ltd. 2017 - 2021.
+Copyright TutorCruncher ltd. 2017 - 2022.
 All rights reserved.
 
 ## Deploying
