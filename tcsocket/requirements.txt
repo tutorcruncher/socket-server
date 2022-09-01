@@ -3,7 +3,7 @@ aiodns==3.0.0
 aiohttp==3.8.1
 aiopg==1.3.4
 aioredis==1.3.1
-arq==0.22
+arq==0.23
 boto3==1.24.57
 cchardet==2.1.7
 gunicorn==20.1.0
