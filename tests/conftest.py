@@ -9,6 +9,7 @@ from itertools import product
 from time import time
 
 import pytest
+import asyncio
 from aiohttp import ClientSession, ClientTimeout
 from aiohttp.web import Application, Response, json_response
 from aiopg.sa import create_engine as aio_create_engine
@@ -27,7 +28,7 @@ from tcsocket.app.worker import WorkerSettings, startup
 
 MASTER_KEY = 'this is the master key'
 DB_DSN = 'postgresql://postgres@localhost:5432/socket_test'
-
+asyncio_mode = "auto"
 
 async def test_image_view(request):
     image_format = request.query.get('format')

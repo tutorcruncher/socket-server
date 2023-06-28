@@ -32,10 +32,10 @@ jobs:
       DATABASE_URL: 'postgresql://postgres:postgres@127.0.0.1:5432/socket_test'
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: set up python
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v4
       with:
         python-version: '3.8'
 
@@ -68,7 +68,7 @@ jobs:
       HEROKU_APP: tc-socket
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - run: git fetch --unshallow
       - run: git switch master
       - run: git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/$HEROKU_APP.git
