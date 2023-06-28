@@ -4,8 +4,6 @@ import os
 from functools import partial
 
 import click
-from pytest_asyncio.plugin import event_loop
-
 from app.logs import setup_logging
 from app.main import create_app
 from app.management import prepare_database, run_patch
@@ -30,6 +28,7 @@ async def start_and_stop_app(app):
     await app.startup()
     await app.cleanup()
 
+
 def check_app():
     logger.info("initialising aiohttp app to check it's working...")
     app = create_app()
@@ -39,12 +38,9 @@ def check_app():
     logger.info('app started and stopped successfully, apparently configured correctly')
 
 
-
 def web():
     """
-    Serve the application
-
-    If the database doesn't already exist it will be created.
+    Serve the application, If the database doesn't already exist it will be created.
     """
     logger.info('preparing the database...')
     prepare_database(False)
