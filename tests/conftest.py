@@ -28,6 +28,7 @@ from tcsocket.app.worker import WorkerSettings, startup
 MASTER_KEY = 'this is the master key'
 DB_DSN = 'postgresql://postgres@localhost:5432/socket_test'
 
+
 async def test_image_view(request):
     image_format = request.query.get('format')
     stream = BytesIO()
