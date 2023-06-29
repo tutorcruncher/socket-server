@@ -80,7 +80,7 @@ def setup_routes(app):
     app.router.add_post(r'/{company}/book-appointment', book_appointment, name='book-appointment')
 
 
-def create_app(loop, *, settings: Settings = None):
+def create_app(*, settings: Settings = None):
     app = web.Application(middlewares=middleware)
     settings = settings or Settings()
     app['settings'] = settings
