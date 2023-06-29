@@ -40,7 +40,9 @@ def check_app():
 
 def web():
     """
-    Serve the application, If the database doesn't already exist it will be created.
+    Serve the application
+
+    If the database doesn't already exist it will be created.
     """
     logger.info('preparing the database...')
     prepare_database(False)
@@ -63,8 +65,7 @@ def web():
                 self.cfg.set(k, v)
 
         def load(self):
-            loop = asyncio.get_event_loop()
-            return create_app(loop)
+            return create_app()
 
     logger.info('starting gunicorn...')
     Application().run()
