@@ -17,6 +17,7 @@ async def company_create(request):
     Authentication and json parsing are done by middleware.
     """
     data = await request.json()
+    debug(data)
     update_contractors = data.pop('update_contractors', True)
     company: CompanyCreateModal = request['model']
     existing_company = bool(company.private_key)

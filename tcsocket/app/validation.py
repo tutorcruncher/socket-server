@@ -3,7 +3,7 @@ from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, NoneStr, constr, validator
+from pydantic import BaseModel, EmailStr, constr, validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -137,7 +137,7 @@ class ContractorModel(BaseModel):
     town: constr(max_length=63) = None
     country: constr(max_length=63) = None
     last_updated: datetime = None
-    photo: NoneStr = None
+    photo: Optional[str] = None
     review_rating: float = None
     review_duration: int = None
 

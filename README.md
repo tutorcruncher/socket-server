@@ -24,9 +24,14 @@ To set up and run this project, follow these steps:
   make reset-db
   ```
 
-3. **Run the application:**
+4. **Run the worker:**
    ```sh
-   python tcsocket/run.py auto
+   python tcsocket/run.py worker
+   ```
+
+5. **Run the web server:**
+   ```sh
+   python tcsocket/run.py web
    ```
    
 **Note:** You might have to run this with `sudo` if you are not in the `docker` group.

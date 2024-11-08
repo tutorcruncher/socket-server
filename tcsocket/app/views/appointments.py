@@ -4,9 +4,9 @@ import logging
 from datetime import datetime, timezone
 from operator import attrgetter
 from secrets import compare_digest
-from typing import Dict
+from typing import Dict, Protocol
 
-from pydantic import BaseModel, Protocol, ValidationError, validator
+from pydantic import BaseModel, ValidationError, validator
 from sqlalchemy import distinct, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, functions as sql_f

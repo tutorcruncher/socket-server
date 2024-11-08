@@ -1,9 +1,10 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, ClassVar
 from urllib.parse import urlparse
 
 from arq.connections import RedisSettings
-from pydantic import BaseSettings, validator
+from pydantic import validator, Field
+from pydantic_settings import BaseSettings
 
 THIS_DIR = Path(__file__).parent
 BASE_DIR = THIS_DIR.parent
@@ -14,20 +15,22 @@ class Settings(BaseSettings):
     redis_settings: RedisSettings = 'redis://localhost:6379'
     redis_database: int = 0
 
-    master_key = b'this is a secret'
+    master_key: bytes = Field(default=b'this is a secret', env='MASTER_KEY')
 
     aws_access_key: Optional[str] = 'testing'
     aws_secret_key: Optional[str] = 'testing'
     aws_bucket_name: str = 'socket-images-beta.tutorcruncher.com'
-    tc_api_root = 'https://secure.tutorcruncher.com/api'
-    grecaptcha_secret = 'required secret for google recaptcha'
-    grecaptcha_url = 'https://www.google.com/recaptcha/api/siteverify'
-    geocoding_url = 'https://maps.googleapis.com/maps/api/geocode/json'
-    geocoding_key = 'required secret for google geocoding'
+    tc_api_root: str = 'https://secure.tutorcruncher.com/api'
+    grecaptcha_secret: str = 'required secret for google recaptcha'
+    grecaptcha_url: str = 'https://www.google.com/recaptcha/api/siteverify'
+    geocoding_url: str = 'https://maps.googleapis.com/maps/api/geocode/json'
+    geocoding_key: str = 'required secret for google geocoding'
 
-    tc_contractors_endpoint = '/public_contractors/'
-    tc_enquiry_endpoint = '/enquiry/'
-    tc_book_apt_endpoint = '/recipient_appointments/'
+    tc_contractors_endpoint: str = '/public_contractors/'
+    tc_enquiry_endpoint: str = '/enquiry/'
+    tc_book_apt_endpoint: str = '/recipient_appointments/'
+
+    logfire_token: Optional[str] = ''
 
     @validator('redis_settings', always=True, pre=True)
     def parse_redis_settings(cls, v):
@@ -68,12 +71,5 @@ class Settings(BaseSettings):
         return self._pg_dsn_parsed.port
 
     class Config:
-        fields = {
-            'port': {'env': 'PORT'},
-            'database_url': {'env': 'DATABASE_URL'},
-            'redis_settings': {'env': 'REDISCLOUD_URL'},
-            'tc_api_root': {'env': 'TC_API_ROOT'},
-            'aws_access_key': {'env': 'AWS_ACCESS_KEY'},
-            'aws_secret_key': {'env': 'AWS_SECRET_KEY'},
-            'aws_bucket_name': {'env': 'AWS_BUCKET_NAME'},
-        }
+        env_prefix = ''
+        env_file = '.env'

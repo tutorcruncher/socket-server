@@ -25,11 +25,13 @@ def setup_logging(verbose: bool = False):
                 'release': os.getenv('COMMIT', None),
                 'name': os.getenv('SERVER_NAME', '-'),
             },
+            'logfire': {'class': 'logfire.integrations.logging.LogfireLoggingHandler'},
         },
         'loggers': {
-            'socket': {'handlers': ['socket', 'sentry'], 'level': log_level},
-            'gunicorn.error': {'handlers': ['sentry'], 'level': 'ERROR'},
-            'arq': {'handlers': ['socket', 'sentry'], 'level': log_level},
+            'socket': {'handlers': ['socket', 'sentry', 'logfire'], 'level': log_level},
+            'gunicorn.error': {'handlers': ['sentry', 'logfire'], 'level': 'ERROR'},
+            'arq': {'handlers': ['socket', 'sentry', 'logfire'], 'level': log_level},
+            'aiohttp': {'handlers': ['logfire'], 'level': log_level},
         },
     }
     logging.config.dictConfig(config)

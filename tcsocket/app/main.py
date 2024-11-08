@@ -1,5 +1,6 @@
 import os
 import re
+import logfire
 from html import escape
 
 from aiohttp import ClientSession, web
@@ -32,13 +33,23 @@ async def startup(app: web.Application):
         redis=redis,
         session=ClientSession(),
     )
+    debug(settings.logfire_token)
+    if bool(settings.logfire_token):
+        logfire.configure(
+            service_name='socket-server',
+            token=settings.logfire_token,
+            send_to_logfire=True,
+            console=False,
+        )
+        logfire.instrument_pydantic()
+        logfire.instrument_requests()
+        logfire.instrument_aiohttp_client()
 
 
 async def cleanup(app: web.Application):
     app['pg_engine'].close()
     await app['pg_engine'].wait_closed()
-    app['redis'].close()
-    await app['redis'].wait_closed()
+    await app['redis'].close()
     await app['session'].close()
 
 
