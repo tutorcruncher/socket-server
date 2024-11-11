@@ -145,7 +145,6 @@ def domain_allowed(allow_domains, current_domain):
 async def company_middleware(request, handler):
     try:
         public_key = request.match_info.get('company')
-        debug(public_key)
         if public_key:
             c = sa_companies.c
             select_fields = c.id, c.name, c.public_key, c.private_key, c.name_display, c.options, c.domains

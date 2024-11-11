@@ -33,7 +33,6 @@ async def startup(app: web.Application):
         redis=redis,
         session=ClientSession(),
     )
-    debug(settings.logfire_token)
     if bool(settings.logfire_token):
         logfire.configure(
             service_name='socket-server',
@@ -41,7 +40,7 @@ async def startup(app: web.Application):
             send_to_logfire=True,
             console=False,
         )
-        logfire.instrument_pydantic()
+        logfire.instrument_pydantic(app)
         logfire.instrument_requests()
         logfire.instrument_aiohttp_client()
 
