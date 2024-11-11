@@ -3,7 +3,7 @@ from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, constr, validator
+from pydantic import BaseModel, EmailStr, constr, field_validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -45,11 +45,11 @@ class CompanyCreateModal(BaseModel):
     public_key: constr(min_length=18, max_length=20) = None
     private_key: constr(min_length=20, max_length=50) = None
 
-    @validator('public_key', pre=True, always=True)
+    @field_validator('public_key', mode='before')
     def set_public_key(cls, v):
         return v or token_hex(10)
 
-    @validator('private_key', pre=True, always=True)
+    @field_validator('private_key', mode='before')
     def set_private_key(cls, v):
         return v or token_hex(20)
 
@@ -132,16 +132,16 @@ class ExtraAttributeModel(BaseModel):
 class ContractorModel(BaseModel):
     id: int
     deleted: bool = False
-    first_name: constr(max_length=255) = None
-    last_name: constr(max_length=255) = None
-    town: constr(max_length=63) = None
-    country: constr(max_length=63) = None
+    first_name: Optional[constr(max_length=255)] = None
+    last_name: Optional[constr(max_length=255)] = None
+    town: Optional[constr(max_length=63)] = None
+    country: Optional[constr(max_length=63)] = None
     last_updated: datetime = None
     photo: Optional[str] = None
-    review_rating: float = None
+    review_rating: Optional[float] = None
     review_duration: int = None
 
-    @validator('last_updated', pre=True, always=True)
+    @field_validator('last_updated', mode='before')
     def set_last_updated(cls, v):
         return v or datetime(2016, 1, 1)
 
@@ -149,12 +149,12 @@ class ContractorModel(BaseModel):
         latitude: Optional[float] = None
         longitude: Optional[float] = None
 
-    location: LatitudeModel = None
+    location: Optional[LatitudeModel] = None
     extra_attributes: List[ExtraAttributeModel] = []
 
     class SkillModel(BaseModel):
         subject: str
-        subject_id: str
+        subject_id: Optional[int] = None
         category: str
         qual_level: str
         qual_level_id: int
@@ -183,7 +183,7 @@ class EnquiryModal(BaseModel):
     grecaptcha_response: constr(min_length=20, max_length=1000)
     terms_and_conditions: bool = False
 
-    @validator('upstream_http_referrer')
+    @field_validator('upstream_http_referrer')
     def val_upstream_http_referrer(cls, v):
         return v[:1023]
 
@@ -209,8 +209,8 @@ class BookingModel(BaseModel):
     student_id: int = None
     student_name: str = ''
 
-    @validator('student_name', always=True)
-    def check_name_or_id(cls, v, values, **kwargs):
+    @field_validator('student_name', mode='before')
+    def check_name_or_id(cls, v, values):
         if v == '' and values['student_id'] is None:
             raise ValueError('either student_id or student_name is required')
         return v

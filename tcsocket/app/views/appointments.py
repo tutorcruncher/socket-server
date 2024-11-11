@@ -6,7 +6,7 @@ from operator import attrgetter
 from secrets import compare_digest
 from typing import Dict, Protocol
 
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError, field_validator
 from sqlalchemy import distinct, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.sql import and_, functions as sql_f
@@ -270,18 +270,20 @@ class SSOData(BaseModel):
     expires: datetime
     key: str
 
-    @validator('role_type')
+    @field_validator('role_type')
     def check_role_type(cls, v):
         if v != 'Client':
             raise ValueError('must be "Client"')
+        return v
 
-    class Config:
-        fields = {
+    model_config = {
+        'alias_generator': {
             'role_type': 'rt',
             'name': 'nm',
             'students': 'srs',
             'expires': 'exp',
         }
+    }
 
 
 def _get_sso_data(request, company) -> SSOData:

@@ -1,9 +1,9 @@
 from pathlib import Path
-from typing import Optional, ClassVar
+from typing import Optional
 from urllib.parse import urlparse
 
 from arq.connections import RedisSettings
-from pydantic import validator, Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 THIS_DIR = Path(__file__).parent
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     logfire_token: Optional[str] = ''
 
-    @validator('redis_settings', always=True, pre=True)
+    @field_validator('redis_settings', mode='before')
     def parse_redis_settings(cls, v):
         conf = urlparse(v)
         return RedisSettings(
