@@ -3,7 +3,8 @@ from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, constr, field_validator
+from pydantic import BaseModel, EmailStr, constr
+from pydantic.v1 import validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -45,11 +46,11 @@ class CompanyCreateModal(BaseModel):
     public_key: constr(min_length=18, max_length=20) = None
     private_key: constr(min_length=20, max_length=50) = None
 
-    @field_validator('public_key', mode='before')
+    @validator('public_key', pre=True, always=True)
     def set_public_key(cls, v):
         return v or token_hex(10)
 
-    @field_validator('private_key', mode='before')
+    @validator('private_key', pre=True, always=True)
     def set_private_key(cls, v):
         return v or token_hex(20)
 
@@ -136,13 +137,14 @@ class ContractorModel(BaseModel):
     last_name: Optional[constr(max_length=255)] = None
     town: Optional[constr(max_length=63)] = None
     country: Optional[constr(max_length=63)] = None
-    last_updated: datetime = None
+    last_updated: Optional[datetime] = None
     photo: Optional[str] = None
     review_rating: Optional[float] = None
     review_duration: int = None
 
-    @field_validator('last_updated', mode='before')
-    def set_last_updated(cls, v):
+    @validator('last_updated', pre=True, always=True)
+    def set_last_updated(cls, v: datetime) -> datetime:
+        print('last_updated', v)  # Debugging output
         return v or datetime(2016, 1, 1)
 
     class LatitudeModel(BaseModel):
@@ -150,7 +152,7 @@ class ContractorModel(BaseModel):
         longitude: Optional[float] = None
 
     location: Optional[LatitudeModel] = None
-    extra_attributes: List[ExtraAttributeModel] = []
+    extra_attributes: List['ExtraAttributeModel'] = []
 
     class SkillModel(BaseModel):
         subject: str
@@ -183,7 +185,7 @@ class EnquiryModal(BaseModel):
     grecaptcha_response: constr(min_length=20, max_length=1000)
     terms_and_conditions: bool = False
 
-    @field_validator('upstream_http_referrer')
+    @validator('upstream_http_referrer')
     def val_upstream_http_referrer(cls, v):
         return v[:1023]
 
@@ -209,7 +211,7 @@ class BookingModel(BaseModel):
     student_id: int = None
     student_name: str = ''
 
-    @field_validator('student_name', mode='before')
+    @validator('student_name', always=True)
     def check_name_or_id(cls, v, values):
         if v == '' and values['student_id'] is None:
             raise ValueError('either student_id or student_name is required')
