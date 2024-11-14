@@ -145,15 +145,9 @@ class ContractorModel(BaseModel):
     review_rating: Optional[float] = None
     review_duration: int = None
 
-    @root_validator(pre=True)
-    def set_last_updated(cls, values):
-        """get the release_timestamp and save it to the last_updated field"""
-
-        if 'release_timestamp' not in values:
-            logger.warning('release_timestamp not found in values, setting last_updated to 2016-01-01')
-
-        values['last_updated'] = values.get('release_timestamp', datetime(2016, 1, 1))
-        return values
+    @validator('last_updated', pre=True, always=True)
+    def set_last_updated(cls, v):
+        return v or datetime(2016, 1, 1)
 
     class LatitudeModel(BaseModel):
         latitude: Optional[float] = None
