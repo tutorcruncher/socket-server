@@ -1,13 +1,16 @@
+import logging
 from datetime import datetime
 from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, NoneStr, constr, validator
+from pydantic import BaseModel, EmailStr, Field, NoneStr, constr, validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
 MISSING = object()
+
+logger = logging.getLogger('socket')
 
 
 @unique
@@ -136,14 +139,10 @@ class ContractorModel(BaseModel):
     last_name: constr(max_length=255) = None
     town: constr(max_length=63) = None
     country: constr(max_length=63) = None
-    last_updated: datetime = None
+    last_updated: datetime = Field(alias='release_timestamp')
     photo: NoneStr = None
     review_rating: float = None
     review_duration: int = None
-
-    @validator('last_updated', pre=True, always=True)
-    def set_last_updated(cls, v):
-        return v or datetime(2016, 1, 1)
 
     class LatitudeModel(BaseModel):
         latitude: Optional[float] = None
