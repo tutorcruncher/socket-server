@@ -3,7 +3,7 @@ from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, NoneStr, constr, validator
+from pydantic import BaseModel, EmailStr, NoneStr, constr, root_validator, validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -141,9 +141,15 @@ class ContractorModel(BaseModel):
     review_rating: float = None
     review_duration: int = None
 
-    @validator('last_updated', pre=True, always=True)
-    def set_last_updated(cls, v):
-        return v or datetime(2016, 1, 1)
+    @root_validator(pre=True)
+    def set_last_updated(cls, values):
+        """get the release_timestamp and save it to the last_updated field"""
+
+        if 'release_timestamp' not in values:
+            logger.warning('release_timestamp not found in values, setting last_updated to 2016-01-01')
+
+        values['last_updated'] = values.get('release_timestamp', datetime(2016, 1, 1))
+        return values
 
     class LatitudeModel(BaseModel):
         latitude: Optional[float] = None
