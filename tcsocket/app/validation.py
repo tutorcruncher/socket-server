@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from enum import Enum, unique
 from secrets import token_hex
@@ -9,6 +10,7 @@ EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars'
 
 MISSING = object()
 
+logger = logging.getLogger('socket')
 
 @unique
 class NameOptions(str, Enum):
