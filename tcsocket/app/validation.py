@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from enum import Enum, unique
 from secrets import token_hex
@@ -5,7 +6,8 @@ from typing import Any, List, Optional
 
 from pydantic import BaseModel, EmailStr, constr, validator, root_validator
 
-from tcsocket.app.views.company import logger
+logger = logging.getLogger('socket')
+
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
