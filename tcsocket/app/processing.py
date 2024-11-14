@@ -130,6 +130,7 @@ async def contractor_set(
     :return: Action: created, updated or deleted
     """
     from .worker import process_image
+
     if contractor.deleted:
         if not skip_deleted:
             curr = await conn.execute(

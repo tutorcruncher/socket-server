@@ -4,7 +4,7 @@ from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, constr, validator, root_validator
+from pydantic import BaseModel, EmailStr, constr, root_validator, validator
 
 logger = logging.getLogger('socket')
 
@@ -147,7 +147,7 @@ class ContractorModel(BaseModel):
 
     @root_validator(pre=True)
     def set_last_updated(cls, values):
-        """ get the release_timestamp and save it to the last_updated field """
+        """get the release_timestamp and save it to the last_updated field"""
 
         if 'release_timestamp' not in values:
             logger.warning('release_timestamp not found in values, setting last_updated to 2016-01-01')

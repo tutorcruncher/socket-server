@@ -1,8 +1,8 @@
 import os
 import re
-import logfire
 from html import escape
 
+import logfire
 from aiohttp import ClientSession, web
 from aiopg.sa import create_engine
 from arq import create_pool
