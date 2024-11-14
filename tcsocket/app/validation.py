@@ -4,7 +4,7 @@ from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, NoneStr, constr, root_validator, validator
+from pydantic import BaseModel, EmailStr, Field, NoneStr, constr, validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
