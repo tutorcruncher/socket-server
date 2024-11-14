@@ -4,7 +4,7 @@ from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, constr, root_validator, validator
+from pydantic import AliasPath, BaseModel, EmailStr, Field, constr, validator
 
 logger = logging.getLogger('socket')
 
@@ -140,14 +140,10 @@ class ContractorModel(BaseModel):
     last_name: Optional[constr(max_length=255)] = None
     town: Optional[constr(max_length=63)] = None
     country: Optional[constr(max_length=63)] = None
-    last_updated: Optional[datetime] = None
+    last_updated: Optional[datetime] = Field(validation_alias=AliasPath('release_timestamp'))
     photo: Optional[str] = None
     review_rating: Optional[float] = None
     review_duration: int = None
-
-    @validator('last_updated', pre=True, always=True)
-    def set_last_updated(cls, v):
-        return v or datetime(2016, 1, 1)
 
     class LatitudeModel(BaseModel):
         latitude: Optional[float] = None
