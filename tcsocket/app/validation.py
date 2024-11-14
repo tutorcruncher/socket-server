@@ -12,6 +12,7 @@ MISSING = object()
 
 logger = logging.getLogger('socket')
 
+
 @unique
 class NameOptions(str, Enum):
     first_name = 'first_name'
