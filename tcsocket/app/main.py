@@ -42,6 +42,14 @@ async def cleanup(app: web.Application):
     await app['session'].close()
 
 
+async def _options_handler(request):
+    return web.Response(headers={
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+    })
+
+
 def setup_routes(app):
     app.router.add_get(r'/', index, name='index')
     app.router.add_get(r'/robots.txt', robots_txt, name='robots-txt')
@@ -51,7 +59,6 @@ def setup_routes(app):
 
     app.router.add_get(r'/{company}/options', company_options, name='company-options')
 
-    # to work with tutorcruncher websockets
     app.router.add_post(r'/{company}/webhook/options', company_update, name='company-update')
     app.router.add_post(r'/{company}/webhook/contractor', contractor_set, name='webhook-contractor')
     app.router.add_post(r'/{company}/webhook/contractor/mass', contractor_set_mass, name='webhook-contractor-mass')
@@ -78,6 +85,7 @@ def setup_routes(app):
     app.router.add_get(r'/{company}/services', service_list, name='service-list')
     app.router.add_get(r'/{company}/check-client', check_client, name='check-client')
     app.router.add_post(r'/{company}/book-appointment', book_appointment, name='book-appointment')
+    app.router.add_options(r'/{company}/book-appointment', _options_handler)
 
 
 def create_app(loop, *, settings: Settings = None):
