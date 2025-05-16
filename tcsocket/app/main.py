@@ -43,11 +43,26 @@ async def cleanup(app: web.Application):
 
 
 async def _options_handler(request):
-    return web.Response(headers={
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-    })
+    return web.Response(
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+    )
+
+
+async def _book_appointment_wrapper(request):
+    """Wrapper for book_appointment that adds CORS headers to the response."""
+    response = await book_appointment(request)
+    response.headers.update(
+        {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type",
+        }
+    )
+    return response
 
 
 def setup_routes(app):
@@ -84,7 +99,7 @@ def setup_routes(app):
     app.router.add_get(r'/{company}/appointments', appointment_list, name='appointment-list')
     app.router.add_get(r'/{company}/services', service_list, name='service-list')
     app.router.add_get(r'/{company}/check-client', check_client, name='check-client')
-    app.router.add_post(r'/{company}/book-appointment', book_appointment, name='book-appointment')
+    app.router.add_post(r'/{company}/book-appointment', _book_appointment_wrapper, name='book-appointment')
     app.router.add_options(r'/{company}/book-appointment', _options_handler)
 
 
