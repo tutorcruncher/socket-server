@@ -318,3 +318,29 @@ async def test_slugify(cli, db_conn, company):
     assert r.status == 200, await r.text()
     obj = await r.json()
     assert obj['results'][0]['link'] == '456-appointment-is-here'
+
+
+async def test_book_appointment_cors_headers(cli, company, appointment):
+    """Test that CORS headers are correctly added to the book_appointment response."""
+    url = cli.server.app.router['book-appointment'].url_for(company='thepublickey').with_query(sig_sso_data(company))
+    r = await cli.post(
+        url, data=json.dumps({'appointment': appointment['appointment']['id'], 'student_id': '4'})
+    )
+    assert r.status == 201, await r.text()
+
+    # Check that CORS headers are present in the response
+    assert r.headers.get('Access-Control-Allow-Origin') == '*'
+    assert r.headers.get('Access-Control-Allow-Methods') == 'POST, OPTIONS'
+    assert r.headers.get('Access-Control-Allow-Headers') == 'Content-Type'
+
+
+async def test_book_appointment_options_handler(cli, company):
+    """Test that the OPTIONS handler for book_appointment returns the correct CORS headers."""
+    url = cli.server.app.router['book-appointment'].url_for(company='thepublickey')
+    r = await cli.options(url)
+    assert r.status == 200, await r.text()
+
+    # Check that CORS headers are present in the response
+    assert r.headers.get('Access-Control-Allow-Origin') == '*'
+    assert r.headers.get('Access-Control-Allow-Methods') == 'POST, OPTIONS'
+    assert r.headers.get('Access-Control-Allow-Headers') == 'Content-Type'

@@ -100,7 +100,6 @@ def setup_routes(app):
     app.router.add_get(r'/{company}/services', service_list, name='service-list')
     app.router.add_get(r'/{company}/check-client', check_client, name='check-client')
     app.router.add_post(r'/{company}/book-appointment', _book_appointment_wrapper, name='book-appointment')
-    app.router.add_options(r'/{company}/book-appointment', _options_handler)
 
 
 def create_app(loop, *, settings: Settings = None):

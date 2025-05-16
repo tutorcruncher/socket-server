@@ -233,7 +233,6 @@ async def authenticate(request, api_key=None):
 async def auth_middleware(request, handler):
     if isinstance(request.match_info.route, SystemRoute):
         # eg. 404
-        await log_warning(request, request.match_info.route)
         return await handler(request)
     route_name = request.match_info.route.name
     route_name = route_name and route_name.replace('-head', '')
@@ -243,7 +242,6 @@ async def auth_middleware(request, handler):
             await authenticate(request, company.private_key.encode())
         else:
             await authenticate(request)
-    await log_warning(request, request.match_info.route)
     return await handler(request)
 
 
