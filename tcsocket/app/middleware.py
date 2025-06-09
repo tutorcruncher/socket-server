@@ -16,61 +16,65 @@ from .models import sa_companies
 from .utils import HTTPBadRequestJson, HTTPForbiddenJson, HTTPNotFoundJson, HTTPUnauthorizedJson
 from .validation import VIEW_MODELS
 
-request_logger = logging.getLogger('socket')
+request_logger = logging.getLogger("socket")
 
 PUBLIC_VIEWS = {
-    'index',
-    'robots-txt',
-    'favicon',
-    'contractor-list',
-    'company-options',
-    'contractor-get',
-    'enquiry',
-    'subject-list',
-    'qual-level-list',
-    'labels',
-    'appointment-list',
-    'service-list',
-    'check-client',
-    'book-appointment',
+    "index",
+    "robots-txt",
+    "favicon",
+    "contractor-list",
+    "company-options",
+    "contractor-get",
+    "enquiry",
+    "subject-list",
+    "qual-level-list",
+    "labels",
+    "appointment-list",
+    "service-list",
+    "check-client",
+    "book-appointment",
+    "book-appointment-options",
 }
 
 
 async def log_extra(request, response=None):
     return {
-        'data': dict(
+        "data": dict(
             request_url=str(request.rel_url),
             request_query=dict(request.query),
             request_method=request.method,
             request_host=request.host,
             request_headers=dict(request.headers),
             request_text=await request.text(),
-            response_status=getattr(response, 'status', None),
-            response_headers=dict(getattr(response, 'headers', {})),
-            response_text=getattr(response, 'text', None),
+            response_status=getattr(response, "status", None),
+            response_headers=dict(getattr(response, "headers", {})),
+            response_text=getattr(response, "text", None),
         )
     }
 
 
 async def log_warning(request, response):
     request_logger.warning(
-        '%s %d',
+        "%s %d",
         request.rel_url,
         response.status,
-        extra={'fingerprint': [request.rel_url, str(response.status)], 'data': await log_extra(request, response)},
+        extra={
+            "fingerprint": [request.rel_url, str(response.status)],
+            "data": await log_extra(request, response),
+        },
     )
 
 
 @middleware
 async def error_middleware(request, handler):
     try:
-        http_exception = getattr(request.match_info, 'http_exception', None)
+        http_exception = getattr(request.match_info, "http_exception", None)
         if http_exception:
             raise http_exception
         else:
             r = await handler(request)
     except HTTPException as e:
-        if request.method == METH_GET and e.status == 404 and request.rel_url.raw_path.endswith('/'):
+        if request.method == METH_GET and e.status == 404 and request.rel_url.raw_path.endswith("/"):
             possible_path = request.rel_url.raw_path[:-1]
             for resource in request.app.router._resources:
                 match_dict = resource._match(possible_path)
@@ -81,10 +85,13 @@ async def error_middleware(request, handler):
         raise
     except BaseException as e:
         request_logger.exception(
-            '%s: %s',
+            "%s: %s",
             e.__class__.__name__,
             e,
-            extra={'fingerprint': [e.__class__.__name__, str(e)], 'data': await log_extra(request)},
+            extra={
+                "fingerprint": [e.__class__.__name__, str(e)],
+                "data": await log_extra(request),
+            },
         )
         raise HTTPInternalServerError()
     else:
@@ -125,17 +132,17 @@ class ConnectionManager:
 
 @middleware
 async def pg_conn_middleware(request, handler):
-    async with ConnectionManager(request.app['pg_engine']) as conn_manager:
-        request['conn_manager'] = conn_manager
+    async with ConnectionManager(request.app["pg_engine"]) as conn_manager:
+        request["conn_manager"] = conn_manager
         return await handler(request)
 
 
 def domain_allowed(allow_domains, current_domain):
     return current_domain and (
-        current_domain.endswith('tutorcruncher.com')
+        current_domain.endswith("tutorcruncher.com")
         or any(
             allow_domain == current_domain
-            or (allow_domain.startswith('*') and current_domain.endswith(allow_domain[1:]))
+            or (allow_domain.startswith("*") and current_domain.endswith(allow_domain[1:]))
             for allow_domain in allow_domains
         )
     )
@@ -144,28 +151,36 @@ def domain_allowed(allow_domains, current_domain):
 @middleware
 async def company_middleware(request, handler):
     try:
-        public_key = request.match_info.get('company')
+        public_key = request.match_info.get("company")
         if public_key:
             c = sa_companies.c
-            select_fields = c.id, c.name, c.public_key, c.private_key, c.name_display, c.options, c.domains
+            select_fields = (
+                c.id,
+                c.name,
+                c.public_key,
+                c.private_key,
+                c.name_display,
+                c.options,
+                c.domains,
+            )
             q = select(select_fields).where(c.public_key == public_key)
-            conn = await request['conn_manager'].get_connection()
+            conn = await request["conn_manager"].get_connection()
             result = await conn.execute(q)
             company = await result.first()
 
             if company and company.domains is not None:
-                origin = request.headers.get('Origin') or request.headers.get('Referer')
+                origin = request.headers.get("Origin") or request.headers.get("Referer")
                 if origin and not domain_allowed(company.domains, URL(origin).host):
                     raise HTTPForbiddenJson(
-                        status='wrong Origin domain',
+                        status="wrong Origin domain",
                         details=f"the current Origin '{origin}' does not match the allowed domains",
                     )
             if company:
-                request['company'] = company
+                request["company"] = company
             else:
                 raise HTTPNotFoundJson(
-                    status='company not found',
-                    details=f'No company found for key {public_key}',
+                    status="company not found",
+                    details=f"No company found for key {public_key}",
                 )
         return await handler(request)
     except CancelledError:
@@ -179,19 +194,19 @@ async def json_request_middleware(request, handler):
         try:
             data = await request.json()
         except ValueError as e:
-            error_details = f'Value Error: {e}'
+            error_details = f"Value Error: {e}"
         else:
-            request['body_request_time'] = data.pop('_request_time', None)
+            request["body_request_time"] = data.pop("_request_time", None)
             model = VIEW_MODELS.get(request.match_info.route.name)
             if model:
                 try:
-                    request['model'] = model.parse_obj(data)
+                    request["model"] = model.parse_obj(data)
                 except ValidationError as e:
                     error_details = e.errors()
 
         if error_details:
             raise HTTPBadRequestJson(
-                status='invalid request data',
+                status="invalid request data",
                 details=error_details,
             )
     return await handler(request)
@@ -204,27 +219,27 @@ def _check_timestamp(ts: str, now):
             raise ValueError()
     except (TypeError, ValueError):
         raise HTTPForbiddenJson(
-            status='invalid request time',
+            status="invalid request time",
             details=f"request time '{ts}' not in the last 10 seconds",
         )
 
 
 async def authenticate(request, api_key=None):
-    api_key_choices = api_key, request.app['settings'].master_key
+    api_key_choices = api_key, request.app["settings"].master_key
     now = time()
     if request.method == METH_GET:
-        r_time = request.headers.get('Request-Time', '<missing>')
+        r_time = request.headers.get("Request-Time", "<missing>")
         _check_timestamp(r_time, now)
         body = r_time.encode()
     else:
-        _check_timestamp(request['body_request_time'], now)
+        _check_timestamp(request["body_request_time"], now)
         body = await request.read()
-    signature = request.headers.get('Signature', request.headers.get('Webhook-Signature', '<missing>'))
+    signature = request.headers.get("Signature", request.headers.get("Webhook-Signature", "<missing>"))
     for _api_key in api_key_choices:
         if _api_key and signature == hmac.new(_api_key, body, hashlib.sha256).hexdigest():
             return
     raise HTTPUnauthorizedJson(
-        status='invalid signature',
+        status="invalid signature",
         details=f'Signature header "{signature}" does not match computed signature',
     )
 
@@ -235,9 +250,9 @@ async def auth_middleware(request, handler):
         # eg. 404
         return await handler(request)
     route_name = request.match_info.route.name
-    route_name = route_name and route_name.replace('-head', '')
+    route_name = route_name and route_name.replace("-head", "")
     if route_name not in PUBLIC_VIEWS:
-        company = request.get('company')
+        company = request.get("company")
         if company:
             await authenticate(request, company.private_key.encode())
         else:
