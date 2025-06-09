@@ -62,6 +62,7 @@ async def _book_appointment_wrapper(request):
             "Access-Control-Allow-Headers": "Content-Type",
         }
     )
+    print(response.headers)
     return response
 
 
