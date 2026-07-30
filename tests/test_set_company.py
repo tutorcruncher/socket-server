@@ -558,3 +558,54 @@ async def test_update_company_update_contractors_true(cli, db_conn, company, oth
         'distance_units': 'km',
         'currency': {'code': 'USD', 'symbol': '$'},
     } == await r.json()
+
+
+async def test_options_terms_link_gets_role_type(cli, db_conn, company):
+    """A terms link stored before TutorCruncher split its terms per audience gets role_type=Client."""
+    await db_conn.execute(
+        sa_companies.update().values(options={'terms_link': 'https://app.example.com/view-branch-terms/3492/'})
+    )
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert (await r.json())['terms_link'] == 'https://app.example.com/view-branch-terms/3492/?role_type=Client'
+
+
+async def test_options_terms_link_keeps_existing_role_type(cli, db_conn, company):
+    """A link TutorCruncher already stamped with an audience is left exactly as it is."""
+    await db_conn.execute(
+        sa_companies.update().values(
+            options={'terms_link': 'https://app.example.com/view-branch-terms/3492/?role_type=Contractor'}
+        )
+    )
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert (await r.json())['terms_link'] == 'https://app.example.com/view-branch-terms/3492/?role_type=Contractor'
+
+
+async def test_options_terms_link_keeps_other_query_params(cli, db_conn, company):
+    """Existing query parameters survive the rewrite."""
+    await db_conn.execute(
+        sa_companies.update().values(
+            options={'terms_link': 'https://app.example.com/view-branch-terms/3492/?next=%2Fdashboard'}
+        )
+    )
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert (await r.json())['terms_link'] == (
+        'https://app.example.com/view-branch-terms/3492/?next=%2Fdashboard&role_type=Client'
+    )
+
+
+async def test_options_terms_link_leaves_own_terms_page_alone(cli, db_conn, company):
+    """A company's own terms page isn't TutorCruncher's, so role_type means nothing there."""
+    await db_conn.execute(sa_companies.update().values(options={'terms_link': 'https://terms.com/'}))
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert (await r.json())['terms_link'] == 'https://terms.com/'
+
+
+async def test_options_no_terms_link(cli, db_conn, company):
+    """No terms link means no terms checkbox on the enquiry form - nothing to rewrite."""
+    r = await cli.get(f'/{company.public_key}/options')
+    assert r.status == 200, await r.text()
+    assert (await r.json())['terms_link'] is None

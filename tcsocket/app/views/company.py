@@ -1,4 +1,6 @@
 import logging
+from typing import Optional
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -127,6 +129,37 @@ async def company_list(request):
     return json_response(request, list_=results)
 
 
+TC_TERMS_PATH = '/view-branch-terms/'
+TC_TERMS_ROLE_TYPE = 'Client'
+
+
+def add_terms_link_role_type(terms_link: Optional[str]) -> Optional[str]:
+    """
+    Add role_type=Client to a TutorCruncher terms link that doesn't have it.
+
+    TutorCruncher's terms page decides which audience's terms to show from a role_type query
+    parameter. Enquiry forms are Client enquiries - TutorCruncher records the ticked box as Client
+    consent - so Client is the right audience. terms_link values stored before TutorCruncher split
+    its terms per audience have no role_type and resolve to nothing, so the link opens an empty
+    page. Adding the parameter as we serve the options means every embedded form gets working
+    terms, whatever version of the frontend the page loads.
+
+    TutorCruncher now adds role_type itself when an integration is saved, so links that already
+    have one are left alone and this becomes a no-op once the stored values are all updated.
+    """
+    if not terms_link:
+        return terms_link
+    parts = urlsplit(terms_link)
+    if TC_TERMS_PATH not in parts.path:
+        # a link to the company's own terms page rather than TutorCruncher's - not ours to change
+        return terms_link
+    query = parse_qs(parts.query)
+    if 'role_type' in query:
+        return terms_link
+    query['role_type'] = [TC_TERMS_ROLE_TYPE]
+    return urlunsplit(parts._replace(query=urlencode(query, doseq=True)))
+
+
 async def company_options(request):
     """
     Get a companies options
@@ -134,4 +167,6 @@ async def company_options(request):
     opts = CompanyOptionsModel(
         name=request['company'].name, name_display=request['company'].name_display, **(request['company'].options or {})
     )
-    return json_response(request, **opts.dict())
+    data = opts.dict()
+    data['terms_link'] = add_terms_link_role_type(data['terms_link'])
+    return json_response(request, **data)
