@@ -96,6 +96,20 @@ async def test_post_enquiry_success(cli, company, other_server, worker):
     ] == other_server.app['request_log']
 
 
+async def test_post_enquiry_long_grecaptcha_response(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'default'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 1000,
+        'terms_and_conditions': True,
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert ('grecaptcha_post', {'secret': 'X' * 30, 'response': 'good' * 1000}) in other_server.app['request_log']
+
+
 async def test_post_enquiry_datetime(cli, company, other_server, worker):
     other_server.app['extra_attributes'] = 'datetime'
     data = {

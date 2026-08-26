@@ -180,7 +180,7 @@ class EnquiryModal(BaseModel):
     # subject: Optional[int] = None
     # qual_level: Optional[int] = None
     upstream_http_referrer: Optional[str] = None
-    grecaptcha_response: constr(min_length=20, max_length=2048)
+    grecaptcha_response: constr(min_length=20)
     terms_and_conditions: bool = False
 
     @validator('upstream_http_referrer')
