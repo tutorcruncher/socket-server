@@ -5,11 +5,12 @@ from enum import Enum
 from operator import itemgetter
 
 import pydantic
-from aiohttp.hdrs import METH_POST
+from aiohttp.hdrs import METH_OPTIONS, METH_POST
+from aiohttp.web_response import Response
 from arq.utils import timestamp_ms
 
 from ..geo import get_ip
-from ..utils import HTTPBadRequestJson, json_response
+from ..utils import CORS_PREFLIGHT_HEADERS, HTTPBadRequestJson, json_response
 from ..worker import REDIS_ENQUIRY_CACHE_KEY, get_enquiry_options, store_enquiry_data
 
 logger = logging.getLogger('socket')
@@ -23,6 +24,10 @@ async def clear_enquiry(request):
 
 
 async def enquiry(request):
+    if request.method == METH_OPTIONS:
+        # CORS preflight sent by browsers before a cross-origin JSON post
+        return Response(status=204, headers=CORS_PREFLIGHT_HEADERS)
+
     company = dict(request['company'])
 
     redis = request.app['redis']

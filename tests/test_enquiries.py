@@ -386,3 +386,18 @@ async def test_post_all_optional(cli, company, other_server):
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
+
+
+async def test_options_enquiry_preflight(cli, company):
+    r = await cli.options(
+        cli.server.app.router['enquiry'].url_for(company=company.public_key),
+        headers={
+            'Origin': 'https://tutorcruncher.com',
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type',
+        },
+    )
+    assert r.status == 204, await r.text()
+    assert r.headers['Access-Control-Allow-Origin'] == '*'
+    assert r.headers['Access-Control-Allow-Methods'] == 'POST'
+    assert r.headers['Access-Control-Allow-Headers'] == 'Content-Type'
