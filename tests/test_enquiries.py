@@ -97,7 +97,6 @@ async def test_post_enquiry_success(cli, company, other_server, worker):
 
 
 async def test_post_enquiry_long_grecaptcha_response(cli, company, other_server, worker):
-    other_server.app['extra_attributes'] = 'default'
     data = {
         'client_name': 'Cat Flap',
         'grecaptcha_response': 'good' * 1000,
