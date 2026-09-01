@@ -31,3 +31,11 @@ build:
 .PHONY: prod-push
 prod-push:
 	git push heroku `git rev-parse --abbrev-ref HEAD`:master
+
+.PHONY: reset-db
+reset-db:
+.PHONY: reset-db
+reset-db:
+	psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS socket"
+	psql -h localhost -U postgres -c "CREATE DATABASE socket"
+	python tcsocket/run.py resetdb --no-input
