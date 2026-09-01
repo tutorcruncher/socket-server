@@ -24,13 +24,16 @@ def cli(verbose):
     setup_logging(verbose)
 
 
+async def start_and_stop_app(app):
+    await app.startup()
+    await app.cleanup()
+
+
 def check_app():
-    loop = asyncio.get_event_loop()
     logger.info("initialising aiohttp app to check it's working...")
-    app = create_app(loop)
+    app = create_app()
     app.freeze()
-    loop.run_until_complete(app.startup())
-    loop.run_until_complete(app.cleanup())
+    asyncio.run(start_and_stop_app(app))
     del app
     logger.info('app started and stopped successfully, apparently configured correctly')
 
@@ -62,8 +65,7 @@ def web():
                 self.cfg.set(k, v)
 
         def load(self):
-            loop = asyncio.get_event_loop()
-            return create_app(loop)
+            return create_app()
 
     logger.info('starting gunicorn...')
     Application().run()
