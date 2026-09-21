@@ -1,6 +1,6 @@
 attrs==22.1.0
 black==22.6.0
-coverage==6.4.4
+coverage==7.3.0
 flake8==5.0.4
 isort==5.10.1
 pycodestyle==2.9.1
