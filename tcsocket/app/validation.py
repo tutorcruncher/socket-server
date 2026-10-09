@@ -1,9 +1,13 @@
+import logging
 from datetime import datetime
 from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, NoneStr, constr, validator
+from pydantic import AliasPath, BaseModel, EmailStr, Field, constr, validator
+
+logger = logging.getLogger('socket')
+
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
@@ -132,29 +136,25 @@ class ExtraAttributeModel(BaseModel):
 class ContractorModel(BaseModel):
     id: int
     deleted: bool = False
-    first_name: constr(max_length=255) = None
-    last_name: constr(max_length=255) = None
-    town: constr(max_length=63) = None
-    country: constr(max_length=63) = None
-    last_updated: datetime = None
-    photo: NoneStr = None
-    review_rating: float = None
+    first_name: Optional[constr(max_length=255)] = None
+    last_name: Optional[constr(max_length=255)] = None
+    town: Optional[constr(max_length=63)] = None
+    country: Optional[constr(max_length=63)] = None
+    last_updated: Optional[datetime] = Field(validation_alias=AliasPath('release_timestamp'))
+    photo: Optional[str] = None
+    review_rating: Optional[float] = None
     review_duration: int = None
-
-    @validator('last_updated', pre=True, always=True)
-    def set_last_updated(cls, v):
-        return v or datetime(2016, 1, 1)
 
     class LatitudeModel(BaseModel):
         latitude: Optional[float] = None
         longitude: Optional[float] = None
 
-    location: LatitudeModel = None
-    extra_attributes: List[ExtraAttributeModel] = []
+    location: Optional[LatitudeModel] = None
+    extra_attributes: List['ExtraAttributeModel'] = []
 
     class SkillModel(BaseModel):
         subject: str
-        subject_id: str
+        subject_id: Optional[int] = None
         category: str
         qual_level: str
         qual_level_id: int
@@ -210,7 +210,7 @@ class BookingModel(BaseModel):
     student_name: str = ''
 
     @validator('student_name', always=True)
-    def check_name_or_id(cls, v, values, **kwargs):
+    def check_name_or_id(cls, v, values):
         if v == '' and values['student_id'] is None:
             raise ValueError('either student_id or student_name is required')
         return v

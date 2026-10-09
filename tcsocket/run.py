@@ -35,6 +35,7 @@ def check_app():
     logger.info('app started and stopped successfully, apparently configured correctly')
 
 
+@cli.command()
 def web():
     """
     Serve the application
@@ -46,7 +47,9 @@ def web():
 
     check_app()
 
-    bind = os.getenv('BIND_IP', '127.0.0.1') + f":{os.getenv('PORT', '8000')}"
+    bind_ip = os.getenv('BIND_IP', '127.0.0.1')
+    port = os.getenv('PORT', '8000')
+    bind = f"{bind_ip}:{port}"
     logger.info('Starting Web, binding to %s', bind)
 
     config = dict(
@@ -67,8 +70,10 @@ def web():
 
     logger.info('starting gunicorn...')
     Application().run()
+    logger.info('Web server running at %s on port %s', bind_ip, port)
 
 
+@cli.command()
 def worker():
     """
     Run the worker
@@ -79,21 +84,26 @@ def worker():
 
 
 @cli.command()
-def auto():
+@click.pass_context
+def auto(ctx):
     port_env = os.getenv('PORT')
     dyno_env = os.getenv('DYNO')
     if dyno_env:
         logger.info('using environment variable DYNO=%r to infer command', dyno_env)
         if dyno_env.lower().startswith('web'):
-            web()
+            logger.info('Running as web server')
+            ctx.invoke(web)
         else:
-            worker()
+            logger.info('Running as worker')
+            ctx.invoke(worker)
     elif port_env and port_env.isdigit():
         logger.info('using environment variable PORT=%s to infer command as web', port_env)
-        web()
+        logger.info('Running as web server')
+        ctx.invoke(web)
     else:
         logger.info('no environment variable found to infer command, assuming worker')
-        worker()
+        logger.info('Running as worker')
+        ctx.invoke(worker)
 
 
 @cli.command()
