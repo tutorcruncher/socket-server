@@ -108,9 +108,7 @@ async def test_get_enquiry_url(cli, company, other_server):
         'prefix': 'attributes',
         'required': False,
         'label': 'Website',
-        'help_text': 'Your website',
-        'max_length': 2048,
-        'sort_index': 1000,
+        'sort_index': 16,
     }
 
 

@@ -163,11 +163,9 @@ async def enquiry_options_view(request):
             'website': {
                 'type': 'url',
                 'required': False,
-                'read_only': True,
+                'read_only': False,
                 'label': 'Website',
-                'help_text': 'Your website',
-                'max_length': 2048,
-                'sort_index': 1000,
+                'sort_index': 16,
             },
         }
     else:
