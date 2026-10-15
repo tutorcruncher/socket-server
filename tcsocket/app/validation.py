@@ -125,6 +125,7 @@ class ExtraAttributeModel(BaseModel):
         dropdown = 'dropdown'
         datetime = 'datetime'
         date = 'date'
+        url = 'url'
 
     type: EATypeEnum
 

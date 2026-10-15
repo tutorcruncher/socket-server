@@ -176,6 +176,36 @@ async def test_extra_attributes(cli, db_conn, company):
     assert obj['extra_attributes'][2]['value'] == '2032-06-01'
 
 
+async def test_extra_attributes_url(cli, db_conn, company):
+    eas = [
+        {
+            'id': 381,
+            'machine_name': 'website',
+            'type': 'url',
+            'name': 'Website',
+            'value': 'https://example.com/me',
+            'sort_index': 3,
+        },
+    ]
+    r = await signed_request(
+        cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
+    )
+    assert r.status == 201, await r.text()
+    curr = await db_conn.execute(sa_contractors.select())
+    result = await curr.first()
+    assert result.id == 123
+    assert result.extra_attributes == [
+        {'machine_name': 'website', 'type': 'url', 'name': 'Website', 'value': 'https://example.com/me'}
+    ]
+
+    r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='123', slug='x'))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert obj['extra_attributes'] == [
+        {'machine_name': 'website', 'type': 'url', 'name': 'Website', 'value': 'https://example.com/me'}
+    ]
+
+
 async def test_tag_line_from_short_text(cli, db_conn, company):
     eas = [
         {

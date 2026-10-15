@@ -158,6 +158,18 @@ async def enquiry_options_view(request):
                 'sort_index': 1003,
             },
         }
+    elif extra_attributes == 'url':
+        attribute_children = {
+            'website': {
+                'type': 'url',
+                'required': False,
+                'read_only': True,
+                'label': 'Website',
+                'help_text': 'Your website',
+                'max_length': 2048,
+                'sort_index': 1000,
+            },
+        }
     else:
         attribute_children = {}
     return json_response(

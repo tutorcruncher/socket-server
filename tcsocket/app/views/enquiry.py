@@ -59,6 +59,7 @@ FIELD_TYPE_LOOKUP = {
     'integer': 'integer',
     'date': 'date',
     'datetime': 'datetime',
+    'url': 'url',
 }
 CREATE_ENUM = object()
 FIELD_VALIDATION_LOOKUP = {
@@ -69,6 +70,7 @@ FIELD_VALIDATION_LOOKUP = {
     'integer': int,
     'date': date,
     'datetime': datetime,
+    'url': pydantic.HttpUrl,
 }
 
 

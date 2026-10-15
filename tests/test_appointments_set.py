@@ -139,6 +139,28 @@ async def test_extra_attrs(cli, db_conn, company):
     assert result.extra_attributes == eas
 
 
+async def test_extra_attrs_url(cli, db_conn, company):
+    extra_attrs = [
+        {
+            'id': 381,
+            'name': 'Website',
+            'type': 'url',
+            'machine_name': 'website',
+            'value': 'https://example.com/me',
+            'sort_index': 3,
+        },
+    ]
+    r = await create_apt(cli, company, extra_attributes=extra_attrs)
+    assert r.status == 200, await r.text()
+
+    curr = await db_conn.execute(sa_services.select())
+    result = await curr.first()
+    assert result.name == 'testing service'
+    assert result.extra_attributes == [
+        {'name': 'Website', 'type': 'url', 'machine_name': 'website', 'value': 'https://example.com/me'}
+    ]
+
+
 async def test_delete_old_appointments(db_conn, company, settings):
     n = datetime.utcnow()
     await create_appointment(db_conn, company, appointment_extra={'id': 1, 'start': n}, service_extra={'id': 1})
