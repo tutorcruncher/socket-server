@@ -135,6 +135,20 @@ async def enquiry_options_view(request):
                 'sort_index': 1001,
             },
         }
+    elif extra_attributes == 'stars':
+        attribute_children = {
+            'rating': {
+                'type': 'decimal',
+                'required': False,
+                'read_only': False,
+                'label': 'Rating',
+                'min_value': 0.0,
+                'max_value': 5.0,
+                'max_digits': 20,
+                'decimal_places': 2,
+                'sort_index': 17,
+            },
+        }
     elif extra_attributes == 'all_optional':
         attribute_children = {
             'how-did-you-hear-about-us': {

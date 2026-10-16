@@ -1,6 +1,7 @@
 import json
 import logging
 from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum
 from operator import itemgetter
 
@@ -57,18 +58,22 @@ FIELD_TYPE_LOOKUP = {
     'choice': 'select',
     'boolean': 'checkbox',
     'integer': 'integer',
+    # TutorCruncher's Stars field. TutorCruncher's own forms take whole stars too.
+    'decimal': 'integer',
     'date': 'date',
     'datetime': 'datetime',
     'url': 'url',
 }
 CREATE_URL = object()
 CREATE_ENUM = object()
+CREATE_DECIMAL = object()
 FIELD_VALIDATION_LOOKUP = {
     'string': str,
     'email': pydantic.EmailStr,
     'choice': CREATE_ENUM,
     'boolean': bool,
     'integer': int,
+    'decimal': CREATE_DECIMAL,
     'date': date,
     'datetime': datetime,
     'url': CREATE_URL,
@@ -95,6 +100,9 @@ class AttributeBaseModel(pydantic.BaseModel):
             return str(v)
         elif isinstance(v, Enum):
             return v.value
+        elif isinstance(v, Decimal):
+            # submit_enquiry posts the attributes with json.dumps, which can't encode a Decimal
+            return float(v)
         else:
             return v
 
@@ -119,6 +127,14 @@ async def enquiry_post(request, company, enquiry_options):
             field_type = type('DynamicHttpUrl', (pydantic.HttpUrl,), {'max_length': max_length})
         elif field_type == CREATE_ENUM:
             field_type = Enum('DynamicEnum', {f'v{i}': c['value'] for i, c in enumerate(field_data['choices'])})
+        elif field_type == CREATE_DECIMAL:
+            # TutorCruncher refuses a value outside these, so refuse it here rather than lose the enquiry
+            field_type = pydantic.condecimal(
+                ge=field_data.get('min_value'),
+                le=field_data.get('max_value'),
+                max_digits=field_data.get('max_digits'),
+                decimal_places=field_data.get('decimal_places'),
+            )
         fields[name] = (field_type, ... if field_data['required'] else None)
 
     if fields:
