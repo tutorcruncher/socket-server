@@ -155,11 +155,57 @@ async def test_post_enquiry_invalid_url(cli, company, other_server, worker):
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 400, await r.text()
     assert await r.json() == {
-        'details': [{'loc': ['website'], 'msg': 'invalid or missing URL scheme', 'type': 'value_error.url.scheme'}],
+        'details': [{'loc': ['website'], 'msg': 'Enter a valid URL.', 'type': 'value_error.url'}],
         'status': 'invalid attribute data',
     }
     await worker.run_check()
     assert other_server.app['request_log'] == ['enquiry_options']
+
+
+@pytest.mark.parametrize(
+    'link',
+    [
+        'https://my_site.com/',
+        'https://@example.com/',
+        'http://999.1.1.1/',
+        'http://[::::]/',
+        'https://' + ('a' * 63 + '.') * 3 + 'a' * 63 + '/',
+        'https://example.com/\tx',
+        'javascript:alert(1)',
+        'ftp://example.com/file',
+    ],
+)
+async def test_post_enquiry_url_tc_refuses(cli, company, other_server, worker, link):
+    # pydantic's HttpUrl accepts these, TutorCruncher refuses them
+    other_server.app['extra_attributes'] = 'url'
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': link}}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 400, await r.text()
+    assert await r.json() == {
+        'details': [{'loc': ['website'], 'msg': 'Enter a valid URL.', 'type': 'value_error.url'}],
+        'status': 'invalid attribute data',
+    }
+    await worker.run_check()
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+
+@pytest.mark.parametrize(
+    'link,sent',
+    [
+        ('https://exämple.com/x', 'https://exämple.com/x'),
+        ('http://[::1]:8080/x', 'http://[::1]:8080/x'),
+        (' https://example.com/me ', 'https://example.com/me'),
+    ],
+)
+async def test_post_enquiry_url_sent_as_typed(cli, company, other_server, worker, link, sent):
+    other_server.app['extra_attributes'] = 'url'
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': link}}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {'website': sent}
 
 
 async def test_post_enquiry_url_max_length(cli, company, other_server, worker):
@@ -203,7 +249,7 @@ async def test_post_enquiry_url_no_max_length(cli, company, other_server, worker
     data = {
         'client_name': 'Cat Flap',
         'grecaptcha_response': 'good' * 5,
-        'attributes': {'website': 'https://example.com/' + 'a' * 2064},
+        'attributes': {'website': 'https://example.com/' + 'a' * 2029},
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
@@ -211,9 +257,9 @@ async def test_post_enquiry_url_no_max_length(cli, company, other_server, worker
     assert await r.json() == {
         'details': [
             {
-                'ctx': {'limit_value': 2083},
+                'ctx': {'limit_value': 2048},
                 'loc': ['website'],
-                'msg': 'ensure this value has at most 2083 characters',
+                'msg': 'ensure this value has at most 2048 characters',
                 'type': 'value_error.any_str.max_length',
             }
         ],

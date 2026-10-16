@@ -12,6 +12,7 @@ from arq.utils import timestamp_ms
 
 from ..geo import get_ip
 from ..utils import CORS_PREFLIGHT_HEADERS, HTTPBadRequestJson, json_response
+from ..validation import LinkUrl
 from ..worker import REDIS_ENQUIRY_CACHE_KEY, get_enquiry_options, store_enquiry_data
 
 logger = logging.getLogger('socket')
@@ -95,9 +96,6 @@ class AttributeBaseModel(pydantic.BaseModel):
         # datetime is a subclass of date
         if isinstance(v, date):
             return v.isoformat()
-        elif isinstance(v, pydantic.HttpUrl):
-            # A Link's type is built per field, and arq can't pickle an instance of it
-            return str(v)
         elif isinstance(v, Enum):
             return v.value
         elif isinstance(v, Decimal):
@@ -123,8 +121,8 @@ async def enquiry_post(request, company, enquiry_options):
         field_type = FIELD_VALIDATION_LOOKUP[field_data['type']]
         if field_type == CREATE_URL:
             # TutorCruncher refuses a longer link, so refuse it here rather than lose the enquiry
-            max_length = field_data.get('max_length', pydantic.HttpUrl.max_length)
-            field_type = type('DynamicHttpUrl', (pydantic.HttpUrl,), {'max_length': max_length})
+            max_length = field_data.get('max_length', LinkUrl.max_length)
+            field_type = type('DynamicLinkUrl', (LinkUrl,), {'max_length': max_length})
         elif field_type == CREATE_ENUM:
             field_type = Enum('DynamicEnum', {f'v{i}': c['value'] for i, c in enumerate(field_data['choices'])})
         elif field_type == CREATE_DECIMAL:
