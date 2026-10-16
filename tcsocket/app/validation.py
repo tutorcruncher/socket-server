@@ -115,6 +115,8 @@ class ExtraAttributeModel(BaseModel):
     name: str
     value: Any
     sort_index: float
+    # TutorCruncher sends it only for a Link (url): the text Socket shows instead of the web address
+    link_text: str = None
 
     class EATypeEnum(str, Enum):
         checkbox = 'checkbox'

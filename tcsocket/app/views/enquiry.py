@@ -61,6 +61,7 @@ FIELD_TYPE_LOOKUP = {
     'datetime': 'datetime',
     'url': 'url',
 }
+CREATE_URL = object()
 CREATE_ENUM = object()
 FIELD_VALIDATION_LOOKUP = {
     'string': str,
@@ -70,16 +71,28 @@ FIELD_VALIDATION_LOOKUP = {
     'integer': int,
     'date': date,
     'datetime': datetime,
-    'url': pydantic.HttpUrl,
+    'url': CREATE_URL,
 }
 
 
 class AttributeBaseModel(pydantic.BaseModel):
+    @pydantic.validator('*', pre=True)
+    def empty_optional_as_absent(cls, v, field):
+        # The enquiry form sends "" for a box typed in then cleared. For an optional field that is the same as never
+        # filling it in, unless "" is one of its values: text, or a dropdown with an empty option.
+        takes_empty = field.type_ is str or (issubclass(field.type_, Enum) and any(m.value == '' for m in field.type_))
+        if v == '' and not field.required and not takes_empty:
+            return None
+        return v
+
     @pydantic.validator('*')
     def make_serializable(cls, v):
         # datetime is a subclass of date
         if isinstance(v, date):
             return v.isoformat()
+        elif isinstance(v, pydantic.HttpUrl):
+            # A Link's type is built per field, and arq can't pickle an instance of it
+            return str(v)
         elif isinstance(v, Enum):
             return v.value
         else:
@@ -100,7 +113,11 @@ async def enquiry_post(request, company, enquiry_options):
     fields = {}
     for name, field_data in enquiry_options['attributes'].get('children', {}).items():
         field_type = FIELD_VALIDATION_LOOKUP[field_data['type']]
-        if field_type == CREATE_ENUM:
+        if field_type == CREATE_URL:
+            # TutorCruncher refuses a longer link, so refuse it here rather than lose the enquiry
+            max_length = field_data.get('max_length', pydantic.HttpUrl.max_length)
+            field_type = type('DynamicHttpUrl', (pydantic.HttpUrl,), {'max_length': max_length})
+        elif field_type == CREATE_ENUM:
             field_type = Enum('DynamicEnum', {f'v{i}': c['value'] for i, c in enumerate(field_data['choices'])})
         fields[name] = (field_type, ... if field_data['required'] else None)
 

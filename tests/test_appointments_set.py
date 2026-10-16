@@ -148,6 +148,7 @@ async def test_extra_attrs_url(cli, db_conn, company):
             'machine_name': 'website',
             'value': 'https://example.com/me',
             'sort_index': 3,
+            'link_text': 'Visit website',
         },
     ]
     r = await create_apt(cli, company, extra_attributes=extra_attrs)
@@ -157,8 +158,78 @@ async def test_extra_attrs_url(cli, db_conn, company):
     result = await curr.first()
     assert result.name == 'testing service'
     assert result.extra_attributes == [
-        {'name': 'Website', 'type': 'url', 'machine_name': 'website', 'value': 'https://example.com/me'}
+        {
+            'name': 'Website',
+            'type': 'url',
+            'machine_name': 'website',
+            'value': 'https://example.com/me',
+            'link_text': 'Visit website',
+        }
     ]
+
+
+async def test_mass_apts_extra_attrs_url(cli, db_conn, company):
+    extra_attrs = [
+        {
+            'id': 381,
+            'name': 'Course page',
+            'type': 'url',
+            'machine_name': 'course_page',
+            'value': 'https://example.com/gcse-maths',
+            'sort_index': 3,
+            'link_text': 'Open course page',
+        },
+        {
+            'id': 382,
+            'name': 'Room',
+            'type': 'text_short',
+            'machine_name': 'room',
+            'value': 'Room 4',
+            'sort_index': 4,
+        },
+    ]
+    data = {
+        'appointments': [
+            dict(
+                id=2,
+                service_id=1,
+                service_name='test service',
+                extra_attributes=extra_attrs,
+                colour='#000000',
+                appointment_topic='testing appointment',
+                attendees_max=42,
+                attendees_count=4,
+                attendees_current_ids=[1, 2, 3],
+                start=str(datetime(2032, 1, 2, 12, 0, 0)),
+                finish=str(datetime(2032, 1, 2, 13, 0, 0)),
+                price=123.45,
+                location='Whatever',
+                ss_method='POST',
+            )
+        ]
+    }
+    url = cli.server.app.router['webhook-appointment-mass'].url_for(company='thepublickey')
+    r = await signed_request(cli, url, **data)
+    assert r.status == 200, await r.text()
+
+    expected = [
+        {
+            'name': 'Course page',
+            'type': 'url',
+            'machine_name': 'course_page',
+            'value': 'https://example.com/gcse-maths',
+            'link_text': 'Open course page',
+        },
+        {'name': 'Room', 'type': 'text_short', 'machine_name': 'room', 'value': 'Room 4'},
+    ]
+    curr = await db_conn.execute(sa_services.select())
+    result = await curr.first()
+    assert result.extra_attributes == expected
+
+    r = await cli.get(cli.server.app.router['appointment-list'].url_for(company='thepublickey'))
+    assert r.status == 200, await r.text()
+    obj = await r.json()
+    assert [a['service_extra_attributes'] for a in obj['results']] == [expected]
 
 
 async def test_delete_old_appointments(db_conn, company, settings):

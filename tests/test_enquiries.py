@@ -108,6 +108,7 @@ async def test_get_enquiry_url(cli, company, other_server):
         'prefix': 'attributes',
         'required': False,
         'label': 'Website',
+        'max_length': 2048,
         'sort_index': 16,
     }
 
@@ -153,6 +154,136 @@ async def test_post_enquiry_invalid_url(cli, company, other_server, worker):
     assert r.status == 400, await r.text()
     assert await r.json() == {
         'details': [{'loc': ['website'], 'msg': 'invalid or missing URL scheme', 'type': 'value_error.url.scheme'}],
+        'status': 'invalid attribute data',
+    }
+    await worker.run_check()
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+
+async def test_post_enquiry_url_max_length(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'url'
+    link = 'https://example.com/' + 'a' * 2028
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': link}}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {'website': link}
+
+
+async def test_post_enquiry_url_too_long(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'url'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'website': 'https://example.com/' + 'a' * 2029},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 400, await r.text()
+    assert await r.json() == {
+        'details': [
+            {
+                'ctx': {'limit_value': 2048},
+                'loc': ['website'],
+                'msg': 'ensure this value has at most 2048 characters',
+                'type': 'value_error.any_str.max_length',
+            }
+        ],
+        'status': 'invalid attribute data',
+    }
+    await worker.run_check()
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+
+async def test_post_enquiry_url_no_max_length(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'url_no_max_length'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'website': 'https://example.com/' + 'a' * 2064},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 400, await r.text()
+    assert await r.json() == {
+        'details': [
+            {
+                'ctx': {'limit_value': 2083},
+                'loc': ['website'],
+                'msg': 'ensure this value has at most 2083 characters',
+                'type': 'value_error.any_str.max_length',
+            }
+        ],
+        'status': 'invalid attribute data',
+    }
+    await worker.run_check()
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+
+async def test_post_enquiry_empty_url(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'url'
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': ''}}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1] == (
+        'enquiry_post',
+        {
+            'client_name': 'Cat Flap',
+            'user_agent': 'Testing Browser',
+            'ip_address': None,
+            'http_referrer': None,
+            'terms_and_conditions': False,
+            'attributes': {},
+        },
+    )
+
+
+async def test_post_enquiry_empty_optional(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'optional_types'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'nickname': '', 'age': '', 'start-date': '', 'start-time': '', 'level': '', 'has-laptop': ''},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {'nickname': ''}
+
+
+async def test_post_enquiry_empty_dropdown_option(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'all_optional'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'how-did-you-hear-about-us': '', 'date-of-birth': ''},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {'how-did-you-hear-about-us': ''}
+
+
+async def test_post_enquiry_empty_required(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'datetime'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'date-field': '', 'datetime-field': ''},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 400, await r.text()
+    assert await r.json() == {
+        'details': [
+            {'loc': ['date-field'], 'msg': 'invalid date format', 'type': 'value_error.date'},
+            {'loc': ['datetime-field'], 'msg': 'invalid datetime format', 'type': 'value_error.datetime'},
+        ],
         'status': 'invalid attribute data',
     }
     await worker.run_check()

@@ -185,25 +185,40 @@ async def test_extra_attributes_url(cli, db_conn, company):
             'name': 'Website',
             'value': 'https://example.com/me',
             'sort_index': 3,
+            'link_text': 'Visit website',
+        },
+        {
+            'id': 382,
+            'machine_name': 'blog',
+            'type': 'url',
+            'name': 'Blog',
+            'value': 'https://example.com/blog',
+            'sort_index': 4,
         },
     ]
     r = await signed_request(
         cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
     )
     assert r.status == 201, await r.text()
+    expected = [
+        {
+            'machine_name': 'website',
+            'type': 'url',
+            'name': 'Website',
+            'value': 'https://example.com/me',
+            'link_text': 'Visit website',
+        },
+        {'machine_name': 'blog', 'type': 'url', 'name': 'Blog', 'value': 'https://example.com/blog'},
+    ]
     curr = await db_conn.execute(sa_contractors.select())
     result = await curr.first()
     assert result.id == 123
-    assert result.extra_attributes == [
-        {'machine_name': 'website', 'type': 'url', 'name': 'Website', 'value': 'https://example.com/me'}
-    ]
+    assert result.extra_attributes == expected
 
     r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='123', slug='x'))
     assert r.status == 200, await r.text()
     obj = await r.json()
-    assert obj['extra_attributes'] == [
-        {'machine_name': 'website', 'type': 'url', 'name': 'Website', 'value': 'https://example.com/me'}
-    ]
+    assert obj['extra_attributes'] == expected
 
 
 async def test_tag_line_from_short_text(cli, db_conn, company):

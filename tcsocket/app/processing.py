@@ -165,7 +165,10 @@ async def contractor_set(
     tag_line, ex_attrs = _get_special_extra_attr(ex_attrs, 'tag_line', 'text_short')
     primary_description, ex_attrs = _get_special_extra_attr(ex_attrs, 'primary_description', 'text_extended')
     data.update(
-        extra_attributes=[ea_.dict(exclude={'sort_index'}) for ea_ in sorted(ex_attrs, key=attrgetter('sort_index'))],
+        extra_attributes=[
+            ea_.dict(exclude={'sort_index'}, exclude_unset=True)
+            for ea_ in sorted(ex_attrs, key=attrgetter('sort_index'))
+        ],
         tag_line=tag_line and tag_line[:255],  # Field limit; TC should only send through the first 100 chars.
         primary_description=primary_description,
     )
