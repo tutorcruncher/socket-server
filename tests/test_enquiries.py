@@ -225,6 +225,16 @@ async def test_post_enquiry_invalid_stars(cli, company, other_server, worker, va
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
+async def test_post_enquiry_empty_stars(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'stars'
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'rating': ''}}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {}
+
+
 async def test_post_enquiry_invalid_attributes(cli, company, other_server, worker):
     other_server.app['extra_attributes'] = 'default'
     data = {

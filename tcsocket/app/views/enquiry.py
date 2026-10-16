@@ -78,6 +78,15 @@ FIELD_VALIDATION_LOOKUP = {
 
 
 class AttributeBaseModel(pydantic.BaseModel):
+    @pydantic.validator('*', pre=True)
+    def empty_optional_as_absent(cls, v, field):
+        # The enquiry form sends "" for a box typed in then cleared. For an optional field that is the same as never
+        # filling it in, unless "" is one of its values: text, or a dropdown with an empty option.
+        takes_empty = field.type_ is str or (issubclass(field.type_, Enum) and any(m.value == '' for m in field.type_))
+        if v == '' and not field.required and not takes_empty:
+            return None
+        return v
+
     @pydantic.validator('*')
     def make_serializable(cls, v):
         # datetime is a subclass of date
