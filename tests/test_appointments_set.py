@@ -139,12 +139,12 @@ async def test_extra_attrs(cli, db_conn, company):
     assert result.extra_attributes == eas
 
 
-async def test_extra_attrs_url(cli, db_conn, company):
+async def test_extra_attrs_link(cli, db_conn, company):
     extra_attrs = [
         {
             'id': 381,
             'name': 'Website',
-            'type': 'url',
+            'type': 'text_short',
             'machine_name': 'website',
             'value': 'https://example.com/me',
             'sort_index': 3,
@@ -160,7 +160,7 @@ async def test_extra_attrs_url(cli, db_conn, company):
     assert result.extra_attributes == [
         {
             'name': 'Website',
-            'type': 'url',
+            'type': 'text_short',
             'machine_name': 'website',
             'value': 'https://example.com/me',
             'link_text': 'Visit website',
@@ -168,12 +168,12 @@ async def test_extra_attrs_url(cli, db_conn, company):
     ]
 
 
-async def test_mass_apts_extra_attrs_url(cli, db_conn, company):
+async def test_mass_apts_extra_attrs_link(cli, db_conn, company):
     extra_attrs = [
         {
             'id': 381,
             'name': 'Course page',
-            'type': 'url',
+            'type': 'text_short',
             'machine_name': 'course_page',
             'value': 'https://example.com/gcse-maths',
             'sort_index': 3,
@@ -215,7 +215,7 @@ async def test_mass_apts_extra_attrs_url(cli, db_conn, company):
     expected = [
         {
             'name': 'Course page',
-            'type': 'url',
+            'type': 'text_short',
             'machine_name': 'course_page',
             'value': 'https://example.com/gcse-maths',
             'link_text': 'Open course page',

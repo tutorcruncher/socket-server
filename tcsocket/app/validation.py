@@ -190,7 +190,8 @@ class ExtraAttributeModel(BaseModel):
     name: str
     value: Any
     sort_index: float
-    # TutorCruncher sends it only for a Link (url): the text Socket shows instead of the web address
+    # TutorCruncher sends it only for a Short Textbox set to Show as Link: the text Socket shows instead of the web
+    # address ('' to show the address)
     link_text: str = None
 
     class EATypeEnum(str, Enum):
@@ -202,7 +203,6 @@ class ExtraAttributeModel(BaseModel):
         dropdown = 'dropdown'
         datetime = 'datetime'
         date = 'date'
-        url = 'url'
 
     type: EATypeEnum
 

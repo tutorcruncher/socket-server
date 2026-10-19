@@ -83,6 +83,17 @@ class HTTPConflictJson(HTTPClientErrorJson):
     status_code = 409
 
 
+class HTTPBadGatewayJson(web.HTTPServerError):
+    status_code = 502
+
+    def __init__(self, **data):
+        super().__init__(
+            text=pretty_lenient_json(data),
+            content_type=JSON_CONTENT_TYPE,
+            headers=ACCESS_CONTROL_HEADERS,
+        )
+
+
 def pretty_json(data):
     return json.dumps(data, indent=2) + '\n'
 

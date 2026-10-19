@@ -57,7 +57,7 @@ async def test_get_enquiry_repeat(cli, company, other_server, redis, worker):
     assert other_server.app['request_log'] == ['enquiry_options', 'enquiry_options']
 
 
-async def test_post_enquiry_success(cli, company, other_server, worker):
+async def test_post_enquiry_success(cli, company, other_server):
     other_server.app['extra_attributes'] = 'default'
     data = {
         'client_name': 'Cat Flap',
@@ -75,7 +75,6 @@ async def test_post_enquiry_success(cli, company, other_server, worker):
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
-    await worker.run_check()
     assert [
         'enquiry_options',
         ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
@@ -115,7 +114,7 @@ async def test_get_enquiry_url(cli, company, other_server):
     }
 
 
-async def test_post_enquiry_url(cli, company, other_server, worker):
+async def test_post_enquiry_url(cli, company, other_server):
     other_server.app['extra_attributes'] = 'url'
     data = {
         'client_name': 'Cat Flap',
@@ -126,7 +125,6 @@ async def test_post_enquiry_url(cli, company, other_server, worker):
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
     assert await r.json() == {'status': 'enquiry submitted to TutorCruncher'}
-    await worker.run_check()
     assert [
         'enquiry_options',
         ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
@@ -144,7 +142,7 @@ async def test_post_enquiry_url(cli, company, other_server, worker):
     ] == other_server.app['request_log']
 
 
-async def test_post_enquiry_invalid_url(cli, company, other_server, worker):
+async def test_post_enquiry_invalid_url(cli, company, other_server):
     other_server.app['extra_attributes'] = 'url'
     data = {
         'client_name': 'Cat Flap',
@@ -158,7 +156,6 @@ async def test_post_enquiry_invalid_url(cli, company, other_server, worker):
         'details': [{'loc': ['website'], 'msg': 'Enter a valid URL.', 'type': 'value_error.url'}],
         'status': 'invalid attribute data',
     }
-    await worker.run_check()
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
@@ -169,13 +166,15 @@ async def test_post_enquiry_invalid_url(cli, company, other_server, worker):
         'https://@example.com/',
         'http://999.1.1.1/',
         'http://[::::]/',
+        'http://[::1/',
+        'http://[0000:0000:0000:0000:0000:0000:0000:0000:1]/',
         'https://' + ('a' * 63 + '.') * 3 + 'a' * 63 + '/',
         'https://example.com/\tx',
         'javascript:alert(1)',
         'ftp://example.com/file',
     ],
 )
-async def test_post_enquiry_url_tc_refuses(cli, company, other_server, worker, link):
+async def test_post_enquiry_url_tc_refuses(cli, company, other_server, link):
     # pydantic's HttpUrl accepts these, TutorCruncher refuses them
     other_server.app['extra_attributes'] = 'url'
     data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': link}}
@@ -186,7 +185,6 @@ async def test_post_enquiry_url_tc_refuses(cli, company, other_server, worker, l
         'details': [{'loc': ['website'], 'msg': 'Enter a valid URL.', 'type': 'value_error.url'}],
         'status': 'invalid attribute data',
     }
-    await worker.run_check()
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
@@ -198,28 +196,26 @@ async def test_post_enquiry_url_tc_refuses(cli, company, other_server, worker, l
         (' https://example.com/me ', 'https://example.com/me'),
     ],
 )
-async def test_post_enquiry_url_sent_as_typed(cli, company, other_server, worker, link, sent):
+async def test_post_enquiry_url_sent_as_typed(cli, company, other_server, link, sent):
     other_server.app['extra_attributes'] = 'url'
     data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': link}}
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert other_server.app['request_log'][-1][1]['attributes'] == {'website': sent}
 
 
-async def test_post_enquiry_url_max_length(cli, company, other_server, worker):
+async def test_post_enquiry_url_max_length(cli, company, other_server):
     other_server.app['extra_attributes'] = 'url'
     link = 'https://example.com/' + 'a' * 2028
     data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': link}}
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert other_server.app['request_log'][-1][1]['attributes'] == {'website': link}
 
 
-async def test_post_enquiry_url_too_long(cli, company, other_server, worker):
+async def test_post_enquiry_url_too_long(cli, company, other_server):
     other_server.app['extra_attributes'] = 'url'
     data = {
         'client_name': 'Cat Flap',
@@ -240,11 +236,10 @@ async def test_post_enquiry_url_too_long(cli, company, other_server, worker):
         ],
         'status': 'invalid attribute data',
     }
-    await worker.run_check()
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
-async def test_post_enquiry_url_no_max_length(cli, company, other_server, worker):
+async def test_post_enquiry_url_no_max_length(cli, company, other_server):
     other_server.app['extra_attributes'] = 'url_no_max_length'
     data = {
         'client_name': 'Cat Flap',
@@ -265,17 +260,15 @@ async def test_post_enquiry_url_no_max_length(cli, company, other_server, worker
         ],
         'status': 'invalid attribute data',
     }
-    await worker.run_check()
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
-async def test_post_enquiry_empty_url(cli, company, other_server, worker):
+async def test_post_enquiry_empty_url(cli, company, other_server):
     other_server.app['extra_attributes'] = 'url'
     data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'website': ''}}
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert other_server.app['request_log'][-1] == (
         'enquiry_post',
         {
@@ -289,7 +282,7 @@ async def test_post_enquiry_empty_url(cli, company, other_server, worker):
     )
 
 
-async def test_post_enquiry_empty_optional(cli, company, other_server, worker):
+async def test_post_enquiry_empty_optional(cli, company, other_server):
     other_server.app['extra_attributes'] = 'optional_types'
     data = {
         'client_name': 'Cat Flap',
@@ -299,11 +292,10 @@ async def test_post_enquiry_empty_optional(cli, company, other_server, worker):
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert other_server.app['request_log'][-1][1]['attributes'] == {'nickname': ''}
 
 
-async def test_post_enquiry_empty_dropdown_option(cli, company, other_server, worker):
+async def test_post_enquiry_empty_dropdown_option(cli, company, other_server):
     other_server.app['extra_attributes'] = 'all_optional'
     data = {
         'client_name': 'Cat Flap',
@@ -313,11 +305,10 @@ async def test_post_enquiry_empty_dropdown_option(cli, company, other_server, wo
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert other_server.app['request_log'][-1][1]['attributes'] == {'how-did-you-hear-about-us': ''}
 
 
-async def test_post_enquiry_empty_required(cli, company, other_server, worker):
+async def test_post_enquiry_empty_required(cli, company, other_server):
     other_server.app['extra_attributes'] = 'datetime'
     data = {
         'client_name': 'Cat Flap',
@@ -334,11 +325,10 @@ async def test_post_enquiry_empty_required(cli, company, other_server, worker):
         ],
         'status': 'invalid attribute data',
     }
-    await worker.run_check()
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
-async def test_post_enquiry_long_grecaptcha_response(cli, company, other_server, worker):
+async def test_post_enquiry_long_grecaptcha_response(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'grecaptcha_response': 'good' * 1000,
@@ -347,11 +337,10 @@ async def test_post_enquiry_long_grecaptcha_response(cli, company, other_server,
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert ('grecaptcha_post', {'secret': 'X' * 30, 'response': 'good' * 1000}) in other_server.app['request_log']
 
 
-async def test_post_enquiry_datetime(cli, company, other_server, worker):
+async def test_post_enquiry_datetime(cli, company, other_server):
     other_server.app['extra_attributes'] = 'datetime'
     data = {
         'client_name': 'Cat Flap',
@@ -361,7 +350,6 @@ async def test_post_enquiry_datetime(cli, company, other_server, worker):
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert [
         'enquiry_options',
         ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
@@ -399,7 +387,7 @@ async def test_get_enquiry_stars(cli, company, other_server):
     }
 
 
-async def test_post_enquiry_stars(cli, company, other_server, worker):
+async def test_post_enquiry_stars(cli, company, other_server):
     other_server.app['extra_attributes'] = 'stars'
     data = {
         'client_name': 'Cat Flap',
@@ -409,7 +397,6 @@ async def test_post_enquiry_stars(cli, company, other_server, worker):
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert [
         'enquiry_options',
         ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
@@ -450,7 +437,7 @@ async def test_post_enquiry_stars(cli, company, other_server, worker):
         ),
     ],
 )
-async def test_post_enquiry_invalid_stars(cli, company, other_server, worker, value, error):
+async def test_post_enquiry_invalid_stars(cli, company, other_server, value, error):
     other_server.app['extra_attributes'] = 'stars'
     data = {
         'client_name': 'Cat Flap',
@@ -461,21 +448,19 @@ async def test_post_enquiry_invalid_stars(cli, company, other_server, worker, va
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 400, await r.text()
     assert await r.json() == {'details': [error], 'status': 'invalid attribute data'}
-    await worker.run_check()
     assert other_server.app['request_log'] == ['enquiry_options']
 
 
-async def test_post_enquiry_empty_stars(cli, company, other_server, worker):
+async def test_post_enquiry_empty_stars(cli, company, other_server):
     other_server.app['extra_attributes'] = 'stars'
     data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'rating': ''}}
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 201, await r.text()
-    await worker.run_check()
     assert other_server.app['request_log'][-1][1]['attributes'] == {}
 
 
-async def test_post_enquiry_invalid_attributes(cli, company, other_server, worker):
+async def test_post_enquiry_invalid_attributes(cli, company, other_server):
     other_server.app['extra_attributes'] = 'default'
     data = {
         'client_name': 'Cat Flap',
@@ -487,7 +472,6 @@ async def test_post_enquiry_invalid_attributes(cli, company, other_server, worke
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
     assert r.status == 400, await r.text()
     data = await r.json()
-    await worker.run_check()
     assert data == {
         'details': [
             {'loc': ['tell-us-about-yourself'], 'msg': 'field required', 'type': 'value_error.missing'},
@@ -503,7 +487,7 @@ async def test_post_enquiry_invalid_attributes(cli, company, other_server, worke
     }
 
 
-async def test_post_enquiry_bad_captcha(cli, company, other_server, worker):
+async def test_post_enquiry_bad_captcha(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -511,8 +495,8 @@ async def test_post_enquiry_bad_captcha(cli, company, other_server, worker):
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'X-Forwarded-For': '1.2.3.4'})
-    assert r.status == 201, await r.text()
-    await worker.run_check()
+    assert r.status == 400, await r.text()
+    assert await r.json() == {'status': 'invalid reCAPTCHA'}
     assert other_server.app['request_log'] == [
         'enquiry_options',
         (
@@ -522,7 +506,7 @@ async def test_post_enquiry_bad_captcha(cli, company, other_server, worker):
     ]
 
 
-async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server, worker):
+async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -531,8 +515,8 @@ async def test_post_enquiry_wrong_captcha_domain(cli, company, other_server, wor
     other_server.app['grecaptcha_host'] = 'other.com'
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
-    assert r.status == 201, await r.text()
-    await worker.run_check()
+    assert r.status == 400, await r.text()
+    assert await r.json() == {'status': 'invalid reCAPTCHA'}
     assert other_server.app['request_log'] == [
         'enquiry_options',
         ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
@@ -555,10 +539,10 @@ async def test_post_enquiry_400(cli, company, other_server, caplog, worker):
     }
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers=headers)
-    assert r.status == 201, await r.text()
-    data = await r.json()
+    assert r.status == 400, await r.text()
+    assert await r.json() == {'status': 'invalid enquiry', 'details': {'status': 'enquiry submitted, no-op'}}
+    # the browser's form may be out of date, so the options are fetched again
     await worker.run_check()
-    assert data == {'status': 'enquiry submitted to TutorCruncher'}
     assert other_server.app['request_log'] == [
         'enquiry_options',
         ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
@@ -579,7 +563,7 @@ async def test_post_enquiry_400(cli, company, other_server, caplog, worker):
     assert '400 response posting to http://localhost:' in caplog.text
 
 
-async def test_post_enquiry_skip_grecaptcha(cli, company, other_server, worker):
+async def test_post_enquiry_skip_grecaptcha(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'upstream_http_referrer': 'foobar',
@@ -590,7 +574,6 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server, worker):
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
-    await worker.run_check()
     assert other_server.app['request_log'] == [
         'enquiry_options',
         (
@@ -607,7 +590,7 @@ async def test_post_enquiry_skip_grecaptcha(cli, company, other_server, worker):
     ]
 
 
-async def test_post_enquiry_500(cli, company, caplog, worker, redis):
+async def test_post_enquiry_500(cli, company, caplog):
     data = {
         'client_name': 'Cat Flap',
         'grecaptcha_response': 'good' * 5,
@@ -616,12 +599,35 @@ async def test_post_enquiry_500(cli, company, caplog, worker, redis):
     headers = {'Referer': 'http://snap.com', 'Origin': 'http://example.com'}
     url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
     r = await cli.post(url, data=json.dumps(data), headers=headers)
-    assert r.status == 201, await r.text()
-    await worker.run_check()
+    assert r.status == 502, await r.text()
+    assert await r.json() == {'status': 'enquiry not submitted'}
     assert '500 response posting to http://localhost:' in caplog.text
 
 
-async def test_post_enquiry_referrer_too_long(cli, company, other_server, worker):
+async def test_post_enquiry_400_not_json(cli, company, other_server):
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5}
+    headers = {'Referer': 'http://badjson400.com', 'Origin': 'http://example.com'}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers=headers)
+    assert r.status == 400, await r.text()
+    assert await r.json() == {'status': 'invalid enquiry', 'details': None}
+
+
+@pytest.mark.parametrize('setting', ['tc_api_root', 'grecaptcha_url'])
+async def test_post_enquiry_unreachable(cli, company, caplog, setting):
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    # cache the form's options before TutorCruncher goes away
+    r = await cli.get(url)
+    assert r.status == 200, await r.text()
+    setattr(cli.server.app['settings'], setting, 'http://localhost:1')
+    r = await cli.post(url, data=json.dumps(data), headers={'Origin': 'http://example.com'})
+    assert r.status == 502, await r.text()
+    assert await r.json() == {'status': 'enquiry not submitted'}
+    assert 'error submitting enquiry to' in caplog.text
+
+
+async def test_post_enquiry_referrer_too_long(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -635,12 +641,11 @@ async def test_post_enquiry_referrer_too_long(cli, company, other_server, worker
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
-    await worker.run_check()
     assert other_server.app['request_log'][2][1]['upstream_http_referrer'] == 'X' * 1023
     assert other_server.app['request_log'][2][1]['http_referrer'] == 'Y' * 1023
 
 
-async def test_post_enquiry_referrer_blank(cli, company, other_server, worker):
+async def test_post_enquiry_referrer_blank(cli, company, other_server):
     data = {
         'client_name': 'Cat Flap',
         'client_phone': '123',
@@ -654,7 +659,6 @@ async def test_post_enquiry_referrer_blank(cli, company, other_server, worker):
     assert r.status == 201, await r.text()
     data = await r.json()
     assert data == {'status': 'enquiry submitted to TutorCruncher'}
-    await worker.run_check()
     assert other_server.app['request_log'][2][1]['upstream_http_referrer'] == ''
 
 

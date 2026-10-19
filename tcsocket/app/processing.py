@@ -96,9 +96,9 @@ async def _set_labels(conn, company_id, labels):
 def _get_special_extra_attr(extra_attributes: List[ExtraAttributeModel], machine_name, attr_type):
     """
     Find special extra attributes suitable for tag_line and primary_description. Uses the first attr of type attr_type
-    if that machine_name is not found.
+    if that machine_name is not found. A link (one with link_text) is shown as a link instead.
     """
-    eas = [ea for ea in extra_attributes if ea.type == attr_type]
+    eas = [ea for ea in extra_attributes if ea.type == attr_type and ea.link_text is None]
     if eas:
         eas.sort(key=lambda ea: (ea.machine_name != machine_name, ea.sort_index))
         ea = eas[0]

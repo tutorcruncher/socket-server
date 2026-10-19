@@ -176,12 +176,12 @@ async def test_extra_attributes(cli, db_conn, company):
     assert obj['extra_attributes'][2]['value'] == '2032-06-01'
 
 
-async def test_extra_attributes_url(cli, db_conn, company):
+async def test_extra_attributes_link(cli, db_conn, company):
     eas = [
         {
             'id': 381,
             'machine_name': 'website',
-            'type': 'url',
+            'type': 'text_short',
             'name': 'Website',
             'value': 'https://example.com/me',
             'sort_index': 3,
@@ -190,30 +190,47 @@ async def test_extra_attributes_url(cli, db_conn, company):
         {
             'id': 382,
             'machine_name': 'blog',
-            'type': 'url',
+            'type': 'text_short',
             'name': 'Blog',
             'value': 'https://example.com/blog',
             'sort_index': 4,
+            'link_text': '',
+        },
+        {
+            'id': 383,
+            'machine_name': 'motto',
+            'type': 'text_short',
+            'name': 'Motto',
+            'value': 'Maths made easy',
+            'sort_index': 5,
         },
     ]
     r = await signed_request(
         cli, f'/{company.public_key}/webhook/contractor', id=123, deleted=False, first_name='Fred', extra_attributes=eas
     )
     assert r.status == 201, await r.text()
+    # the links stay links: the tag line is the first Short Textbox that isn't one
     expected = [
         {
             'machine_name': 'website',
-            'type': 'url',
+            'type': 'text_short',
             'name': 'Website',
             'value': 'https://example.com/me',
             'link_text': 'Visit website',
         },
-        {'machine_name': 'blog', 'type': 'url', 'name': 'Blog', 'value': 'https://example.com/blog'},
+        {
+            'machine_name': 'blog',
+            'type': 'text_short',
+            'name': 'Blog',
+            'value': 'https://example.com/blog',
+            'link_text': '',
+        },
     ]
     curr = await db_conn.execute(sa_contractors.select())
     result = await curr.first()
     assert result.id == 123
     assert result.extra_attributes == expected
+    assert result.tag_line == 'Maths made easy'
 
     r = await cli.get(cli.server.app.router['contractor-get'].url_for(company='thepublickey', id='123', slug='x'))
     assert r.status == 200, await r.text()

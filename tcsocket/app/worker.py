@@ -156,11 +156,14 @@ async def update_enquiry_options(ctx, company):
     redis.close()
 
 
-async def post_data(session, url, data, company):
+async def post_data(session, url, data, company, timeout=None):
+    """
+    Post data to TutorCruncher, returning its status and response body. Connection errors and timeouts are raised.
+    """
     data_enc = json.dumps(data)
     logger.info('POST => %s %s', url, data_enc)
     headers = request_headers(company, {'Content-Type': CT_JSON})
-    async with session.post(url, data=data_enc, headers=headers) as r:
+    async with session.post(url, data=data_enc, headers=headers, timeout=timeout) as r:
         response_data = await r.read()
     response_data = response_data.decode()
     logger.info('%s: response: %d, %s', url, r.status, response_data)
@@ -180,21 +183,10 @@ async def post_data(session, url, data, company):
                 }
             },
         )
-    return r.status
+    return r.status, response_data
 
 
-async def submit_enquiry(ctx, company, data):
-    api_enquiries_url = ctx['settings'].tc_api_root + ctx['settings'].tc_enquiry_endpoint
-    grecaptcha_response = data.pop('grecaptcha_response')
-    if not await _check_grecaptcha(ctx['settings'], ctx['session'], company, grecaptcha_response, data['ip_address']):
-        return
-    status = await post_data(ctx['session'], api_enquiries_url, data, company)
-    if status != 200:
-        await update_enquiry_options(ctx, company)
-    return status
-
-
-async def _check_grecaptcha(settings, session, company, grecaptcha_response, client_ip):
+async def check_grecaptcha(settings, session, company, grecaptcha_response, client_ip):
     if grecaptcha_response == 'mock-grecaptcha:{[private_key]}'.format(company):
         logger.info('skipping recaptcha using company private key')
         return True
@@ -218,7 +210,8 @@ async def _check_grecaptcha(settings, session, company, grecaptcha_response, cli
 
 async def submit_booking(ctx, company, data):
     api_book_appointment_url = ctx['settings'].tc_api_root + ctx['settings'].tc_book_apt_endpoint
-    return await post_data(ctx['session'], api_book_appointment_url, data, company)
+    status, _ = await post_data(ctx['session'], api_book_appointment_url, data, company)
+    return status
 
 
 async def delete_old_appointments(ctx):
@@ -239,7 +232,6 @@ class WorkerSettings:
         process_image,
         process_image_mass,
         submit_booking,
-        submit_enquiry,
         update_contractors,
         update_enquiry_options,
     ]
