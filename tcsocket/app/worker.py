@@ -208,6 +208,21 @@ async def check_grecaptcha(settings, session, company, grecaptcha_response, clie
             logger.warning('google recaptcha failure, response: %s', obj)
 
 
+async def submit_enquiry(ctx, company, data):
+    """
+    Posts an enquiry queued by a web process on the previous release, which answered the client before posting it.
+    Kept for one release so enquiries queued while this one deploys still reach TutorCruncher.
+    """
+    api_enquiries_url = ctx['settings'].tc_api_root + ctx['settings'].tc_enquiry_endpoint
+    grecaptcha_response = data.pop('grecaptcha_response')
+    if not await check_grecaptcha(ctx['settings'], ctx['session'], company, grecaptcha_response, data['ip_address']):
+        return
+    status, _ = await post_data(ctx['session'], api_enquiries_url, data, company)
+    if status != 200:
+        await update_enquiry_options(ctx, company)
+    return status
+
+
 async def submit_booking(ctx, company, data):
     api_book_appointment_url = ctx['settings'].tc_api_root + ctx['settings'].tc_book_apt_endpoint
     status, _ = await post_data(ctx['session'], api_book_appointment_url, data, company)
@@ -232,6 +247,7 @@ class WorkerSettings:
         process_image,
         process_image_mass,
         submit_booking,
+        submit_enquiry,
         update_contractors,
         update_enquiry_options,
     ]

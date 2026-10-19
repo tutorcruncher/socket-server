@@ -742,3 +742,52 @@ async def test_options_enquiry_preflight(cli, company):
     assert r.headers['Access-Control-Allow-Origin'] == '*'
     assert r.headers['Access-Control-Allow-Methods'] == 'POST'
     assert r.headers['Access-Control-Allow-Headers'] == 'Content-Type'
+
+
+async def test_queued_enquiry_from_previous_release(company, other_server, redis, worker):
+    company_data = dict(company._asdict(), domains=['example.com'])
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'user_agent': 'Testing Browser',
+        'ip_address': None,
+        'http_referrer': None,
+        'attributes': {},
+    }
+    await redis.enqueue_job('submit_enquiry', company=company_data, data=data)
+    await worker.run_check()
+    assert other_server.app['request_log'] == [
+        ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
+        (
+            'enquiry_post',
+            {
+                'client_name': 'Cat Flap',
+                'user_agent': 'Testing Browser',
+                'ip_address': None,
+                'http_referrer': None,
+                'attributes': {},
+            },
+        ),
+    ]
+
+
+async def test_queued_enquiry_refused(company, other_server, redis, worker):
+    company_data = dict(company._asdict(), domains=['example.com'])
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'ip_address': None, 'http_referrer': '400'}
+    await redis.enqueue_job('submit_enquiry', company=company_data, data=data)
+    await worker.run_check()
+    assert other_server.app['request_log'] == [
+        ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
+        ('enquiry_post', {'client_name': 'Cat Flap', 'ip_address': None, 'http_referrer': '400'}),
+        'enquiry_options',
+    ]
+
+
+async def test_queued_enquiry_bad_grecaptcha(company, other_server, redis, worker):
+    company_data = dict(company._asdict(), domains=['example.com'])
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'bad' * 5, 'ip_address': None}
+    await redis.enqueue_job('submit_enquiry', company=company_data, data=data)
+    await worker.run_check()
+    assert other_server.app['request_log'] == [
+        ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'badbadbadbadbad'}),
+    ]
