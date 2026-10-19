@@ -336,8 +336,6 @@ async def enquiry_post_view(request):
     referrer = json_obj.get('http_referrer') or ''
     if 'snap' in referrer:
         return Response(text='error', status=500)
-    elif 'badjson' in referrer:
-        return Response(text='error', status=400)
     request.app['request_log'].append(('enquiry_post', json_obj))
     return json_response({'status': 'enquiry submitted, no-op'}, status=400 if '400' in referrer else 200)
 

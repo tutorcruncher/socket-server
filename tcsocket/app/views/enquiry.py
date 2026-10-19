@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 from datetime import date, datetime
@@ -7,20 +6,17 @@ from enum import Enum
 from operator import itemgetter
 
 import pydantic
-from aiohttp import ClientError, ClientTimeout
 from aiohttp.hdrs import METH_OPTIONS, METH_POST
 from aiohttp.web_response import Response
 from arq.utils import timestamp_ms
 
 from ..geo import get_ip
-from ..utils import CORS_PREFLIGHT_HEADERS, HTTPBadGatewayJson, HTTPBadRequestJson, json_response
+from ..utils import CORS_PREFLIGHT_HEADERS, HTTPBadRequestJson, json_response
 from ..validation import LinkUrl
-from ..worker import REDIS_ENQUIRY_CACHE_KEY, check_grecaptcha, get_enquiry_options, post_data, store_enquiry_data
+from ..worker import REDIS_ENQUIRY_CACHE_KEY, get_enquiry_options, store_enquiry_data
 
 logger = logging.getLogger('socket')
 VISIBLE_FIELDS = 'client_name', 'client_email', 'client_phone', 'service_recipient_name'
-# The browser waits for TutorCruncher's answer, so don't make it wait for aiohttp's 5 minute default
-ENQUIRY_POST_TIMEOUT = ClientTimeout(total=30)
 
 
 async def clear_enquiry(request):
@@ -103,7 +99,7 @@ class AttributeBaseModel(pydantic.BaseModel):
         elif isinstance(v, Enum):
             return v.value
         elif isinstance(v, Decimal):
-            # post_data posts the attributes with json.dumps, which can't encode a Decimal
+            # submit_enquiry posts the attributes with json.dumps, which can't encode a Decimal
             return float(v)
         else:
             return v
@@ -148,36 +144,8 @@ async def enquiry_post(request, company, enquiry_options):
         else:
             data['attributes'] = {k: v for k, v in attributes.dict().items() if v is not None}
 
-    await submit_enquiry(request, company, data)
+    await request.app['redis'].enqueue_job('submit_enquiry', company=company, data=data)
     return json_response(request, status='enquiry submitted to TutorCruncher', status_=201)
-
-
-async def submit_enquiry(request, company, data):
-    """
-    Send the enquiry to TutorCruncher while the browser waits, so it's told when the enquiry wasn't saved rather than
-    shown a success.
-    """
-    settings, session = request.app['settings'], request.app['session']
-    grecaptcha_response = data.pop('grecaptcha_response')
-    url = settings.tc_api_root + settings.tc_enquiry_endpoint
-    try:
-        if not await check_grecaptcha(settings, session, company, grecaptcha_response, data['ip_address']):
-            raise HTTPBadRequestJson(status='invalid reCAPTCHA')
-        status, response_data = await post_data(session, url, data, company, timeout=ENQUIRY_POST_TIMEOUT)
-    except (ClientError, asyncio.TimeoutError):
-        logger.exception('error submitting enquiry to %s', url)
-        raise HTTPBadGatewayJson(status='enquiry not submitted')
-
-    if status == 400:
-        # the form the browser has may be out of date
-        await request.app['redis'].enqueue_job('update_enquiry_options', company)
-        try:
-            details = json.loads(response_data)
-        except ValueError:
-            details = None
-        raise HTTPBadRequestJson(status='invalid enquiry', details=details)
-    elif status not in {200, 201}:
-        raise HTTPBadGatewayJson(status='enquiry not submitted')
 
 
 def _convert_field(name, value, prefix=None):
