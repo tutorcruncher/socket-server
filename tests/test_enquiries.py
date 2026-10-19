@@ -175,6 +175,8 @@ async def test_post_enquiry_invalid_url(cli, company, other_server, worker):
         'https://example.com/\tx',
         'javascript:alert(1)',
         'ftp://example.com/file',
+        'https://example.com/\x00',
+        'https://example.com/\ud800',
     ],
 )
 async def test_post_enquiry_url_tc_refuses(cli, company, other_server, worker, link):

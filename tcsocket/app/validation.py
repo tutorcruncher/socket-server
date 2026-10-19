@@ -65,7 +65,8 @@ class LinkUrlError(PydanticValueError):
 class LinkUrl(str):
     """
     A Link custom field's web address, checked as TutorCruncher checks it: spaces at either end removed, then
-    is_link_url. It is passed on as typed.
+    is_link_url, and no null character or lone surrogate (DRF's CharField refuses both). It is passed on with the
+    spaces removed.
     """
 
     max_length = 2048  # Django's MAX_URL_LENGTH, which TutorCruncher's validator uses
@@ -80,7 +81,7 @@ class LinkUrl(str):
         v = v.strip()
         if len(v) > cls.max_length:
             raise AnyStrMaxLengthError(limit_value=cls.max_length)
-        if not is_link_url(v):
+        if '\x00' in v or any('\ud800' <= c <= '\udfff' for c in v) or not is_link_url(v):
             raise LinkUrlError()
         return v
 
