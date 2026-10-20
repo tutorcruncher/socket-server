@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from tests.conftest import signed_request
 
 
@@ -96,6 +98,55 @@ async def test_post_enquiry_success(cli, company, other_server, worker):
     ] == other_server.app['request_log']
 
 
+async def test_post_enquiry_empty_optional(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'optional_types'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'nickname': '', 'age': '', 'start-date': '', 'start-time': '', 'level': '', 'has-laptop': ''},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {'nickname': ''}
+
+
+async def test_post_enquiry_empty_dropdown_option(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'all_optional'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'how-did-you-hear-about-us': '', 'date-of-birth': ''},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {'how-did-you-hear-about-us': ''}
+
+
+async def test_post_enquiry_empty_required(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'datetime'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'date-field': '', 'datetime-field': ''},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 400, await r.text()
+    assert await r.json() == {
+        'details': [
+            {'loc': ['date-field'], 'msg': 'invalid date format', 'type': 'value_error.date'},
+            {'loc': ['datetime-field'], 'msg': 'invalid datetime format', 'type': 'value_error.datetime'},
+        ],
+        'status': 'invalid attribute data',
+    }
+    await worker.run_check()
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+
 async def test_post_enquiry_long_grecaptcha_response(cli, company, other_server, worker):
     data = {
         'client_name': 'Cat Flap',
@@ -135,6 +186,102 @@ async def test_post_enquiry_datetime(cli, company, other_server, worker):
             },
         ),
     ] == other_server.app['request_log']
+
+
+async def test_get_enquiry_stars(cli, company, other_server):
+    other_server.app['extra_attributes'] = 'stars'
+    r = await cli.get(cli.server.app.router['enquiry'].url_for(company=company.public_key))
+    assert r.status == 200, await r.text()
+    data = await r.json()
+    stars_field = next(f for f in data['visible'] if f['field'] == 'rating')
+    assert stars_field == {
+        'field': 'rating',
+        'type': 'integer',
+        'prefix': 'attributes',
+        'required': False,
+        'label': 'Rating',
+        'min_value': 0.0,
+        'max_value': 5.0,
+        'max_digits': 20,
+        'decimal_places': 2,
+        'sort_index': 17,
+    }
+
+
+async def test_post_enquiry_stars(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'stars'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'rating': '4'},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert [
+        'enquiry_options',
+        ('grecaptcha_post', {'secret': 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX', 'response': 'goodgoodgoodgoodgood'}),
+        (
+            'enquiry_post',
+            {
+                'client_name': 'Cat Flap',
+                'user_agent': 'Testing Browser',
+                'ip_address': None,
+                'http_referrer': None,
+                'terms_and_conditions': False,
+                'attributes': {'rating': 4.0},
+            },
+        ),
+    ] == other_server.app['request_log']
+
+
+@pytest.mark.parametrize(
+    'value,error',
+    [
+        (
+            6,
+            {
+                'ctx': {'limit_value': 5.0},
+                'loc': ['rating'],
+                'msg': 'ensure this value is less than or equal to 5.0',
+                'type': 'value_error.number.not_le',
+            },
+        ),
+        (
+            '4.555',
+            {
+                'ctx': {'decimal_places': 2},
+                'loc': ['rating'],
+                'msg': 'ensure that there are no more than 2 decimal places',
+                'type': 'value_error.decimal.max_places',
+            },
+        ),
+    ],
+)
+async def test_post_enquiry_invalid_stars(cli, company, other_server, worker, value, error):
+    other_server.app['extra_attributes'] = 'stars'
+    data = {
+        'client_name': 'Cat Flap',
+        'grecaptcha_response': 'good' * 5,
+        'attributes': {'rating': value},
+    }
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 400, await r.text()
+    assert await r.json() == {'details': [error], 'status': 'invalid attribute data'}
+    await worker.run_check()
+    assert other_server.app['request_log'] == ['enquiry_options']
+
+
+async def test_post_enquiry_empty_stars(cli, company, other_server, worker):
+    other_server.app['extra_attributes'] = 'stars'
+    data = {'client_name': 'Cat Flap', 'grecaptcha_response': 'good' * 5, 'attributes': {'rating': ''}}
+    url = cli.server.app.router['enquiry'].url_for(company=company.public_key)
+    r = await cli.post(url, data=json.dumps(data), headers={'User-Agent': 'Testing Browser'})
+    assert r.status == 201, await r.text()
+    await worker.run_check()
+    assert other_server.app['request_log'][-1][1]['attributes'] == {}
 
 
 async def test_post_enquiry_invalid_attributes(cli, company, other_server, worker):

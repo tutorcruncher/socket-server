@@ -135,6 +135,20 @@ async def enquiry_options_view(request):
                 'sort_index': 1001,
             },
         }
+    elif extra_attributes == 'stars':
+        attribute_children = {
+            'rating': {
+                'type': 'decimal',
+                'required': False,
+                'read_only': False,
+                'label': 'Rating',
+                'min_value': 0.0,
+                'max_value': 5.0,
+                'max_digits': 20,
+                'decimal_places': 2,
+                'sort_index': 17,
+            },
+        }
     elif extra_attributes == 'all_optional':
         attribute_children = {
             'how-did-you-hear-about-us': {
@@ -156,6 +170,47 @@ async def enquiry_options_view(request):
                 'label': 'Date of Birth',
                 'help_text': 'Date your child was born',
                 'sort_index': 1003,
+            },
+        }
+    elif extra_attributes == 'optional_types':
+        attribute_children = {
+            'nickname': {
+                'type': 'string',
+                'required': False,
+                'read_only': False,
+                'label': 'Nickname',
+                'max_length': 255,
+                'sort_index': 1000,
+            },
+            'age': {'type': 'integer', 'required': False, 'read_only': False, 'label': 'Age', 'sort_index': 1001},
+            'start-date': {
+                'type': 'date',
+                'required': False,
+                'read_only': False,
+                'label': 'Start date',
+                'sort_index': 1002,
+            },
+            'start-time': {
+                'type': 'datetime',
+                'required': False,
+                'read_only': False,
+                'label': 'Start time',
+                'sort_index': 1003,
+            },
+            'level': {
+                'type': 'choice',
+                'required': False,
+                'read_only': False,
+                'label': 'Level',
+                'choices': [{'value': 'gcse', 'display_name': 'GCSE'}, {'value': 'a-level', 'display_name': 'A Level'}],
+                'sort_index': 1004,
+            },
+            'has-laptop': {
+                'type': 'boolean',
+                'required': False,
+                'read_only': False,
+                'label': 'Has a laptop',
+                'sort_index': 1005,
             },
         }
     else:
