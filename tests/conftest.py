@@ -172,27 +172,6 @@ async def enquiry_options_view(request):
                 'sort_index': 1003,
             },
         }
-    elif extra_attributes == 'url':
-        attribute_children = {
-            'website': {
-                'type': 'url',
-                'required': False,
-                'read_only': False,
-                'label': 'Website',
-                'max_length': 2048,
-                'sort_index': 16,
-            },
-        }
-    elif extra_attributes == 'url_no_max_length':
-        attribute_children = {
-            'website': {
-                'type': 'url',
-                'required': False,
-                'read_only': False,
-                'label': 'Website',
-                'sort_index': 16,
-            },
-        }
     elif extra_attributes == 'optional_types':
         attribute_children = {
             'nickname': {

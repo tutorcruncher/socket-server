@@ -47,8 +47,7 @@ async def appointment_webhook(request):
         name=appointment.service_name,
         colour=appointment.colour,
         extra_attributes=[
-            ea.dict(exclude={'sort_index'}, exclude_unset=True)
-            for ea in sorted(appointment.extra_attributes, key=attrgetter('sort_index'))
+            ea.dict(exclude={'sort_index'}) for ea in sorted(appointment.extra_attributes, key=attrgetter('sort_index'))
         ],
     )
 
@@ -98,7 +97,7 @@ async def appointment_webhook_mass(request):
                 name=appointment.service_name,
                 colour=appointment.colour,
                 extra_attributes=[
-                    ea.dict(exclude={'sort_index'}, exclude_unset=True)
+                    ea.dict(exclude={'sort_index'})
                     for ea in sorted(appointment.extra_attributes, key=attrgetter('sort_index'))
                 ],
             )

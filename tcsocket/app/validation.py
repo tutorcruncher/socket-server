@@ -1,89 +1,13 @@
-import ipaddress
-import re
 from datetime import datetime
 from enum import Enum, unique
 from secrets import token_hex
 from typing import Any, List, Optional
-from urllib.parse import urlsplit
 
 from pydantic import BaseModel, EmailStr, NoneStr, constr, validator
-from pydantic.errors import AnyStrMaxLengthError, PydanticValueError
-from pydantic.validators import str_validator
 
 EXTRA_ATTR_TYPES = 'checkbox', 'text_short', 'text_extended', 'integer', 'stars', 'dropdown', 'datetime', 'date'
 
 MISSING = object()
-
-# TutorCruncher checks a Link with Django's URLValidator(schemes=['http', 'https']). These are its patterns, so socket
-# refuses every link TutorCruncher would refuse, rather than accept it and lose the enquiry.
-_UL = chr(0xA1) + '-' + chr(0xFFFF)  # unicode letters
-_IPV4 = (
-    r'(?:0|25[0-5]|2[0-4][0-9]|1[0-9]?[0-9]?|[1-9][0-9]?)(?:\.(?:0|25[0-5]|2[0-4][0-9]|1[0-9]?[0-9]?|[1-9][0-9]?)){3}'
-)
-_HOST = (
-    r'(?:[a-z' + _UL + r'0-9](?:[a-z' + _UL + r'0-9-]{0,61}[a-z' + _UL + r'0-9])?'  # hostname
-    r'(?:\.(?!-)[a-z' + _UL + r'0-9-]{1,63}(?<!-))*'  # domain
-    r'\.(?!-)(?:[a-z' + _UL + r'-]{2,63}|xn--[a-z0-9]{1,59})(?<!-)\.?'  # top level domain
-    r'|localhost)'
-)
-LINK_URL_RE = re.compile(
-    r'^(?:[a-z0-9.+-]*)://'  # scheme, checked separately
-    r'(?:[^\s:@/]+(?::[^\s:@/]*)?@)?'  # user:pass
-    r'(?:' + _IPV4 + r'|\[[0-9a-f:.]+\]|' + _HOST + r')'
-    r'(?::[0-9]{1,5})?'  # port
-    r'(?:[/?#][^\s]*)?'  # path
-    r'\Z',
-    re.IGNORECASE,
-)
-
-
-def is_link_url(v: str) -> bool:
-    if {'\t', '\r', '\n'} & set(v) or v.split('://')[0].lower() not in ('http', 'https'):
-        return False
-    try:
-        split = urlsplit(v)
-    except ValueError:
-        return False
-    if not LINK_URL_RE.search(v):
-        return False
-    ipv6 = re.search(r'^\[(.+)\](?::[0-9]{1,5})?$', split.netloc)
-    if ipv6:
-        try:
-            if len(ipv6[1]) > 39:
-                return False
-            ipaddress.IPv6Address(ipv6[1])
-        except ValueError:
-            return False
-    return split.hostname is not None and len(split.hostname) <= 253
-
-
-class LinkUrlError(PydanticValueError):
-    code = 'url'
-    msg_template = 'Enter a valid URL.'
-
-
-class LinkUrl(str):
-    """
-    A Link custom field's web address, checked as TutorCruncher checks it: spaces at either end removed, then
-    is_link_url, and no null character or lone surrogate (DRF's CharField refuses both). It is passed on with the
-    spaces removed.
-    """
-
-    max_length = 2048  # Django's MAX_URL_LENGTH, which TutorCruncher's validator uses
-
-    @classmethod
-    def __get_validators__(cls):
-        yield str_validator
-        yield cls.validate
-
-    @classmethod
-    def validate(cls, v: str) -> str:
-        v = v.strip()
-        if len(v) > cls.max_length:
-            raise AnyStrMaxLengthError(limit_value=cls.max_length)
-        if '\x00' in v or any('\ud800' <= c <= '\udfff' for c in v) or not is_link_url(v):
-            raise LinkUrlError()
-        return v
 
 
 @unique
@@ -191,9 +115,6 @@ class ExtraAttributeModel(BaseModel):
     name: str
     value: Any
     sort_index: float
-    # TutorCruncher sends it only for a Short Textbox set to Show as Link: the text Socket shows instead of the web
-    # address ('' to show the address)
-    link_text: str = None
 
     class EATypeEnum(str, Enum):
         checkbox = 'checkbox'
